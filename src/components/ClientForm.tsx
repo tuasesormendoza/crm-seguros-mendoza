@@ -568,10 +568,10 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
   const setDepField = useCallback((i: number, key: 'name' | 'birthDate' | 'ssn' | 'inPolicy' | 'coverageNote', val: string | boolean | null) =>
     setForm(f => { const deps = [...f.dependents]; deps[i] = { ...deps[i], [key]: val }; return { ...f, dependents: deps } }), [])
 
-  const dep0Change = useCallback((k: 'name' | 'birthDate' | 'ssn', v: string) => setDepField(0, k, v), [setDepField])
-  const dep1Change = useCallback((k: 'name' | 'birthDate' | 'ssn', v: string) => setDepField(1, k, v), [setDepField])
-  const dep2Change = useCallback((k: 'name' | 'birthDate' | 'ssn', v: string) => setDepField(2, k, v), [setDepField])
-  const dep3Change = useCallback((k: 'name' | 'birthDate' | 'ssn', v: string) => setDepField(3, k, v), [setDepField])
+  const dep0Change = useCallback((k: 'name' | 'birthDate' | 'ssn' | 'inPolicy' | 'coverageNote', v: string | boolean | null) => setDepField(0, k, v), [setDepField])
+  const dep1Change = useCallback((k: 'name' | 'birthDate' | 'ssn' | 'inPolicy' | 'coverageNote', v: string | boolean | null) => setDepField(1, k, v), [setDepField])
+  const dep2Change = useCallback((k: 'name' | 'birthDate' | 'ssn' | 'inPolicy' | 'coverageNote', v: string | boolean | null) => setDepField(2, k, v), [setDepField])
+  const dep3Change = useCallback((k: 'name' | 'birthDate' | 'ssn' | 'inPolicy' | 'coverageNote', v: string | boolean | null) => setDepField(3, k, v), [setDepField])
   const depHandlers = useMemo(() => [dep0Change, dep1Change, dep2Change, dep3Change], [dep0Change, dep1Change, dep2Change, dep3Change])
 
   const addListItem = useCallback((key: 'preferredDoctors' | 'specificMedications') =>
