@@ -40,7 +40,7 @@ interface ExtractedFields {
   insurer?: string; planName?: string; planCategory?: string
   planId?: string; acaPrice?: string; ded?: string; oop?: string
   hosp?: string; pcp?: string; spec?: string; uc?: string
-  xray?: string; ct?: string; lab?: string; rx?: string; net?: string
+  xray?: string; ct?: string; lab?: string; rx?: string; net?: string; ref?: string
 }
 
 // Map of extracted field → client field + label
