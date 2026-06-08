@@ -7,9 +7,6 @@ const nextConfig: NextConfig = {
     // Ignoramos el type-check en build para que Netlify pueda deployar.
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 };
 
 export default nextConfig;
