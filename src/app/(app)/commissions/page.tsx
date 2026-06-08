@@ -130,7 +130,7 @@ export default function CommissionsPage() {
 
   const { summary, clients } = data
   const avgPerClient = clients.length > 0 ? summary.totalMonthlyCommission / clients.length : 0
-  const maxMonthly = summary.byInsurer.reduce((m, r) => Math.max(m, r.totalMonthly), 0)
+  const maxMonthly = summary.byInsurer.reduce((m, r) => Math.max(m, r.monthly), 0)
 
   const sortedClients = [...clients].sort((a, b) =>
     sortDesc ? b.totalCommission - a.totalCommission : a.totalCommission - b.totalCommission
