@@ -52,5 +52,10 @@ uploads/
 prisma/dev.db
 prisma/*.db
 
+# Data export/import dumps used during the SQLite -> Postgres (Neon) migration —
+# also contain raw client PII in plaintext JSON. NEVER commit these.
+data-export.json
+data-export*.json
+
 # local helper scripts that may contain machine-specific paths
 *.command
