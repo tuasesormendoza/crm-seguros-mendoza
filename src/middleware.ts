@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { unsealData } from 'iron-session'
+
+// Paths that do NOT require authentication
+const PUBLIC_PATHS = ['/login', '/api/auth']
+
+// Static assets — skip middleware entirely
+const STATIC_REGEX = /^\/_next\/|^\/favicon\.ico|^\/logo\.png|^\/icons\//
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip static assets
+  if (STATIC_REGEX.test(pathname)) return NextResponse.next()
+
+  // Skip public paths (login page + auth API)
+  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) return NextResponse.next()
+
+  const sessionSecret = process.env.SESSION_SECRET
+  if (!sessionSecret) {
+    // Fail closed — no secret means no access
+    return isApiRoute(pathname)
+      ? NextResponse.json({ error: 'Servidor mal configurado' }, { status: 500 })
+      : NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  const cookieValue = request.cookies.get('crm-session')?.value
+
+  if (!cookieValue) {
+    return isApiRoute(pathname)
+      ? NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+      : NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  try {
+    const session = await unsealData<{ isLoggedIn?: boolean }>(cookieValue, {
+      password: sessionSecret,
+    })
+
+    if (!session.isLoggedIn) {
+      return isApiRoute(pathname)
+        ? NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+        : NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    return NextResponse.next()
+  } catch {
+    // Invalid/tampered cookie
+    return isApiRoute(pathname)
+      ? NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+      : NextResponse.redirect(new URL('/login', request.url))
+  }
+}
+
+function isApiRoute(pathname: string) {
+  return pathname.startsWith('/api/')
+}
+
+export const config = {
+  // Run on all routes except Next.js internals and static files
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo.png|icons/).*)'],
+}
