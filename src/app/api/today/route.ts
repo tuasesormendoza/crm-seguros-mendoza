@@ -24,7 +24,7 @@ export async function GET() {
 
   // Clients with birthday in next 7 days
   const allClients = await prisma.client.findMany({
-    select: { id: true, fullName: true, birthDate: true, contractDate: true, firstPaymentPaid: true, tags: true },
+    select: { id: true, fullName: true, birthDate: true, contractDate: true, firstPaymentPaid: true, tags: true, phone: true },
   })
 
   const weekBirthdays: { id: string; fullName: string; birthDate: string; age: number; daysUntil: number; phone: string | null }[] = []
