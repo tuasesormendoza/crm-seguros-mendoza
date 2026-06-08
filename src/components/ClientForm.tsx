@@ -447,7 +447,7 @@ interface DuplicateResult { id: string; fullName: string; reason: string }
 
 interface Props {
   initialData?: InitialData
-  onSubmit: (data: FormData) => Promise<void>
+  onSubmit: (data: Record<string, unknown>) => Promise<void>
   submitLabel?: string
   clientId?: string  // for excluding self when editing
 }

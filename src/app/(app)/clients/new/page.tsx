@@ -31,7 +31,7 @@ export default function NewClientPage() {
     return () => clearTimeout(t)
   }, [checkKey, checkDuplicates])
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSubmit = async (data: Record<string, unknown>) => {
     const res = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -61,19 +61,21 @@ function DuplicateAwareForm({
   onFieldChange,
   duplicates,
 }: {
-  onSubmit: (data: FormData) => Promise<void>
+  onSubmit: (data: Record<string, unknown>) => Promise<void>
   onFieldChange: (name: string, ssn: string) => void
   duplicates: Duplicate[]
 }) {
   const [lastName, setLastName] = useState('')
   const [lastSsn, setLastSsn] = useState('')
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSubmit = async (data: Record<string, unknown>) => {
     // Check once more on submit
-    if (data.fullName !== lastName || data.ssn !== lastSsn) {
-      setLastName(data.fullName)
-      setLastSsn(data.ssn)
-      onFieldChange(data.fullName, data.ssn)
+    const fullName = (data.fullName as string) ?? ''
+    const ssn = (data.ssn as string) ?? ''
+    if (fullName !== lastName || ssn !== lastSsn) {
+      setLastName(fullName)
+      setLastSsn(ssn)
+      onFieldChange(fullName, ssn)
     }
     await onSubmit(data)
   }
@@ -116,17 +118,19 @@ function ClientFormWithTracking({
   submitLabel,
   onFieldChange,
 }: {
-  onSubmit: (data: FormData) => Promise<void>
+  onSubmit: (data: Record<string, unknown>) => Promise<void>
   submitLabel: string
   onFieldChange: (name: string, ssn: string) => void
 }) {
   const [formSnapshot, setFormSnapshot] = useState({ name: '', ssn: '' })
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSubmit = async (data: Record<string, unknown>) => {
     // Trigger check on submit as well
-    if (data.fullName !== formSnapshot.name || data.ssn !== formSnapshot.ssn) {
-      setFormSnapshot({ name: data.fullName, ssn: data.ssn })
-      onFieldChange(data.fullName, data.ssn)
+    const fullName = (data.fullName as string) ?? ''
+    const ssn = (data.ssn as string) ?? ''
+    if (fullName !== formSnapshot.name || ssn !== formSnapshot.ssn) {
+      setFormSnapshot({ name: fullName, ssn: ssn })
+      onFieldChange(fullName, ssn)
     }
     await onSubmit(data)
   }
