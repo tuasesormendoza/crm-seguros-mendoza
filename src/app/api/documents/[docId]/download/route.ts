@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { readFileBuffer } from '@/lib/storage'
+import { getSession } from '@/lib/session'
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/documents/[docId]'>) {
-  const { docId } = await ctx.params
+  // Auth check (middleware also guards this, but belt-and-suspenders)
+  const session = await getSession()
+  if (!session.isLoggedIn) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
 
+  const { docId } = await ctx.params
   const doc = await prisma.document.findUnique({ where: { id: docId } })
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

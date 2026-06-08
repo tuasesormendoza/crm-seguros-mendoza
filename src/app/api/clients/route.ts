@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { encrypt, decryptClientFields } from '@/lib/encrypt'
+import { validateClient, validationError } from '@/lib/validate'
 
 function parseClientData(d: Record<string, unknown>) {
   return {
@@ -52,11 +54,11 @@ function parseClientData(d: Record<string, unknown>) {
     specificMedications: Array.isArray(d.specificMedications) ? JSON.stringify(d.specificMedications) : (d.specificMedications as string || null),
     bankHolder: d.bankHolder as string || null,
     bankName: d.bankName as string || null,
-    bankRouting: d.bankRouting as string || null,
-    bankAccount: d.bankAccount as string || null,
+    bankRouting: encrypt(d.bankRouting as string || null),
+    bankAccount: encrypt(d.bankAccount as string || null),
     bankAccountType: d.bankAccountType as string || null,
     portalUser: d.portalUser as string || null,
-    portalPassword: d.portalPassword as string || null,
+    portalPassword: encrypt(d.portalPassword as string || null),
     sherpaUrl: d.sherpaUrl as string || null,
     googleReview: d.googleReview as string || null,
     notes: d.notes as string || null,
@@ -100,15 +102,17 @@ export async function GET(request: NextRequest) {
     include: { dependents: true },
     orderBy: { fullName: 'asc' },
   })
-  return NextResponse.json(clients)
+  return NextResponse.json(clients.map(decryptClientFields))
 }
 
 export async function POST(request: NextRequest) {
   const data = await request.json()
   const { dependents, ...rest } = data
+  const errors = validateClient(rest)
+  if (Object.keys(errors).length > 0) return validationError(errors)
   const client = await prisma.client.create({
     data: { ...parseClientData(rest), dependents: dependents ? { create: parseDependents(dependents) } : undefined },
     include: { dependents: true },
   })
-  return NextResponse.json(client, { status: 201 })
+  return NextResponse.json(decryptClientFields(client), { status: 201 })
 }

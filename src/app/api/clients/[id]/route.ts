@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { encrypt, decryptClientFields } from '@/lib/encrypt'
+import { validateClient, validationError } from '@/lib/validate'
 
 function parseClientData(d: Record<string, unknown>) {
   return {
@@ -52,11 +54,11 @@ function parseClientData(d: Record<string, unknown>) {
     specificMedications: Array.isArray(d.specificMedications) ? JSON.stringify(d.specificMedications) : (d.specificMedications as string || null),
     bankHolder: d.bankHolder as string || null,
     bankName: d.bankName as string || null,
-    bankRouting: d.bankRouting as string || null,
-    bankAccount: d.bankAccount as string || null,
+    bankRouting: encrypt(d.bankRouting as string || null),
+    bankAccount: encrypt(d.bankAccount as string || null),
     bankAccountType: d.bankAccountType as string || null,
     portalUser: d.portalUser as string || null,
-    portalPassword: d.portalPassword as string || null,
+    portalPassword: encrypt(d.portalPassword as string || null),
     sherpaUrl: d.sherpaUrl as string || null,
     googleReview: d.googleReview as string || null,
     notes: d.notes as string || null,
@@ -79,23 +81,32 @@ function parseDependents(deps: { type: string; name?: string; birthDate?: string
   }))
 }
 
+// Encrypt only the sensitive fields present in a PATCH payload
+function encryptPatchFields(data: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...data }
+  if ('bankRouting' in result) result.bankRouting = encrypt(result.bankRouting as string | null)
+  if ('bankAccount' in result) result.bankAccount = encrypt(result.bankAccount as string | null)
+  if ('portalPassword' in result) result.portalPassword = encrypt(result.portalPassword as string | null)
+  return result
+}
+
 // PATCH — partial update (e.g. sherpaUrl only)
 export async function PATCH(request: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
   const { id } = await ctx.params
   const data = await request.json()
   const client = await prisma.client.update({
     where: { id },
-    data,
+    data: encryptPatchFields(data),
     include: { dependents: true, appointments: { orderBy: { date: 'asc' } } },
   })
-  return NextResponse.json(client)
+  return NextResponse.json(decryptClientFields(client))
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
   const { id } = await ctx.params
   const client = await prisma.client.findUnique({ where: { id }, include: { dependents: true, appointments: { orderBy: { date: 'asc' } } } })
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(client)
+  return NextResponse.json(decryptClientFields(client))
 }
 
 // "Beneficios del Plan" fields are edited inline on the profile (via PATCH) and
@@ -112,6 +123,8 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/clients/
   const { id } = await ctx.params
   const data = await request.json()
   const { dependents, appointments: _appts, ...rest } = data
+  const errors = validateClient(rest)
+  if (Object.keys(errors).length > 0) return validationError(errors)
   const parsed: Record<string, unknown> = parseClientData(rest)
   for (const key of PLAN_BENEFIT_KEYS) {
     if (rest[key] === undefined) delete parsed[key]
@@ -122,7 +135,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/clients/
     data: { ...parsed, dependents: dependents ? { create: parseDependents(dependents) } : undefined },
     include: { dependents: true, appointments: { orderBy: { date: 'asc' } } },
   })
-  return NextResponse.json(client)
+  return NextResponse.json(decryptClientFields(client))
 }
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
