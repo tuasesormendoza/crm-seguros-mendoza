@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+uploads/
+
+# SQLite databases — contain real client PII (SSNs, bank accounts, portal
+# passwords, medical info). NEVER commit these to version control.
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+prisma/dev.db
+prisma/*.db
+
+# local helper scripts that may contain machine-specific paths
+*.command

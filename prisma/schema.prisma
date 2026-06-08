@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Client {
+  id                   String    @id @default(cuid())
+  contractDate         DateTime?
+  policyYear           Int?
+  fullName             String
+  ssn                  String?
+  birthDate            DateTime?
+  email                String?
+  phone                String?
+  filesTaxes           Boolean?  // ¿Declara impuestos?
+  filingStatus         String?   // Soltero, Casado en conjunto, etc.
+  maritalStatus        String?   // Estado civil
+  employmentType       String?   // 1099 o W-2
+  address              String?
+  aptSuite             String?
+  city                 String?
+  zipCode              String?
+  county               String?
+  state                String?
+  coverageType         String?
+  insurer              String?
+  affiliatesCount      Int?      @default(1)
+  planName             String?
+  planCategory         String?
+  planId               String?
+  // Plan benefits (filled via PDF extraction or manual edit)
+  planNetwork          String?   // HMO, PPO, EPO, POS
+  planDeductible       String?   // e.g. "$0" or "$3,200"
+  planMaxOOP           String?   // e.g. "$8,700 individual"
+  planPCP              String?   // Primary care: "$0 copay"
+  planSpecialist       String?   // Specialist: "$40 copay"
+  planUrgentCare       String?   // Urgent Care: "$75 copay"
+  planHospital         String?   // Hospitalization: "20% coaseguro"
+  planRxGeneric        String?   // Generic meds: "$3 copay"
+  planXray             String?   // X-rays: "$45 copay"
+  planCTScan           String?   // CT/PET/MRI: "20% coaseguro"
+  planLab              String?   // Labs: "$30 copay"
+  planReferral         String?   // Referral required: "Sí" / "No"
+  acaPrice             Float?    @default(0)
+  wnPolicies           String?
+  // Washington National (WN) commission tracking — WN's contract date often
+  // differs from the ACA contractDate (the WN ancillary policy may be added
+  // later). cancellationDate lets us compute "months active" precisely for
+  // clawback-risk purposes instead of using "today" for cancelled clients.
+  wnContractDate          DateTime?
+  cancellationDate        DateTime?
+  // Manual overrides — WN's actual payment timing can differ from the
+  // theoretical schedule (75% at submission / 25% after month 8). These let
+  // the agent confirm what really happened instead of relying purely on dates.
+  wnSecondPaymentReceived Boolean?  @default(false)
+  wnClawbackReturned      Boolean?  @default(false)
+  totalMonthly         Float?    @default(0)
+  annualIncome         Float?
+  status               String?   @default("Activo")
+  activationDate       DateTime?   // 1st of month following contractDate
+  renewalDate          DateTime?
+  policyExpirationDate DateTime?
+  preferredDoctors     String?
+  specificMedications  String?
+  bankHolder           String?
+  bankName             String?
+  bankRouting          String?
+  bankAccount          String?
+  bankAccountType      String?
+  portalUser           String?
+  portalPassword       String?
+  sherpaUrl            String?
+  googleReview         String?
+  notes                String?
+  preferredLanguage    String?   // Español, English
+  dentalInsurer        String?
+  dentalDeductible     String?
+  dentalMaxBenefit     String?
+  firstPaymentPaid         Boolean?  @default(false)
+  firstPaymentDate         DateTime?
+  tags                     String?   // JSON array e.g. ["VIP","Necesita seguimiento"]
+  applicantInPolicy        Boolean?  @default(true)
+  applicantExclusionReason String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  dependents           Dependent[]
+  appointments         Appointment[]
+  activities           Activity[]
+  policyHistory        PolicyHistory[]
+  documents            Document[]
+}
+
+model PolicyHistory {
+  id           String   @id @default(cuid())
+  clientId     String
+  year         Int
+  insurer      String?
+  planName     String?
+  planCategory String?
+  acaPrice     Float?
+  totalMonthly Float?
+  wnPolicies   String?
+  notes        String?
+  recordedAt   DateTime @default(now())
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+
+model Dependent {
+  id             String    @id @default(cuid())
+  clientId       String
+  type           String
+  name           String?
+  birthDate      DateTime?
+  ssn            String?
+  inPolicy       Boolean?
+  coverageNote   String?   // Medicaid, Medicare, CHIP, Otro
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  clientId  String
+  date      DateTime
+  notes     String?
+  status    String   @default("Programada")
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  clientId  String
+  type      String
+  content   String
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model CommissionRate {
+  id         String   @id @default(cuid())
+  insurer    String   @unique
+  pmpm       Float
+  paymentDay Int?     // Día del mes en que la aseguradora paga la comisión (1-31)
+  notes      String?
+  updatedAt  DateTime @updatedAt
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  clientId    String
+  fileName    String   // original file name shown to user
+  storedName  String   // UUID-based name on disk
+  fileSize    Int      // bytes
+  mimeType    String
+  category    String   @default("Otro")
+  notes       String?
+  uploadedAt  DateTime @default(now())
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Settings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  type      String   // birthday, renewal, firstpayment
+  refId     String   // clientId or date string
+  sentAt    DateTime @default(now())
+  @@unique([type, refId])
+}
+
+model Prospect {
+  id                String   @id @default(cuid())
+  fullName          String
+  phone             String?
+  email             String?
+  state             String?
+  source            String?
+  stage             String   @default("Nuevo Lead (Por Contactar)")
+  notes             String?
+  referredByClientId String?  // ID of the client who referred this prospect
+  referredByName    String?  // Name cached for display
+  assignedDate      DateTime @default(now())
+
+  // ── "Modo Combate" — quick quoting fields captured live on the call ─────────
+  zipCode           String?
+  income            String?
+  householdSize     String?
+
+  // ── CMS / HealthSherpa compliance block ──────────────────────────────────────
+  sherpaStatus      String?   // null | "enviado"
+  consentAt         DateTime? // timestamp when client gave verbal/written consent
+
+  // ── "En Espera de Decisión / Docs" — mandatory re-call scheduling ───────────
+  callbackAt        DateTime? // agreed date/time to call the client back
+
+  // ── "Cerrado - Perdido" — standardized loss tracking ─────────────────────────
+  lossReason        String?   // GHOSTING | FALTA_DOCUMENTACION | PRECIO_INGRESOS | COMPETENCIA
+  tags              String?   // JSON array, e.g. ["Nutrición"]
+
+  // ── Auto-scheduled follow-up (e.g. Open Enrollment reopening on Nov 1) ──────
+  followUpAt        DateTime?
+  followUpNote      String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("agent")   // admin, agent
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
