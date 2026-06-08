@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { saveFile } from '@/lib/storage'
 import { randomUUID } from 'crypto'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
@@ -41,13 +40,10 @@ export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients
   const ext = file.name.split('.').pop() ?? 'bin'
   const storedName = `${randomUUID()}.${ext}`
 
-  // Store outside public/ for security
-  const uploadDir = path.join(process.cwd(), 'uploads', id)
-  await mkdir(uploadDir, { recursive: true })
-  const filePath = path.join(uploadDir, storedName)
-
+  // Store via Netlify Blobs in production (filesystem is ephemeral on
+  // serverless), or locally in uploads/{clientId}/ during development.
   const buffer = Buffer.from(await file.arrayBuffer())
-  await writeFile(filePath, buffer)
+  await saveFile(id, storedName, buffer)
 
   const doc = await prisma.document.create({
     data: {

@@ -1,0 +1,18 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Environment variables you must configure in the Netlify dashboard
+# (Site settings → Environment variables) — NEVER commit real values:
+#
+#   DATABASE_URL        -> Neon Postgres connection string (pooled, e.g. ...sslmode=require)
+#   SESSION_SECRET      -> random string, 32+ chars (session encryption)
+#   SESSION_PASSWORD    -> random string, 32+ chars (iron-session password)
+#   SMTP_*              -> if not stored in DB Settings, set here instead
+#   ANTHROPIC_API_KEY   -> if not stored in DB Settings, set here instead
+#
+# Netlify Blobs is automatically available to serverless/edge functions in this
+# site once the integration is enabled — no extra env vars needed for that.
