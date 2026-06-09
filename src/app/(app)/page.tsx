@@ -127,10 +127,12 @@ function getAEPCountdown() {
 }
 
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
-  borderRadius: 14,
-  boxShadow: '0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04)',
-  border: '1px solid #e2e8f0',
+  background: 'rgba(255,255,255,0.65)',
+  backdropFilter: 'blur(20px) saturate(1.8)',
+  WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
+  borderRadius: 18,
+  boxShadow: '0 8px 32px rgba(5,63,92,0.10), 0 1px 0 rgba(255,255,255,0.80) inset',
+  border: '1px solid rgba(255,255,255,0.60)',
   padding: '20px 24px',
 }
 

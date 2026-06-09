@@ -66,9 +66,9 @@ function DigitalClock() {
 
   return (
     <div className="mx-3 mb-2 px-3 py-2.5 rounded-lg text-center shrink-0"
-      style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+      style={{ background: 'rgba(159,231,245,.07)', border: '1px solid rgba(159,231,245,.12)' }}>
       <div className="font-mono font-bold tracking-widest"
-        style={{ color: '#7ab0cc', fontSize: '1.15rem', letterSpacing: '0.1em' }}>
+        style={{ color: '#9FE7F5', fontSize: '1.15rem', letterSpacing: '0.1em' }}>
         {time}
       </div>
       <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,.3)' }}>{date}</div>
@@ -114,9 +114,9 @@ export default function Sidebar() {
   const initials = agentName.split(' ').map((n:string)=>n[0]).slice(0,2).join('').toUpperCase()
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full" style={{ background: 'var(--surface-sidebar)' }}>
+    <div className="flex flex-col h-full" style={{ background: '#053F5C' }}>
       {/* Logo */}
-      <div className="flex items-center justify-between px-4 h-16 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+      <div className="flex items-center justify-between px-4 h-16 shrink-0" style={{ borderBottom: '1px solid rgba(159,231,245,.10)' }}>
         {!collapsed && (
           logoUrl ? (
             /* Custom logo */
@@ -129,12 +129,12 @@ export default function Sidebar() {
             /* Default text logo */
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: 'linear-gradient(135deg, #4a90b8, #0891b2)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                style={{ background: 'linear-gradient(135deg, #429EBD, #9FE7F5)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#053F5C" stroke="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
               </div>
               <div className="min-w-0">
                 <div className="text-white text-sm font-bold tracking-tight leading-none truncate">CRM Seguros</div>
-                <div className="text-xs leading-none mt-0.5 truncate" style={{ color: '#7ab0cc' }}>Agentes de Salud</div>
+                <div className="text-xs leading-none mt-0.5 truncate" style={{ color: '#9FE7F5' }}>Agentes de Salud</div>
               </div>
             </div>
           )
@@ -142,15 +142,15 @@ export default function Sidebar() {
         {collapsed && (
           logoUrl ? (
             <div className="w-9 h-9 rounded-lg flex items-center justify-center mx-auto overflow-hidden"
-              style={{ background: 'rgba(255,255,255,.1)' }}>
+              style={{ background: 'rgba(159,231,245,.15)' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain p-1"
                 style={{ filter: 'brightness(0) invert(1)' }} />
             </div>
           ) : (
             <div className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto"
-              style={{ background: 'linear-gradient(135deg, #4a90b8, #0891b2)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+              style={{ background: 'linear-gradient(135deg, #429EBD, #9FE7F5)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#053F5C"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
             </div>
           )
         )}
@@ -163,25 +163,25 @@ export default function Sidebar() {
 
       {/* Search */}
       {!collapsed && (
-        <div className="px-3 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+        <div className="px-3 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(159,231,245,.10)' }}>
           <div className="relative">
             <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30">{Icons.search}</div>
             <input
               type="text" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Buscar cliente..."
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg text-white placeholder-white/30 outline-none transition-all"
-              style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)' }}
+              style={{ background: 'rgba(159,231,245,.08)', border: '1px solid rgba(159,231,245,.18)' }}
               onFocus={() => searchResults.length > 0 && setShowSearch(true)}
               onBlur={() => setTimeout(() => setShowSearch(false), 200)}
             />
             {showSearch && searchResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 rounded-lg shadow-xl z-50 overflow-hidden animate-scale-in"
-                style={{ background: 'var(--gray-800)', border: '1px solid rgba(255,255,255,.1)' }}>
+                style={{ background: '#032b40', border: '1px solid rgba(159,231,245,.15)' }}>
                 {searchResults.map(r => (
                   <button key={r.id} onMouseDown={() => { router.push(`/clients/${r.id}`); setSearch(''); setShowSearch(false) }}
                     className="w-full px-3 py-2 text-left transition-colors hover:bg-white/10">
                     <div className="text-xs font-medium text-white">{r.fullName}</div>
-                    <div className="text-xs" style={{ color: 'var(--brand-300)' }}>{r.insurer} · {r.status}</div>
+                    <div className="text-xs" style={{ color: '#9FE7F5' }}>{r.insurer} · {r.status}</div>
                   </button>
                 ))}
               </div>
@@ -210,8 +210,8 @@ export default function Sidebar() {
                         ? 'text-white'
                         : 'text-white/50 hover:text-white/80 hover:bg-white/5'
                       }`}
-                    style={active ? { background: 'rgba(255,255,255,.1)' } : {}}>
-                    {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r" style={{ background: 'var(--brand-400)' }} />}
+                    style={active ? { background: 'rgba(159,231,245,.12)' } : {}}>
+                    {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r" style={{ background: '#F7AD19' }} />}
                     <span className={active ? 'text-white' : 'text-white/40 group-hover:text-white/60'}>
                       {Icons[item.icon as keyof typeof Icons]}
                     </span>
@@ -229,7 +229,7 @@ export default function Sidebar() {
         <div className="px-3 pb-3 shrink-0">
           <Link href="/clients/new"
             className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90 active:scale-[.98]"
-            style={{ background: 'linear-gradient(135deg, var(--brand-500), var(--teal-500))', color: 'white' }}>
+            style={{ background: 'linear-gradient(135deg, #F7AD19, #f0920a)', color: '#053F5C' }}>
             {Icons.plus}
             Nuevo Cliente
           </Link>
@@ -240,7 +240,7 @@ export default function Sidebar() {
       {!collapsed && <DigitalClock />}
 
       {/* Bottom: Agent + Settings + Logout */}
-      <div className="shrink-0 p-3 space-y-1" style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div className="shrink-0 p-3 space-y-1" style={{ borderTop: '1px solid rgba(159,231,245,.10)' }}>
         <Link href="/settings"
           className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-all text-white/50 hover:text-white/80 hover:bg-white/5">
           <span className="text-white/40">{Icons.settings}</span>
@@ -252,14 +252,14 @@ export default function Sidebar() {
           {!collapsed && <span>Cerrar sesión</span>}
         </button>
         {!collapsed && (
-          <div className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-lg" style={{ background: 'rgba(255,255,255,.05)' }}>
+          <div className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-lg" style={{ background: 'rgba(159,231,245,.07)' }}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-              style={{ background: 'linear-gradient(135deg, var(--brand-400), var(--teal-500))', color: 'white' }}>
+              style={{ background: 'linear-gradient(135deg, #F7AD19, #429EBD)', color: 'white' }}>
               {initials}
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold text-white truncate">{agentName}</div>
-              <div className="text-xs truncate" style={{ color: 'var(--brand-300)' }}>Agente de Seguros</div>
+              <div className="text-xs truncate" style={{ color: '#9FE7F5' }}>Agente de Seguros</div>
             </div>
           </div>
         )}
@@ -271,13 +271,13 @@ export default function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col shrink-0 transition-all duration-200"
-        style={{ width: collapsed ? '64px' : '220px', background: '#0f172a', minHeight: '100vh' }}>
+        style={{ width: collapsed ? '64px' : '220px', background: '#053F5C', minHeight: '100vh' }}>
         <SidebarContent />
       </aside>
 
       {/* Mobile hamburger */}
       <button className="lg:hidden fixed top-4 left-4 z-50 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-lg"
-        style={{ background: 'var(--surface-sidebar)' }}
+        style={{ background: '#053F5C' }}
         onClick={() => setMobileOpen(v=>!v)}>
         {Icons.menu}
       </button>
