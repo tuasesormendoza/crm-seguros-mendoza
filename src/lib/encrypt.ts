@@ -48,16 +48,23 @@ export function decrypt(value: string | null | undefined): string | null {
   } catch { return null }
 }
 
-// Decrypt sensitive fields in a client object before returning to the frontend
+// Decrypt sensitive fields in a client object before returning to the frontend.
+// Also decrypts nested dependent SSNs if present.
 export function decryptClientFields<T extends {
+  ssn?: string | null
   portalPassword?: string | null
   bankAccount?: string | null
   bankRouting?: string | null
+  dependents?: Array<Record<string, unknown> & { ssn?: string | null }>
 }>(client: T): T {
   return {
     ...client,
+    ssn: decrypt(client.ssn),
     portalPassword: decrypt(client.portalPassword),
     bankAccount: decrypt(client.bankAccount),
     bankRouting: decrypt(client.bankRouting),
+    ...(client.dependents && {
+      dependents: client.dependents.map(dep => ({ ...dep, ssn: decrypt(dep.ssn) })),
+    }),
   }
 }

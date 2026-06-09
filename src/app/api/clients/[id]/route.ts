@@ -6,7 +6,7 @@ import { validateClient, validationError } from '@/lib/validate'
 function parseClientData(d: Record<string, unknown>) {
   return {
     fullName: d.fullName as string,
-    ssn: d.ssn as string || null,
+    ssn: encrypt(d.ssn as string || null),
     birthDate: d.birthDate ? new Date(d.birthDate as string) : null,
     filesTaxes: d.filesTaxes != null ? Boolean(d.filesTaxes) : null,
     filingStatus: d.filingStatus as string || null,
@@ -77,13 +77,14 @@ function parseClientData(d: Record<string, unknown>) {
 function parseDependents(deps: { type: string; name?: string; birthDate?: string; ssn?: string; inPolicy?: boolean; coverageNote?: string }[]) {
   return deps.filter(d => d.name).map(d => ({
     type: d.type, name: d.name!, birthDate: d.birthDate ? new Date(d.birthDate) : null,
-    ssn: d.ssn || null, inPolicy: d.inPolicy === null || d.inPolicy === undefined ? null : d.inPolicy, coverageNote: d.coverageNote || null,
+    ssn: encrypt(d.ssn || null), inPolicy: d.inPolicy === null || d.inPolicy === undefined ? null : d.inPolicy, coverageNote: d.coverageNote || null,
   }))
 }
 
 // Encrypt only the sensitive fields present in a PATCH payload
 function encryptPatchFields(data: Record<string, unknown>): Record<string, unknown> {
   const result = { ...data }
+  if ('ssn' in result) result.ssn = encrypt(result.ssn as string | null)
   if ('bankRouting' in result) result.bankRouting = encrypt(result.bankRouting as string | null)
   if ('bankAccount' in result) result.bankAccount = encrypt(result.bankAccount as string | null)
   if ('portalPassword' in result) result.portalPassword = encrypt(result.portalPassword as string | null)

@@ -6,7 +6,7 @@ import { validateClient, validationError } from '@/lib/validate'
 function parseClientData(d: Record<string, unknown>) {
   return {
     fullName: d.fullName as string,
-    ssn: d.ssn as string || null,
+    ssn: encrypt(d.ssn as string || null),
     birthDate: d.birthDate ? new Date(d.birthDate as string) : null,
     filesTaxes: d.filesTaxes != null ? Boolean(d.filesTaxes) : null,
     filingStatus: d.filingStatus as string || null,
@@ -79,7 +79,7 @@ function parseDependents(deps: { type: string; name?: string; birthDate?: string
     type: d.type,
     name: d.name!,
     birthDate: d.birthDate ? new Date(d.birthDate) : null,
-    ssn: d.ssn || null,
+    ssn: encrypt(d.ssn || null),
     inPolicy: d.inPolicy === null || d.inPolicy === undefined ? null : d.inPolicy,
     coverageNote: d.coverageNote || null,
   }))
