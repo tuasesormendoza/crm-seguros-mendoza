@@ -198,34 +198,34 @@ export default function Dashboard() {
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches'
 
   const kpis = [
-    { label: 'Total Pólizas',      value: data.totalPolicies, icon: '📋', accent: '#4a90b8', iconBg: '#e8f2f8', border: '#4a90b8' },
-    { label: 'Clientes Activos',   value: data.activeClients, icon: '✅', accent: '#059669', iconBg: '#d1fae5', border: '#059669' },
-    { label: 'Vidas Aseguradas',   value: data.totalLives,    icon: '👥', accent: '#8b5cf6', iconBg: '#ede9fe', border: '#8b5cf6' },
-    { label: 'Con Wash. National', value: data.withWN,        icon: '🛡', accent: '#d97706', iconBg: '#fef3c7', border: '#d97706' },
+    { label: 'Total Pólizas',      value: data.totalPolicies, icon: '📋', accent: '#429EBD', iconBg: 'rgba(66,158,189,.12)', border: '#429EBD' },
+    { label: 'Clientes Activos',   value: data.activeClients, icon: '✅', accent: '#059669', iconBg: '#d1fae5',              border: '#059669' },
+    { label: 'Vidas Aseguradas',   value: data.totalLives,    icon: '👥', accent: '#053F5C', iconBg: 'rgba(5,63,92,.10)',   border: '#053F5C' },
+    { label: 'Con Wash. National', value: data.withWN,        icon: '🛡', accent: '#F7AD19', iconBg: 'rgba(247,173,25,.15)',border: '#F7AD19' },
   ]
 
   return (
     <div className="space-y-7 animate-fade-in">
       {/* Page header */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--gray-900)' }}>{greeting} 👋</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--gray-500)' }}>Aquí está el resumen de tu cartera</p>
+          <h1 className="text-xl font-bold lg:text-2xl" style={{ color: 'var(--gray-900)' }}>{greeting} 👋</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--gray-500)' }}>Resumen de tu cartera</p>
         </div>
-        <div className="flex gap-2.5">
+        <div className="flex gap-2">
           <Link href="/today"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #2a6496, #0891b2)', boxShadow: '0 2px 8px rgba(42,100,150,.3)' }}>
-            📋 ¿Qué hacer hoy?
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #053F5C, #429EBD)', boxShadow: '0 2px 12px rgba(5,63,92,.30)' }}>
+            📋 <span className="hidden sm:inline">¿Qué hacer </span>Hoy
             {todayItems > 0 && (
               <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
                 style={{ background: 'rgba(255,255,255,.25)' }}>{todayItems}</span>
             )}
           </Link>
           <a href="/api/backup" download
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', color: '#334155', boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}>
-            💾 Backup DB
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid rgba(66,158,189,.25)', color: '#334155', backdropFilter: 'blur(8px)' }}>
+            💾 Backup
           </a>
         </div>
       </div>
@@ -270,10 +270,10 @@ export default function Dashboard() {
 
       {/* Goals Progress */}
       {goals && goalsProgress && (
-        <div style={{ ...CARD, borderTop: '3px solid #0891b2' }}>
+        <div style={{ ...CARD, borderTop: '3px solid #429EBD' }}>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="font-semibold text-sm" style={{ color: '#0f172a' }}>🎯 Progreso del Mes</h2>
-            <a href="/settings" className="text-xs" style={{ color: '#0891b2' }}>Editar objetivos →</a>
+            <a href="/settings" className="text-xs" style={{ color: '#429EBD' }}>Editar objetivos →</a>
           </div>
           <div className="space-y-4">
             <GoalBar label="Nuevos clientes este mes" current={goalsProgress.newClients} target={goals.newClientsMonthly} />

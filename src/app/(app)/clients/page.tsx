@@ -168,15 +168,15 @@ export default function ClientsPage() {
           <h1 className="text-2xl font-bold" style={{ color: '#0f172a' }}>Clientes</h1>
           <p className="text-sm mt-1" style={{ color: '#64748b' }}>{filtered.length} de {clients.length} clientes</p>
         </div>
-        <div className="flex gap-2.5">
+        <div className="flex gap-2">
           <a href="/api/export/clients" download
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', color: '#334155', boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}>
-            ⬇️ Exportar CSV
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid rgba(66,158,189,.25)', color: '#334155', backdropFilter: 'blur(8px)' }}>
+            ⬇️ CSV
           </a>
           <Link href="/clients/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #2a6496, #0891b2)', boxShadow: '0 2px 8px rgba(42,100,150,.3)' }}>
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #053F5C, #429EBD)', boxShadow: '0 2px 12px rgba(5,63,92,.30)' }}>
             + Nuevo Cliente
           </Link>
         </div>

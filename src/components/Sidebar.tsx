@@ -275,18 +275,41 @@ export default function Sidebar() {
         <SidebarContent />
       </aside>
 
-      {/* Mobile hamburger */}
-      <button className="lg:hidden fixed top-4 left-4 z-50 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-lg"
-        style={{ background: '#053F5C' }}
-        onClick={() => setMobileOpen(v=>!v)}>
-        {Icons.menu}
-      </button>
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 flex items-center px-3 gap-3"
+        style={{ background: '#053F5C', boxShadow: '0 2px 20px rgba(5,63,92,.45)', backdropFilter: 'blur(12px)' }}>
+        <button onClick={() => setMobileOpen(v=>!v)}
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 transition-all active:scale-95"
+          style={{ background: 'rgba(159,231,245,.15)' }}>
+          {Icons.menu}
+        </button>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="Logo" className="h-7 object-contain"
+              style={{ filter: 'brightness(0) invert(1)', maxWidth: '120px' }} />
+          ) : (
+            <>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'linear-gradient(135deg, #429EBD, #9FE7F5)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#053F5C"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+              </div>
+              <span className="text-white font-bold text-sm truncate">CRM Seguros</span>
+            </>
+          )}
+        </div>
+        <Link href="/clients/new" onClick={() => setMobileOpen(false)}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all active:scale-95"
+          style={{ background: '#F7AD19', color: '#053F5C' }}>
+          {Icons.plus} Nuevo
+        </Link>
+      </div>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay + drawer */}
       {mobileOpen && (
         <>
           <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />
-          <aside className="lg:hidden fixed left-0 top-0 bottom-0 z-50 w-56 animate-slide-in">
+          <aside className="lg:hidden fixed left-0 top-0 bottom-0 z-50 w-64 animate-slide-in">
             <SidebarContent />
           </aside>
         </>
