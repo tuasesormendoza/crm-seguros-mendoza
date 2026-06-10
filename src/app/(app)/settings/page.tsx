@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { THEME_DEFAULTS, applyTheme } from '@/lib/utils'
 
 const INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white'
 const LABEL = 'block text-xs font-medium text-gray-600 mb-1'
@@ -345,6 +346,101 @@ function LogoUploader({ currentUrl, onUploaded }: { currentUrl?: string; onUploa
   )
 }
 
+// ── Color / Theme Customizer ──────────────────────────────────────────────────
+
+const THEME_COLOR_FIELDS: { key: keyof typeof THEME_DEFAULTS; label: string; desc: string }[] = [
+  { key: 'themeBrand800', label: 'Color Primario', desc: 'Menú lateral y botones principales' },
+  { key: 'themeBrand500', label: 'Color Secundario', desc: 'Degradados, enlaces y acentos' },
+  { key: 'themeBrand300', label: 'Color Claro', desc: 'Detalles y textos sobre fondo oscuro' },
+  { key: 'themeAccent', label: 'Color de Acento', desc: 'Botones destacados (ej. "+ Nuevo Cliente")' },
+]
+
+function ColorSettings({ settings, set, onSave }: {
+  settings: Settings
+  set: (key: string, value: string) => void
+  onSave: () => Promise<void>
+}) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    await onSave()
+    // Apply immediately so the user sees the result without reloading
+    const theme: Record<string, string> = {}
+    THEME_COLOR_FIELDS.forEach(f => { theme[f.key] = settings[f.key] || THEME_DEFAULTS[f.key] })
+    applyTheme(theme)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  function reset() {
+    THEME_COLOR_FIELDS.forEach(f => set(f.key, THEME_DEFAULTS[f.key]))
+  }
+
+  return (
+    <div className={SECTION}>
+      <h2 className={TITLE} style={{ color: '#10253f' }}>🎨 Colores del Sistema</h2>
+      <p className="text-xs text-gray-500 mb-4">
+        Personaliza la paleta de colores de tu CRM. Los cambios se aplican a toda la plataforma (menú lateral, botones, dashboard, login).
+      </p>
+      <form onSubmit={handleSave} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {THEME_COLOR_FIELDS.map(f => {
+            const value = (settings[f.key] && /^#[0-9a-fA-F]{6}$/.test(settings[f.key])) ? settings[f.key] : THEME_DEFAULTS[f.key]
+            return (
+              <div key={f.key}>
+                <label className={LABEL}>{f.label}</label>
+                <p className="text-xs text-gray-400 mb-1.5 leading-tight">{f.desc}</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={value}
+                    onChange={e => set(f.key, e.target.value)}
+                    className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer p-1 bg-white shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={value}
+                    onChange={e => set(f.key, e.target.value)}
+                    maxLength={7}
+                    className={INPUT + ' font-mono text-xs uppercase'}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Live preview */}
+        <div className="rounded-xl p-4 flex items-center gap-3 flex-wrap"
+          style={{ background: settings.themeBrand800 || THEME_DEFAULTS.themeBrand800 }}>
+          <div className="px-3 py-1.5 rounded-lg text-xs font-bold"
+            style={{ background: `linear-gradient(135deg, ${settings.themeBrand500 || THEME_DEFAULTS.themeBrand500}, ${settings.themeBrand300 || THEME_DEFAULTS.themeBrand300})`, color: settings.themeBrand800 || THEME_DEFAULTS.themeBrand800 }}>
+            Botón principal
+          </div>
+          <div className="px-3 py-1.5 rounded-lg text-xs font-bold"
+            style={{ background: settings.themeAccent || THEME_DEFAULTS.themeAccent, color: settings.themeBrand800 || THEME_DEFAULTS.themeBrand800 }}>
+            + Nuevo Cliente
+          </div>
+          <span className="text-xs font-medium" style={{ color: settings.themeBrand300 || THEME_DEFAULTS.themeBrand300 }}>
+            Vista previa en vivo
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <button type="button" onClick={reset} className="text-xs font-medium text-gray-500 hover:text-gray-700 underline">
+            Restaurar colores por defecto
+          </button>
+          <SaveBtn saving={saving} saved={saved} />
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
@@ -498,6 +594,9 @@ export default function SettingsPage() {
       {/* ── Logo de la Agencia ───────────────────────────────── */}
       <LogoUploader currentUrl={settings.logoUrl} onUploaded={url => set('logoUrl', url || '')} />
 
+      {/* ── Colores del Sistema ───────────────────────────────── */}
+      <ColorSettings settings={settings} set={set} onSave={() => saveSection(['themeBrand800','themeBrand500','themeBrand300','themeAccent'], () => {}, () => {})} />
+
       {/* ── Perfil del Agente ─────────────────────────────────── */}
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>👤 Perfil del Agente</h2>
@@ -554,6 +653,50 @@ export default function SettingsPage() {
           </div>
           <div className="flex justify-end">
             <SaveBtn saving={savingProfile} saved={savedProfile} />
+          </div>
+        </form>
+      </div>
+
+      {/* ── Objetivos de Producción ───────────────────────────── */}
+      <div className={SECTION}>
+        <h2 className={TITLE} style={{ color: '#10253f' }}>🎯 Objetivos de Producción</h2>
+        <p className="text-xs text-gray-500 mb-4">Define tus metas mensuales y anuales. Se mostrarán como barras de progreso en el dashboard.</p>
+        <form onSubmit={saveGoals} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL}>Nuevos clientes por mes</label>
+              <input className={INPUT} type="number" min="0" value={goals.newClientsMonthly}
+                onChange={e => setGoals(g => ({ ...g, newClientsMonthly: e.target.value }))} />
+            </div>
+            <div>
+              <label className={LABEL}>Nuevos clientes por año</label>
+              <input className={INPUT} type="number" min="0" value={goals.newClientsAnnual}
+                onChange={e => setGoals(g => ({ ...g, newClientsAnnual: e.target.value }))} />
+            </div>
+            <div>
+              <label className={LABEL}>Ingreso mensual meta ($)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                <input className={INPUT + ' pl-6'} type="number" min="0" value={goals.revenueMonthly}
+                  onChange={e => setGoals(g => ({ ...g, revenueMonthly: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>Ingreso anual meta ($)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                <input className={INPUT + ' pl-6'} type="number" min="0" value={goals.revenueAnnual}
+                  onChange={e => setGoals(g => ({ ...g, revenueAnnual: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>Clientes WN por mes</label>
+              <input className={INPUT} type="number" min="0" value={goals.wnClientsMonthly}
+                onChange={e => setGoals(g => ({ ...g, wnClientsMonthly: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <SaveBtn saving={savingGoals} saved={savedGoals} />
           </div>
         </form>
       </div>
@@ -625,37 +768,81 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* ── Claude AI (Tarjeta de Plan) ──────────────────────── */}
+      {/* ── Notificaciones por Email ─────────────────────────── */}
       <div className={SECTION}>
-        <h2 className={TITLE} style={{ color: '#10253f' }}>🤖 Claude AI — Generador de Tarjetas</h2>
-        <p className="text-xs text-gray-500 mb-4">
-          Necesario para extraer información del brochure PDF automáticamente.
-          Obtén tu clave en <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style={{ color: '#305a72' }}>console.anthropic.com</a>
-        </p>
-        <form onSubmit={e => { e.preventDefault(); saveSection(['anthropicApiKey'], setSavingPolicy, setSavedPolicy) }} className="space-y-4">
-          <div className="max-w-md">
-            <label className={LABEL}>API Key de Anthropic</label>
-            <div className="relative">
-              <input
-                className={INPUT + ' pr-16'}
-                type={showPw ? 'text' : 'password'}
-                value={settings.anthropicApiKey ?? ''}
-                onChange={e => set('anthropicApiKey', e.target.value)}
-                placeholder="sk-ant-api03-..."
-              />
-              <button type="button" onClick={() => setShowPw(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium"
-                style={{ color: '#507b88' }}>
-                {showPw ? '🙈' : '👁'}
-              </button>
+        <h2 className={TITLE} style={{ color: '#10253f' }}>📧 Notificaciones por Email</h2>
+        <p className="text-xs text-gray-500 mb-1">Recibe alertas automáticas de cumpleaños, renovaciones y pagos pendientes.</p>
+        <div className="text-xs mb-4 p-3 rounded-lg" style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1' }}>
+          Para Gmail: Ve a <strong>myaccount.google.com → Seguridad → Contraseñas de aplicaciones</strong> → Genera una para "Correo". Usa esa contraseña aquí, no tu contraseña principal.
+        </div>
+        <form onSubmit={e => { e.preventDefault(); saveSection(['emailEnabled','emailTo','smtpHost','smtpPort','smtpUser','smtpPass'], setSavingEmail, setSavedEmail) }}
+          className="space-y-4">
+          {/* Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+            <div>
+              <div className="text-sm font-medium text-gray-800">Activar notificaciones</div>
+              <div className="text-xs text-gray-500">Enviar emails automáticos al cargar el dashboard</div>
             </div>
-            {settings.anthropicApiKey && (
-              <p className="text-xs text-green-600 mt-1">✓ API Key configurada</p>
-            )}
+            <button type="button"
+              onClick={() => set('emailEnabled', settings.emailEnabled === 'true' ? 'false' : 'true')}
+              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              style={{ background: settings.emailEnabled === 'true' ? '#0891b2' : '#cbd5e1' }}>
+              <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow"
+                style={{ transform: settings.emailEnabled === 'true' ? 'translateX(22px)' : 'translateX(2px)' }} />
+            </button>
           </div>
-          <div className="flex justify-end">
-            <SaveBtn saving={savingPolicy} saved={savedPolicy} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL}>Email del agente (recibe notificaciones)</label>
+              <input className={INPUT} type="email" value={settings.emailTo ?? ''} onChange={e => set('emailTo', e.target.value)} placeholder="tu@email.com" />
+            </div>
+            <div>
+              <label className={LABEL}>Usuario Gmail (remitente)</label>
+              <input className={INPUT} type="email" value={settings.smtpUser ?? ''} onChange={e => set('smtpUser', e.target.value)} placeholder="tu@gmail.com" />
+            </div>
+            <div>
+              <label className={LABEL}>Contraseña de aplicación Google</label>
+              <div className="relative">
+                <input className={INPUT + ' pr-16'} type={showSmtpPass ? 'text' : 'password'}
+                  value={settings.smtpPass ?? ''} onChange={e => set('smtpPass', e.target.value)} placeholder="xxxx xxxx xxxx xxxx" />
+                <button type="button" onClick={() => setShowSmtpPass(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium" style={{ color: '#507b88' }}>
+                  {showSmtpPass ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>SMTP Host</label>
+              <input className={INPUT} value={settings.smtpHost ?? 'smtp.gmail.com'} onChange={e => set('smtpHost', e.target.value)} />
+            </div>
+            <div>
+              <label className={LABEL}>Puerto SMTP</label>
+              <input className={INPUT} type="number" value={settings.smtpPort ?? '587'} onChange={e => set('smtpPort', e.target.value)} />
+            </div>
           </div>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <SaveBtn saving={savingEmail} saved={savedEmail} />
+            <button type="button" onClick={testEmail} disabled={testingEmail}
+              className="px-4 py-2 rounded-lg text-sm font-semibold border transition-all disabled:opacity-50"
+              style={{ background: '#f0f9ff', border: '1px solid #0891b2', color: '#0369a1' }}>
+              {testingEmail ? 'Enviando...' : '📧 Enviar email de prueba'}
+            </button>
+            <button type="button" onClick={checkNotifications} disabled={checkingNotif}
+              className="px-4 py-2 rounded-lg text-sm font-semibold border transition-all disabled:opacity-50"
+              style={{ background: '#f0fdf4', border: '1px solid #10b981', color: '#065f46' }}>
+              {checkingNotif ? 'Verificando...' : '🔔 Verificar notificaciones ahora'}
+            </button>
+          </div>
+          {testEmailResult && (
+            <div className="text-sm px-3 py-2 rounded-lg" style={{ background: testEmailResult.startsWith('✅') ? '#f0fdf4' : '#fef2f2', color: testEmailResult.startsWith('✅') ? '#065f46' : '#dc2626', border: `1px solid ${testEmailResult.startsWith('✅') ? '#a7f3d0' : '#fca5a5'}` }}>
+              {testEmailResult}
+            </div>
+          )}
+          {checkNotifResult && (
+            <div className="text-sm px-3 py-2 rounded-lg" style={{ background: '#f0fdf4', color: '#065f46', border: '1px solid #a7f3d0' }}>
+              {checkNotifResult}
+            </div>
+          )}
         </form>
       </div>
 
@@ -787,124 +974,36 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* ── Notificaciones por Email ─────────────────────────── */}
+      {/* ── Claude AI (Tarjeta de Plan) ──────────────────────── */}
       <div className={SECTION}>
-        <h2 className={TITLE} style={{ color: '#10253f' }}>📧 Notificaciones por Email</h2>
-        <p className="text-xs text-gray-500 mb-1">Recibe alertas automáticas de cumpleaños, renovaciones y pagos pendientes.</p>
-        <div className="text-xs mb-4 p-3 rounded-lg" style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1' }}>
-          Para Gmail: Ve a <strong>myaccount.google.com → Seguridad → Contraseñas de aplicaciones</strong> → Genera una para "Correo". Usa esa contraseña aquí, no tu contraseña principal.
-        </div>
-        <form onSubmit={e => { e.preventDefault(); saveSection(['emailEnabled','emailTo','smtpHost','smtpPort','smtpUser','smtpPass'], setSavingEmail, setSavedEmail) }}
-          className="space-y-4">
-          {/* Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <div>
-              <div className="text-sm font-medium text-gray-800">Activar notificaciones</div>
-              <div className="text-xs text-gray-500">Enviar emails automáticos al cargar el dashboard</div>
+        <h2 className={TITLE} style={{ color: '#10253f' }}>🤖 Claude AI — Generador de Tarjetas</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Necesario para extraer información del brochure PDF automáticamente.
+          Obtén tu clave en <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style={{ color: '#305a72' }}>console.anthropic.com</a>
+        </p>
+        <form onSubmit={e => { e.preventDefault(); saveSection(['anthropicApiKey'], setSavingPolicy, setSavedPolicy) }} className="space-y-4">
+          <div className="max-w-md">
+            <label className={LABEL}>API Key de Anthropic</label>
+            <div className="relative">
+              <input
+                className={INPUT + ' pr-16'}
+                type={showPw ? 'text' : 'password'}
+                value={settings.anthropicApiKey ?? ''}
+                onChange={e => set('anthropicApiKey', e.target.value)}
+                placeholder="sk-ant-api03-..."
+              />
+              <button type="button" onClick={() => setShowPw(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium"
+                style={{ color: '#507b88' }}>
+                {showPw ? '🙈' : '👁'}
+              </button>
             </div>
-            <button type="button"
-              onClick={() => set('emailEnabled', settings.emailEnabled === 'true' ? 'false' : 'true')}
-              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              style={{ background: settings.emailEnabled === 'true' ? '#0891b2' : '#cbd5e1' }}>
-              <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow"
-                style={{ transform: settings.emailEnabled === 'true' ? 'translateX(22px)' : 'translateX(2px)' }} />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={LABEL}>Email del agente (recibe notificaciones)</label>
-              <input className={INPUT} type="email" value={settings.emailTo ?? ''} onChange={e => set('emailTo', e.target.value)} placeholder="tu@email.com" />
-            </div>
-            <div>
-              <label className={LABEL}>Usuario Gmail (remitente)</label>
-              <input className={INPUT} type="email" value={settings.smtpUser ?? ''} onChange={e => set('smtpUser', e.target.value)} placeholder="tu@gmail.com" />
-            </div>
-            <div>
-              <label className={LABEL}>Contraseña de aplicación Google</label>
-              <div className="relative">
-                <input className={INPUT + ' pr-16'} type={showSmtpPass ? 'text' : 'password'}
-                  value={settings.smtpPass ?? ''} onChange={e => set('smtpPass', e.target.value)} placeholder="xxxx xxxx xxxx xxxx" />
-                <button type="button" onClick={() => setShowSmtpPass(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium" style={{ color: '#507b88' }}>
-                  {showSmtpPass ? '🙈' : '👁'}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className={LABEL}>SMTP Host</label>
-              <input className={INPUT} value={settings.smtpHost ?? 'smtp.gmail.com'} onChange={e => set('smtpHost', e.target.value)} />
-            </div>
-            <div>
-              <label className={LABEL}>Puerto SMTP</label>
-              <input className={INPUT} type="number" value={settings.smtpPort ?? '587'} onChange={e => set('smtpPort', e.target.value)} />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <SaveBtn saving={savingEmail} saved={savedEmail} />
-            <button type="button" onClick={testEmail} disabled={testingEmail}
-              className="px-4 py-2 rounded-lg text-sm font-semibold border transition-all disabled:opacity-50"
-              style={{ background: '#f0f9ff', border: '1px solid #0891b2', color: '#0369a1' }}>
-              {testingEmail ? 'Enviando...' : '📧 Enviar email de prueba'}
-            </button>
-            <button type="button" onClick={checkNotifications} disabled={checkingNotif}
-              className="px-4 py-2 rounded-lg text-sm font-semibold border transition-all disabled:opacity-50"
-              style={{ background: '#f0fdf4', border: '1px solid #10b981', color: '#065f46' }}>
-              {checkingNotif ? 'Verificando...' : '🔔 Verificar notificaciones ahora'}
-            </button>
-          </div>
-          {testEmailResult && (
-            <div className="text-sm px-3 py-2 rounded-lg" style={{ background: testEmailResult.startsWith('✅') ? '#f0fdf4' : '#fef2f2', color: testEmailResult.startsWith('✅') ? '#065f46' : '#dc2626', border: `1px solid ${testEmailResult.startsWith('✅') ? '#a7f3d0' : '#fca5a5'}` }}>
-              {testEmailResult}
-            </div>
-          )}
-          {checkNotifResult && (
-            <div className="text-sm px-3 py-2 rounded-lg" style={{ background: '#f0fdf4', color: '#065f46', border: '1px solid #a7f3d0' }}>
-              {checkNotifResult}
-            </div>
-          )}
-        </form>
-      </div>
-
-      {/* ── Objetivos de Producción ───────────────────────────── */}
-      <div className={SECTION}>
-        <h2 className={TITLE} style={{ color: '#10253f' }}>🎯 Objetivos de Producción</h2>
-        <p className="text-xs text-gray-500 mb-4">Define tus metas mensuales y anuales. Se mostrarán como barras de progreso en el dashboard.</p>
-        <form onSubmit={saveGoals} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={LABEL}>Nuevos clientes por mes</label>
-              <input className={INPUT} type="number" min="0" value={goals.newClientsMonthly}
-                onChange={e => setGoals(g => ({ ...g, newClientsMonthly: e.target.value }))} />
-            </div>
-            <div>
-              <label className={LABEL}>Nuevos clientes por año</label>
-              <input className={INPUT} type="number" min="0" value={goals.newClientsAnnual}
-                onChange={e => setGoals(g => ({ ...g, newClientsAnnual: e.target.value }))} />
-            </div>
-            <div>
-              <label className={LABEL}>Ingreso mensual meta ($)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input className={INPUT + ' pl-6'} type="number" min="0" value={goals.revenueMonthly}
-                  onChange={e => setGoals(g => ({ ...g, revenueMonthly: e.target.value }))} />
-              </div>
-            </div>
-            <div>
-              <label className={LABEL}>Ingreso anual meta ($)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input className={INPUT + ' pl-6'} type="number" min="0" value={goals.revenueAnnual}
-                  onChange={e => setGoals(g => ({ ...g, revenueAnnual: e.target.value }))} />
-              </div>
-            </div>
-            <div>
-              <label className={LABEL}>Clientes WN por mes</label>
-              <input className={INPUT} type="number" min="0" value={goals.wnClientsMonthly}
-                onChange={e => setGoals(g => ({ ...g, wnClientsMonthly: e.target.value }))} />
-            </div>
+            {settings.anthropicApiKey && (
+              <p className="text-xs text-green-600 mt-1">✓ API Key configurada</p>
+            )}
           </div>
           <div className="flex justify-end">
-            <SaveBtn saving={savingGoals} saved={savedGoals} />
+            <SaveBtn saving={savingPolicy} saved={savedPolicy} />
           </div>
         </form>
       </div>

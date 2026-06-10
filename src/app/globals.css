@@ -14,6 +14,14 @@
   --brand-100: #e8f9fd;
   --brand-50:  #f4fcfe;
 
+  /* RGB triplets for the customizable brand colors — used in rgba()/transparency
+     contexts. Kept in sync with the hex vars above by ThemeProvider when the
+     agency customizes its colors in Settings → Apariencia. */
+  --brand-800-rgb: 5, 63, 92;
+  --brand-500-rgb: 66, 158, 189;
+  --brand-300-rgb: 159, 231, 245;
+  --accent-rgb:    247, 173, 25;
+
   /* Accent */
   --accent:       #F7AD19;   /* golden amber */
   --accent-dark:  #d4910e;
@@ -45,21 +53,21 @@
   /* Surfaces */
   --surface-base:    #f0f9fd;
   --surface-card:    rgba(255, 255, 255, 0.70);
-  --surface-sidebar: #053F5C;
-  --border:          rgba(66, 158, 189, 0.18);
-  --border-strong:   rgba(66, 158, 189, 0.30);
+  --surface-sidebar: var(--brand-800);
+  --border:          rgba(var(--brand-500-rgb), 0.18);
+  --border-strong:   rgba(var(--brand-500-rgb), 0.30);
 
   /* Glass card */
   --glass-bg:     rgba(255, 255, 255, 0.65);
   --glass-border: rgba(255, 255, 255, 0.55);
-  --glass-shadow: 0 8px 32px rgba(5, 63, 92, 0.10), 0 1px 0 rgba(255,255,255,0.75) inset;
+  --glass-shadow: 0 8px 32px rgba(var(--brand-800-rgb), 0.10), 0 1px 0 rgba(255,255,255,0.75) inset;
 
   /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(5,63,92,.05);
-  --shadow-sm: 0 1px 3px rgba(5,63,92,.08), 0 1px 2px rgba(5,63,92,.04);
-  --shadow-md: 0 4px 16px rgba(5,63,92,.10), 0 2px 4px rgba(5,63,92,.06);
-  --shadow-lg: 0 10px 30px rgba(5,63,92,.12), 0 4px 6px rgba(5,63,92,.06);
-  --shadow-xl: 0 20px 50px rgba(5,63,92,.14), 0 10px 10px rgba(5,63,92,.06);
+  --shadow-xs: 0 1px 2px rgba(var(--brand-800-rgb),.05);
+  --shadow-sm: 0 1px 3px rgba(var(--brand-800-rgb),.08), 0 1px 2px rgba(var(--brand-800-rgb),.04);
+  --shadow-md: 0 4px 16px rgba(var(--brand-800-rgb),.10), 0 2px 4px rgba(var(--brand-800-rgb),.06);
+  --shadow-lg: 0 10px 30px rgba(var(--brand-800-rgb),.12), 0 4px 6px rgba(var(--brand-800-rgb),.06);
+  --shadow-xl: 0 20px 50px rgba(var(--brand-800-rgb),.14), 0 10px 10px rgba(var(--brand-800-rgb),.06);
 
   /* Radius */
   --r-sm:   6px;
@@ -89,11 +97,11 @@ body {
   min-height: 100vh;
   /* Liquid Glass backdrop — colored blobs that show through glass cards */
   background:
-    radial-gradient(ellipse at 12% 28%, rgba(159, 231, 245, 0.40) 0%, transparent 52%),
-    radial-gradient(ellipse at 85% 72%, rgba(247, 173,  25, 0.22) 0%, transparent 48%),
-    radial-gradient(ellipse at 62%  8%, rgba( 66, 158, 189, 0.22) 0%, transparent 44%),
-    radial-gradient(ellipse at 40% 90%, rgba(  5,  63,  92, 0.08) 0%, transparent 46%),
-    #f0f9fd;
+    radial-gradient(ellipse at 12% 28%, rgba(var(--brand-300-rgb), 0.40) 0%, transparent 52%),
+    radial-gradient(ellipse at 85% 72%, rgba(var(--accent-rgb), 0.22) 0%, transparent 48%),
+    radial-gradient(ellipse at 62%  8%, rgba(var(--brand-500-rgb), 0.22) 0%, transparent 44%),
+    radial-gradient(ellipse at 40% 90%, rgba(var(--brand-800-rgb), 0.08) 0%, transparent 46%),
+    var(--surface-base);
   background-attachment: fixed;
 }
 
@@ -114,35 +122,35 @@ body {
   backdrop-filter: blur(32px) saturate(2);
   -webkit-backdrop-filter: blur(32px) saturate(2);
   border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 16px 48px rgba(5, 63, 92, 0.14), 0 1px 0 rgba(255,255,255,0.85) inset;
+  box-shadow: 0 16px 48px rgba(var(--brand-800-rgb), 0.14), 0 1px 0 rgba(255,255,255,0.85) inset;
 }
 
 /* Dark glass — for sidebar items, tooltips on dark bg */
 .glass-dark {
-  background: rgba(5, 63, 92, 0.55);
+  background: rgba(var(--brand-800-rgb), 0.55);
   backdrop-filter: blur(16px) saturate(1.6);
   -webkit-backdrop-filter: blur(16px) saturate(1.6);
-  border: 1px solid rgba(159, 231, 245, 0.15);
+  border: 1px solid rgba(var(--brand-300-rgb), 0.15);
   box-shadow: 0 4px 16px rgba(0,0,0,0.25);
 }
 
 /* Accent glass — amber tint for highlight cards */
 .glass-accent {
-  background: rgba(247, 173, 25, 0.12);
+  background: rgba(var(--accent-rgb), 0.12);
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  border: 1px solid rgba(247, 173, 25, 0.30);
-  box-shadow: 0 8px 32px rgba(247, 173, 25, 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.30);
+  box-shadow: 0 8px 32px rgba(var(--accent-rgb), 0.12);
 }
 
 /* ── Scrollbar ──────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(66, 158, 189, 0.35);
+  background: rgba(var(--brand-500-rgb), 0.35);
   border-radius: var(--r-full);
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(66, 158, 189, 0.55); }
+::-webkit-scrollbar-thumb:hover { background: rgba(var(--brand-500-rgb), 0.55); }
 
 /* ── Focus ring ─────────────────────────────────────────── */
 *:focus-visible {

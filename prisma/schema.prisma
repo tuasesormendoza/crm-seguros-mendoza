@@ -151,6 +151,20 @@ model CommissionRate {
   updatedAt  DateTime @updatedAt
 }
 
+// Registro manual de pagos de comisión efectivamente recibidos, para comparar
+// contra lo proyectado (PMPM × vidas) y ajustar las cifras a la realidad.
+model CommissionPayment {
+  id           String   @id @default(cuid())
+  insurer      String
+  period       String   // Mes que cubre el pago, formato "YYYY-MM" (ej. "2026-04")
+  amount       Float
+  receivedDate DateTime
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@index([insurer, period])
+}
+
 model Document {
   id          String   @id @default(cuid())
   clientId    String

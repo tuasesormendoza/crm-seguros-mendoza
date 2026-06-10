@@ -112,15 +112,15 @@ function ReviewStageCard({ stage, count, clients }: ReviewStage) {
 function getAEPCountdown() {
   const today = new Date()
   const year = today.getFullYear()
-  const prevAepStart = new Date(year - 1, 10, 1)
+  const prevAepStart = new Date(year - 1, 10, 15)
   const prevAepEnd   = new Date(year, 0, 15)
-  const currAepStart = new Date(year, 10, 1)
+  const currAepStart = new Date(year, 10, 15)
   const currAepEnd   = new Date(year + 1, 0, 15)
   const isInPrevAep  = today >= prevAepStart && today <= prevAepEnd
   const isInCurrAep  = today >= currAepStart && today <= currAepEnd
   const isActive     = isInPrevAep || isInCurrAep
   const activeEnd    = isInPrevAep ? prevAepEnd : currAepEnd
-  const nextStart    = today < currAepStart ? currAepStart : new Date(year + 1, 10, 1)
+  const nextStart    = today < currAepStart ? currAepStart : new Date(year + 1, 10, 15)
   const daysUntilStart = Math.ceil((nextStart.getTime() - today.getTime()) / (1000*60*60*24))
   const daysUntilEnd   = Math.ceil((activeEnd.getTime() - today.getTime()) / (1000*60*60*24))
   return { isActive, daysUntilStart, daysUntilEnd, nextStart, activeEnd }
@@ -131,7 +131,7 @@ const CARD: React.CSSProperties = {
   backdropFilter: 'blur(20px) saturate(1.8)',
   WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
   borderRadius: 18,
-  boxShadow: '0 8px 32px rgba(5,63,92,0.10), 0 1px 0 rgba(255,255,255,0.80) inset',
+  boxShadow: '0 8px 32px rgba(var(--brand-800-rgb), 0.10), 0 1px 0 rgba(255,255,255,0.80) inset',
   border: '1px solid rgba(255,255,255,0.60)',
   padding: '20px 24px',
 }
@@ -198,10 +198,10 @@ export default function Dashboard() {
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches'
 
   const kpis = [
-    { label: 'Total Pólizas',      value: data.totalPolicies, icon: '📋', accent: '#429EBD', iconBg: 'rgba(66,158,189,.12)', border: '#429EBD' },
+    { label: 'Total Pólizas',      value: data.totalPolicies, icon: '📋', accent: 'var(--brand-500)', iconBg: 'rgba(var(--brand-500-rgb), .12)', border: 'var(--brand-500)' },
     { label: 'Clientes Activos',   value: data.activeClients, icon: '✅', accent: '#059669', iconBg: '#d1fae5',              border: '#059669' },
-    { label: 'Vidas Aseguradas',   value: data.totalLives,    icon: '👥', accent: '#053F5C', iconBg: 'rgba(5,63,92,.10)',   border: '#053F5C' },
-    { label: 'Con Wash. National', value: data.withWN,        icon: '🛡', accent: '#F7AD19', iconBg: 'rgba(247,173,25,.15)',border: '#F7AD19' },
+    { label: 'Vidas Aseguradas',   value: data.totalLives,    icon: '👥', accent: 'var(--brand-800)', iconBg: 'rgba(var(--brand-800-rgb), .10)',   border: 'var(--brand-800)' },
+    { label: 'Con Wash. National', value: data.withWN,        icon: '🛡', accent: 'var(--accent)', iconBg: 'rgba(var(--accent-rgb), .15)',border: 'var(--accent)' },
   ]
 
   return (
@@ -215,7 +215,7 @@ export default function Dashboard() {
         <div className="flex gap-2">
           <Link href="/today"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #053F5C, #429EBD)', boxShadow: '0 2px 12px rgba(5,63,92,.30)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--brand-800), var(--brand-500))', boxShadow: '0 2px 12px rgba(var(--brand-800-rgb), .30)' }}>
             📋 <span className="hidden sm:inline">¿Qué hacer </span>Hoy
             {todayItems > 0 && (
               <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
@@ -224,7 +224,7 @@ export default function Dashboard() {
           </Link>
           <a href="/api/backup" download
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
-            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid rgba(66,158,189,.25)', color: '#334155', backdropFilter: 'blur(8px)' }}>
+            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid rgba(var(--brand-500-rgb), .25)', color: '#334155', backdropFilter: 'blur(8px)' }}>
             💾 Backup
           </a>
         </div>
@@ -246,7 +246,7 @@ export default function Dashboard() {
           style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1px solid #fde68a' }}>
           <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-xl" style={{ background: '#fef3c7' }}>🗓️</div>
           <div className="flex-1">
-            <p className="font-bold text-sm" style={{ color: '#78350f' }}>Próximo AEP: 1 de noviembre {aep.nextStart.getFullYear()}</p>
+            <p className="font-bold text-sm" style={{ color: '#78350f' }}>Próximo AEP: 15 de noviembre {aep.nextStart.getFullYear()}</p>
             <p className="text-xs mt-0.5" style={{ color: '#92400e' }}>Faltan <strong>{aep.daysUntilStart} días</strong> · SEP disponible todo el año para eventos calificativos</p>
           </div>
           <div className="text-2xl font-bold shrink-0" style={{ color: 'var(--warning)' }}>{aep.daysUntilStart}d</div>
@@ -270,10 +270,10 @@ export default function Dashboard() {
 
       {/* Goals Progress */}
       {goals && goalsProgress && (
-        <div style={{ ...CARD, borderTop: '3px solid #429EBD' }}>
+        <div style={{ ...CARD, borderTop: '3px solid var(--brand-500)' }}>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="font-semibold text-sm" style={{ color: '#0f172a' }}>🎯 Progreso del Mes</h2>
-            <a href="/settings" className="text-xs" style={{ color: '#429EBD' }}>Editar objetivos →</a>
+            <a href="/settings" className="text-xs" style={{ color: 'var(--brand-500)' }}>Editar objetivos →</a>
           </div>
           <div className="space-y-4">
             <GoalBar label="Nuevos clientes este mes" current={goalsProgress.newClients} target={goals.newClientsMonthly} />

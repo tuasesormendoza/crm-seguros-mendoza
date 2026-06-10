@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { unsealData } from 'iron-session'
 
 // Paths that do NOT require authentication
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api/ping']
+const PUBLIC_PATHS = ['/login', '/api/auth', '/api/ping', '/api/theme']
 
 // Static assets — skip middleware entirely
 const STATIC_REGEX = /^\/_next\/|^\/favicon\.ico|^\/logo\.png|^\/icons\//

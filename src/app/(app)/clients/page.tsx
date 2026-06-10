@@ -171,12 +171,12 @@ export default function ClientsPage() {
         <div className="flex gap-2">
           <a href="/api/export/clients" download
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
-            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid rgba(66,158,189,.25)', color: '#334155', backdropFilter: 'blur(8px)' }}>
+            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid rgba(var(--brand-500-rgb), .25)', color: '#334155', backdropFilter: 'blur(8px)' }}>
             ⬇️ CSV
           </a>
           <Link href="/clients/new"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #053F5C, #429EBD)', boxShadow: '0 2px 12px rgba(5,63,92,.30)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--brand-800), var(--brand-500))', boxShadow: '0 2px 12px rgba(var(--brand-800-rgb), .30)' }}>
             + Nuevo Cliente
           </Link>
         </div>

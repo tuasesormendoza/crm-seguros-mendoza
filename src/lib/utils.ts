@@ -6,6 +6,45 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Default brand palette — must match the values in globals.css :root and
+// /api/theme's THEME_DEFAULTS. Used as fallback when no custom theme is set.
+export const THEME_DEFAULTS = {
+  themeBrand800: '#053F5C',
+  themeBrand500: '#429EBD',
+  themeBrand300: '#9FE7F5',
+  themeAccent:   '#F7AD19',
+} as const
+
+// Maps theme settings keys -> CSS custom property names
+export const THEME_VAR_MAP: Record<string, string> = {
+  themeBrand800: '--brand-800',
+  themeBrand500: '--brand-500',
+  themeBrand300: '--brand-300',
+  themeAccent:   '--accent',
+}
+
+export function hexToRgb(hex: string): string | null {
+  const m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex)
+  if (!m) return null
+  const r = parseInt(m[1], 16)
+  const g = parseInt(m[2], 16)
+  const b = parseInt(m[3], 16)
+  return `${r}, ${g}, ${b}`
+}
+
+/** Applies the given theme colors as CSS custom properties on <html>. */
+export function applyTheme(theme: Record<string, string>) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  for (const [key, cssVar] of Object.entries(THEME_VAR_MAP)) {
+    const hex = theme[key]
+    if (!hex) continue
+    root.style.setProperty(cssVar, hex)
+    const rgb = hexToRgb(hex)
+    if (rgb) root.style.setProperty(`${cssVar}-rgb`, rgb)
+  }
+}
+
 function toLocalDate(date: Date | string): Date {
   // Prevents UTC-midnight dates from shifting one day back in local timezone
   const d = typeof date === 'string' ? new Date(date) : date

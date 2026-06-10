@@ -113,6 +113,28 @@ function InfoItem({ label, value }: { label: string; value?: string | number | n
   )
 }
 
+function CopyButton({ value }: { value?: string | null }) {
+  const [copied, setCopied] = useState(false)
+  if (!value) return null
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1400)
+        } catch { /* clipboard unavailable — silently ignore */ }
+      }}
+      className="text-xs font-medium shrink-0 transition-colors"
+      style={{ color: copied ? '#166534' : '#507b88' }}
+      title="Copiar al portapapeles"
+    >
+      {copied ? '✓ Copiado' : '📋 Copiar'}
+    </button>
+  )
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -1070,17 +1092,25 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
           <Section title="Acceso al Portal de la Aseguradora">
             <dl className="space-y-3">
-              {/* 1. Usuario + Contraseña juntos */}
-              <InfoItem label="Usuario Portal" value={client.portalUser} />
               <div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-xs font-medium uppercase tracking-wide" style={{ color: '#507b88' }}>Usuario Portal</dt>
+                  <CopyButton value={client.portalUser} />
+                </div>
+                <dd className="mt-0.5 text-sm text-gray-900">{client.portalUser ?? '—'}</dd>
+              </div>
+              <div>
+                <div className="flex items-center justify-between gap-2">
                   <dt className="text-xs font-medium uppercase tracking-wide" style={{ color: '#507b88' }}>Contraseña Portal</dt>
-                  {client.portalPassword && (
-                    <button onClick={() => setShowPortalPassword(v => !v)}
-                      className="text-xs font-medium" style={{ color: '#507b88' }}>
-                      {showPortalPassword ? '🙈 Ocultar' : '👁 Ver'}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {client.portalPassword && (
+                      <button onClick={() => setShowPortalPassword(v => !v)}
+                        className="text-xs font-medium" style={{ color: '#507b88' }}>
+                        {showPortalPassword ? '🙈 Ocultar' : '👁 Ver'}
+                      </button>
+                    )}
+                    <CopyButton value={client.portalPassword} />
+                  </div>
                 </div>
                 <dd className="mt-0.5 text-sm font-mono text-gray-900">
                   {client.portalPassword
@@ -1088,11 +1118,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     : '—'}
                 </dd>
               </div>
+            </dl>
+          </Section>
 
-              {/* 2. Separador */}
-              <div className="pt-1 border-t border-gray-100" />
-
-              {/* 3. HealthSherpa */}
+          {/* HealthSherpa — separado del acceso al portal de la aseguradora */}
+          <Section title="HealthSherpa">
+            <dl className="space-y-3">
               <SherpaLink clientId={client.id} initialUrl={client.sherpaUrl} onSaved={url => setClient(c => c ? { ...c, sherpaUrl: url } : c)} />
             </dl>
             {client.notes && (

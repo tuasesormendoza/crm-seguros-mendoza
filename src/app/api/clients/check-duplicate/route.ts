@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   if (name && name.length >= 4) {
     const byName = await prisma.client.findMany({
       where: {
-        fullName: { contains: name.split(' ')[0] },
+        fullName: { contains: name.split(' ')[0], mode: 'insensitive' },
         id: excludeId ? { not: excludeId } : undefined
       },
       select: { id: true, fullName: true }

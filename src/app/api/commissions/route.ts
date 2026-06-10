@@ -60,7 +60,7 @@ function addMonths(d: Date, n: number): Date {
 export async function GET() {
   const today = new Date()
 
-  const [clients, wnClientsRaw, storedRates] = await Promise.all([
+  const [clients, wnClientsRaw, storedRates, payments] = await Promise.all([
     prisma.client.findMany({
       where: { status: 'Activo' },
       select: {
@@ -80,6 +80,7 @@ export async function GET() {
       },
     }),
     prisma.commissionRate.findMany(),
+    prisma.commissionPayment.findMany({ orderBy: [{ period: 'desc' }, { receivedDate: 'desc' }] }),
   ])
 
   // Build rates map
@@ -256,6 +257,32 @@ export async function GET() {
     clients: wnClients,
   }
 
+  // ── Pagos de comisión recibidos (registro manual) ───────────────────────────
+  // Compara lo efectivamente cobrado contra lo proyectado (PMPM × vidas actual)
+  // por aseguradora, agrupado por período (mes que cubre el pago).
+  const expectedByInsurer: Record<string, number> = {}
+  for (const r of Object.values(insurerMap)) expectedByInsurer[r.insurer] = r.monthly
+
+  type PaymentItem = { id: string; insurer: string; amount: number; expected: number; receivedDate: string; notes: string | null }
+  const periodMap: Record<string, { period: string; total: number; items: PaymentItem[] }> = {}
+  for (const p of payments) {
+    if (!periodMap[p.period]) periodMap[p.period] = { period: p.period, total: 0, items: [] }
+    periodMap[p.period].total += p.amount
+    periodMap[p.period].items.push({
+      id: p.id,
+      insurer: p.insurer,
+      amount: p.amount,
+      expected: expectedByInsurer[p.insurer] ?? 0,
+      receivedDate: p.receivedDate.toISOString(),
+      notes: p.notes,
+    })
+  }
+
+  const paymentsSummary = {
+    totalReceived: payments.reduce((s, p) => s + p.amount, 0),
+    byPeriod: Object.values(periodMap).sort((a, b) => b.period.localeCompare(a.period)),
+  }
+
   return NextResponse.json({
     summary: {
       totalMonthlyCommission: totalActiveMonthly,
@@ -266,6 +293,7 @@ export async function GET() {
       pendingCount: pendingRows.length,
       byInsurer: Object.values(insurerMap).sort((a, b) => b.monthly - a.monthly),
       wn: wnSummary,
+      payments: paymentsSummary,
     },
     clients: clientRows.sort((a, b) => {
       // Active first, then pending sorted by days until payment

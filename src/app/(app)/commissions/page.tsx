@@ -41,6 +41,20 @@ interface WnSummary {
   clients: WnClientRow[]
 }
 
+interface PaymentItem {
+  id: string
+  insurer: string
+  amount: number
+  expected: number
+  receivedDate: string
+  notes: string | null
+}
+
+interface PaymentsSummary {
+  totalReceived: number
+  byPeriod: { period: string; total: number; items: PaymentItem[] }[]
+}
+
 interface ClientRow {
   id: string
   fullName: string
@@ -69,6 +83,7 @@ interface CommissionData {
     pendingCount: number
     byInsurer: InsurerSummary[]
     wn: WnSummary
+    payments: PaymentsSummary
   }
   clients: ClientRow[]
 }
@@ -88,6 +103,18 @@ export default function CommissionsPage() {
   const [sortDesc, setSortDesc] = useState(true)
 
   const [wnSaving, setWnSaving] = useState<string | null>(null)
+
+  // ── Pagos de comisión recibidos ──────────────────────────────────────────
+  const currentPeriod = new Date().toISOString().slice(0, 7) // "YYYY-MM"
+  const [showPayments, setShowPayments] = useState(false)
+  const [payInsurer, setPayInsurer] = useState('')
+  const [payPeriod, setPayPeriod] = useState(currentPeriod)
+  const [payAmount, setPayAmount] = useState('')
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [payNotes, setPayNotes] = useState('')
+  const [savingPayment, setSavingPayment] = useState(false)
+  const [payError, setPayError] = useState('')
+  const [deletingPayment, setDeletingPayment] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const [commRes, ratesRes] = await Promise.all([
@@ -119,6 +146,43 @@ export default function CommissionsPage() {
       body: JSON.stringify(rates),
     })
     setSavingRates(false)
+    load()
+  }
+
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPayError('')
+    if (!payInsurer || !payPeriod || !payAmount || !payDate) {
+      setPayError('Completa aseguradora, período, monto y fecha.')
+      return
+    }
+    setSavingPayment(true)
+    const res = await fetch('/api/commission-payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        insurer: payInsurer,
+        period: payPeriod,
+        amount: parseFloat(payAmount),
+        receivedDate: payDate,
+        notes: payNotes || undefined,
+      }),
+    })
+    setSavingPayment(false)
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setPayError(body.error || 'No se pudo guardar el pago.')
+      return
+    }
+    setPayAmount('')
+    setPayNotes('')
+    load()
+  }
+
+  const handleDeletePayment = async (id: string) => {
+    setDeletingPayment(id)
+    await fetch(`/api/commission-payments/${id}`, { method: 'DELETE' })
+    setDeletingPayment(null)
     load()
   }
 
@@ -445,6 +509,161 @@ export default function CommissionsPage() {
           </div>
         </div>
       )}
+
+      {/* Pagos recibidos */}
+      <div className={CARD}>
+        <button
+          onClick={() => setShowPayments(v => !v)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <span className="font-semibold text-base" style={{ color: '#10253f' }}>
+            💵 Pagos de Comisión Recibidos
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: '#dcfce7', color: '#166534' }}>
+              Total registrado: {formatCurrency(summary.payments.totalReceived)}
+            </span>
+            <span className="text-gray-400 text-sm">{showPayments ? '▲ Cerrar' : '▼ Expandir'}</span>
+          </div>
+        </button>
+
+        {showPayments && (
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-gray-500">
+              Registra aquí cada pago de comisión que efectivamente recibas (por aseguradora y mes que cubre), para comparar lo cobrado contra lo proyectado y llevar un control real de tus ingresos.
+            </p>
+
+            {/* Form */}
+            <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Aseguradora</label>
+                <select
+                  value={payInsurer}
+                  onChange={e => setPayInsurer(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                >
+                  <option value="">Seleccionar...</option>
+                  {rates.map(r => <option key={r.insurer} value={r.insurer}>{r.insurer}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Mes que cubre</label>
+                <input
+                  type="month"
+                  value={payPeriod}
+                  onChange={e => setPayPeriod(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Monto recibido</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">$</span>
+                  <input
+                    type="number" min="0" step="0.01" placeholder="0.00"
+                    value={payAmount}
+                    onChange={e => setPayAmount(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha recibido</label>
+                <input
+                  type="date"
+                  value={payDate}
+                  onChange={e => setPayDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notas (opcional)</label>
+                <div className="flex gap-2 flex-1">
+                  <input
+                    type="text" placeholder="Ej. depósito directo"
+                    value={payNotes}
+                    onChange={e => setPayNotes(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingPayment}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 whitespace-nowrap"
+                    style={{ background: '#305a72' }}
+                  >
+                    {savingPayment ? '...' : '+ Agregar'}
+                  </button>
+                </div>
+              </div>
+              {payError && <p className="md:col-span-5 text-xs text-red-600">{payError}</p>}
+            </form>
+
+            {/* Payments by period */}
+            {summary.payments.byPeriod.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">Aún no has registrado ningún pago.</p>
+            ) : (
+              <div className="space-y-4">
+                {summary.payments.byPeriod.map(periodGroup => {
+                  const [year, month] = periodGroup.period.split('-')
+                  const periodLabel = new Date(Number(year), Number(month) - 1, 1)
+                    .toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+                  return (
+                    <div key={periodGroup.period} className="border border-gray-100 rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2" style={{ background: '#f0f7fb' }}>
+                        <span className="text-sm font-semibold capitalize" style={{ color: '#10253f' }}>{periodLabel}</span>
+                        <span className="text-sm font-bold" style={{ color: '#166534' }}>{formatCurrency(periodGroup.total)}</span>
+                      </div>
+                      <table className="w-full">
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                            <th className={TH} style={{ color: '#507b88' }}>Aseguradora</th>
+                            <th className={TH} style={{ color: '#507b88' }}>Recibido</th>
+                            <th className={TH} style={{ color: '#507b88' }}>Proyectado actual</th>
+                            <th className={TH} style={{ color: '#507b88' }}>Diferencia</th>
+                            <th className={TH} style={{ color: '#507b88' }}>Fecha</th>
+                            <th className={TH} style={{ color: '#507b88' }}>Notas</th>
+                            <th className={TH}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {periodGroup.items.map(item => {
+                            const diff = item.amount - item.expected
+                            return (
+                              <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
+                                <td className={TD + ' font-medium'}>{item.insurer}</td>
+                                <td className={TD + ' font-semibold'} style={{ color: '#166534' }}>{formatCurrency(item.amount)}</td>
+                                <td className={TD} style={{ color: '#94a3b8' }}>{formatCurrency(item.expected)}</td>
+                                <td className={TD} style={{ color: diff === 0 ? '#94a3b8' : diff > 0 ? '#166534' : '#dc2626' }}>
+                                  {diff > 0 ? '+' : ''}{formatCurrency(diff)}
+                                </td>
+                                <td className={TD + ' text-xs whitespace-nowrap'} style={{ color: '#94a3b8' }}>
+                                  {new Date(item.receivedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                                </td>
+                                <td className={TD + ' text-xs'} style={{ color: '#94a3b8' }}>{item.notes || '—'}</td>
+                                <td className={TD}>
+                                  <button
+                                    type="button"
+                                    disabled={deletingPayment === item.id}
+                                    onClick={() => handleDeletePayment(item.id)}
+                                    className="text-xs px-2 py-1 rounded border whitespace-nowrap"
+                                    style={{ borderColor: '#fca5a5', color: '#dc2626', opacity: deletingPayment === item.id ? 0.5 : 1 }}
+                                  >
+                                    {deletingPayment === item.id ? '…' : '🗑 Eliminar'}
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Rates config */}
       <div className={CARD}>

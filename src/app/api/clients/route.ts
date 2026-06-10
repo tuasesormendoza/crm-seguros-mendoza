@@ -94,7 +94,11 @@ export async function GET(request: NextRequest) {
   const clients = await prisma.client.findMany({
     where: {
       AND: [
-        search ? { OR: [{ fullName: { contains: search } }, { email: { contains: search } }, { phone: { contains: search } }] } : {},
+        search ? { OR: [
+          { fullName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search } },
+        ] } : {},
         status ? { status } : {},
         insurer ? { insurer } : {},
       ]

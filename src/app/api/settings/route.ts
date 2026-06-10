@@ -7,6 +7,11 @@ const SECRET_KEYS = ['cmsApiKey', 'anthropicApiKey', 'smtpUser', 'smtpPass']
 
 // Default values shown when no settings exist yet
 const DEFAULTS: Record<string, string> = {
+  // Brand colors — must match THEME_DEFAULTS in /api/theme and globals.css
+  themeBrand800:          '#053F5C',
+  themeBrand500:          '#429EBD',
+  themeBrand300:          '#9FE7F5',
+  themeAccent:            '#F7AD19',
   agentName:              'Omar Mendoza',
   agentPhone:             '(407)-436-4366',
   agentWhatsApp:          '14074364366',

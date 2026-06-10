@@ -910,16 +910,21 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
         </div>
       </div>
 
-      {/* Acceso al Portal */}
+      {/* Acceso al Portal de la Aseguradora */}
       <div className={SECTION}>
         <h2 className={TITLE}>Acceso al Portal de la Aseguradora</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Usuario Portal" value={form.portalUser} onChange={v => setField('portalUser', v)} />
           <Field label="Contraseña Portal" value={form.portalPassword} onChange={v => setField('portalPassword', v)} />
-          <div className="md:col-span-2 lg:col-span-3">
-            <Field label="Link HealthSherpa" value={form.sherpaUrl} onChange={v => setField('sherpaUrl', v)} placeholder="https://www.healthsherpa.com/agents/..." />
-          </div>
-          <div className="md:col-span-2 lg:col-span-3">
+        </div>
+      </div>
+
+      {/* HealthSherpa */}
+      <div className={SECTION}>
+        <h2 className={TITLE}>HealthSherpa</h2>
+        <div className="grid grid-cols-1 gap-4">
+          <Field label="Link HealthSherpa" value={form.sherpaUrl} onChange={v => setField('sherpaUrl', v)} placeholder="https://www.healthsherpa.com/agents/..." />
+          <div>
             <label className={LABEL_CLASS}>Notas</label>
             <textarea value={form.notes} onChange={e => setField('notes', e.target.value)} rows={3} className={INPUT_CLASS} />
           </div>
