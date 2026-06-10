@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { getReferralInitialMessage, getReferralReminderMessage } from '@/lib/referralMessages'
 
 interface Prospect {
   id: string; fullName: string; phone: string | null; stage: string; createdAt: string
@@ -123,7 +124,220 @@ function ReferrerRow({ referrer, rank }: { referrer: Referrer; rank: number }) {
   )
 }
 
+// ── Solicitar Referidos ──────────────────────────────────────────────────
+
+interface RequestClient {
+  id: string
+  fullName: string
+  phone: string | null
+  referralRequestStage: string | null
+  referralRequestSentAt: string | null
+  referralRequestLastSent: string | null
+}
+
+const REQUEST_STAGES = ['Por enviar', 'Solicitado', 'Recordatorio enviado', 'Refirió', 'No por ahora'] as const
+type RequestStage = typeof REQUEST_STAGES[number]
+
+const REQUEST_STAGE_META: Record<RequestStage, { color: string; bg: string; borderColor: string }> = {
+  'Por enviar':           { color: '#64748b', bg: '#f8fafc', borderColor: '#e2e8f0' },
+  'Solicitado':           { color: '#2563eb', bg: '#eff6ff', borderColor: '#bfdbfe' },
+  'Recordatorio enviado': { color: '#d97706', bg: '#fffbeb', borderColor: '#fde68a' },
+  'Refirió':              { color: '#059669', bg: '#f0fdf4', borderColor: '#a7f3d0' },
+  'No por ahora':         { color: '#dc2626', bg: '#fef2f2', borderColor: '#fecaca' },
+}
+
+function getStage(c: RequestClient): RequestStage {
+  return (c.referralRequestStage as RequestStage) || 'Por enviar'
+}
+
+function daysSince(iso: string | null): number | null {
+  if (!iso) return null
+  return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function whatsAppLink(phone: string, message: string): string {
+  const digits = phone.replace(/\D/g, '')
+  const intl = digits.length === 10 ? `1${digits}` : digits
+  return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`
+}
+
+function RequestReferralsTab() {
+  const [clients, setClients] = useState<RequestClient[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'Todos' | RequestStage>('Todos')
+  const [saving, setSaving] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    const res = await fetch('/api/referral-requests')
+    const data = await res.json()
+    setClients(data.clients || [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const updateClient = useCallback(async (id: string, patch: Record<string, unknown>) => {
+    setSaving(id)
+    await fetch(`/api/clients/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    await load()
+    setSaving(null)
+  }, [load])
+
+  function sendInitial(c: RequestClient) {
+    if (!c.phone) return
+    const msg = getReferralInitialMessage(c.fullName.split(' ')[0], c.id)
+    window.open(whatsAppLink(c.phone, msg), '_blank')
+    updateClient(c.id, { referralRequestStage: 'Solicitado', referralRequestSentAt: new Date().toISOString(), referralRequestLastSent: new Date().toISOString() })
+  }
+
+  function sendReminder(c: RequestClient) {
+    if (!c.phone) return
+    const msg = getReferralReminderMessage(c.fullName.split(' ')[0], c.id)
+    window.open(whatsAppLink(c.phone, msg), '_blank')
+    updateClient(c.id, { referralRequestStage: 'Recordatorio enviado', referralRequestLastSent: new Date().toISOString() })
+  }
+
+  function setFinalStage(c: RequestClient, stage: RequestStage) {
+    updateClient(c.id, { referralRequestStage: stage })
+  }
+
+  function reset(c: RequestClient) {
+    updateClient(c.id, { referralRequestStage: null, referralRequestSentAt: null, referralRequestLastSent: null })
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-gray-400">Cargando clientes...</div>
+    </div>
+  )
+
+  const counts: Record<RequestStage, number> = { 'Por enviar': 0, 'Solicitado': 0, 'Recordatorio enviado': 0, 'Refirió': 0, 'No por ahora': 0 }
+  for (const c of clients) counts[getStage(c)]++
+
+  const filtered = filter === 'Todos' ? clients : clients.filter(c => getStage(c) === filter)
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl p-4" style={{ background: '#f0f7fb', border: '1px solid #b8d4e8' }}>
+        <p className="text-sm" style={{ color: '#1e4a6e' }}>
+          <strong>💡 Cómo funciona:</strong> envía un mensaje de WhatsApp pidiendo referidos de forma cálida y personalizada. El sistema marca automáticamente al cliente como &quot;Solicitado&quot; y, unos días después, puedes enviarle un recordatorio amable con un mensaje diferente. Marca &quot;Refirió&quot; o &quot;No por ahora&quot; según la respuesta para llevar el control.
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {(['Todos', ...REQUEST_STAGES] as const).map(stage => {
+          const meta = stage === 'Todos' ? { color: '#10253f', bg: '#f8fafc', borderColor: '#e2e8f0' } : REQUEST_STAGE_META[stage]
+          const count = stage === 'Todos' ? clients.length : counts[stage]
+          const active = filter === stage
+          return (
+            <button
+              key={stage}
+              onClick={() => setFilter(stage)}
+              className="rounded-xl p-3 text-left transition-all"
+              style={{ background: meta.bg, border: `2px solid ${active ? meta.color : meta.borderColor}` }}
+            >
+              <div className="text-2xl font-bold" style={{ color: meta.color }}>{count}</div>
+              <div className="text-xs font-medium mt-0.5" style={{ color: meta.color }}>{stage}</div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Cliente</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Estado</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Última acción</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => {
+                const stage = getStage(c)
+                const meta = REQUEST_STAGE_META[stage]
+                const lastSentDays = daysSince(c.referralRequestLastSent)
+                const isSaving = saving === c.id
+                return (
+                  <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <Link href={`/clients/${c.id}`} className="text-sm font-semibold hover:underline" style={{ color: '#10253f' }}>{c.fullName}</Link>
+                      {c.phone && <div className="text-xs text-gray-500 mt-0.5">{c.phone}</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap" style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.borderColor}` }}>
+                        {stage}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {lastSentDays === null ? '—' : lastSentDays === 0 ? 'Hoy' : `Hace ${lastSentDays} día${lastSentDays === 1 ? '' : 's'}`}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {c.phone && (stage === 'Por enviar') && (
+                          <button onClick={() => sendInitial(c)} disabled={isSaving}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                            style={{ background: '#25d366' }}>
+                            💬 Solicitar referido
+                          </button>
+                        )}
+                        {c.phone && (stage === 'Solicitado' || stage === 'Recordatorio enviado') && (
+                          <button onClick={() => sendReminder(c)} disabled={isSaving}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                            style={{ background: '#25d366' }}>
+                            💬 Recordatorio
+                          </button>
+                        )}
+                        {(stage === 'Solicitado' || stage === 'Recordatorio enviado' || stage === 'Por enviar') && (
+                          <>
+                            <button onClick={() => setFinalStage(c, 'Refirió')} disabled={isSaving}
+                              className="px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all hover:bg-gray-100 disabled:opacity-50"
+                              style={{ border: '1px solid #a7f3d0', color: '#059669' }}>
+                              ✅ Refirió
+                            </button>
+                            <button onClick={() => setFinalStage(c, 'No por ahora')} disabled={isSaving}
+                              className="px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all hover:bg-gray-100 disabled:opacity-50"
+                              style={{ border: '1px solid #fecaca', color: '#dc2626' }}>
+                              🙅 No por ahora
+                            </button>
+                          </>
+                        )}
+                        {(stage === 'Refirió' || stage === 'No por ahora') && (
+                          <button onClick={() => reset(c)} disabled={isSaving}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all hover:bg-gray-100 disabled:opacity-50"
+                            style={{ border: '1px solid #cbd5e1', color: '#475569' }}>
+                            ↺ Reiniciar
+                          </button>
+                        )}
+                        {!c.phone && <span className="text-xs text-gray-400">Sin teléfono</span>}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">No hay clientes en este estado.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ReferidosPage() {
+  const [tab, setTab] = useState<'top' | 'solicitar'>('top')
   const [referrers, setReferrers] = useState<Referrer[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -134,91 +348,115 @@ export default function ReferidosPage() {
     })
   }, [])
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-gray-400">Cargando referidos...</div>
-    </div>
-  )
+  function broadcastWhatsApp() {
+    const msg = 'Hola, ha sido un gusto acompañarte cuidando lo que más importa: tu salud y la de tu familia. Si conoces a alguien que valore una asesoría honesta y sin compromiso sobre sus seguros, sería un honor ayudarle igual que a ti. ¡Un abrazo! 🙏\n\n— Omar Mendoza, Tu Asesor de Seguros'
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
+  const TAB_BASE = 'px-5 py-2 text-sm font-semibold rounded-lg transition-colors'
+  const TAB_ACTIVE = TAB_BASE + ' text-white'
+  const TAB_INACTIVE = TAB_BASE + ' text-gray-600 hover:bg-gray-100'
 
   const totalReferrers = referrers.length
   const totalReferrals = referrers.reduce((s, r) => s + r.totalReferrals, 0)
   const best = referrers[0] || null
   const avgConversion = totalReferrers > 0 ? Math.round(referrers.reduce((s, r) => s + r.conversionRate, 0) / totalReferrers) : 0
 
-  function broadcastWhatsApp() {
-    const msg = 'Hola, ha sido un gusto acompañarte cuidando lo que más importa: tu salud y la de tu familia. Si conoces a alguien que valore una asesoría honesta y sin compromiso sobre sus seguros, sería un honor ayudarle igual que a ti. ¡Un abrazo! 🙏\n\n— Omar Mendoza, Tu Asesor de Seguros'
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-  }
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#10253f' }}>🤝 Dashboard de Referidos</h1>
-          <p className="text-sm text-gray-500 mt-1">Clientes que han referido prospectos a tu agencia</p>
+          <h1 className="text-2xl font-bold" style={{ color: '#10253f' }}>🤝 Referidos</h1>
+          <p className="text-sm text-gray-500 mt-1">Clientes que han referido prospectos y campaña de solicitud de referidos</p>
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Clientes que refirieron', value: totalReferrers, icon: '👥', color: '#10253f', bg: '#e8f2f8' },
-          { label: 'Total prospectos referidos', value: totalReferrals, icon: '🔗', color: '#2a6496', bg: '#dbeafe' },
-          { label: 'Mejor referidor', value: best ? best.clientName.split(' ')[0] + ' (' + best.totalReferrals + ')' : '—', icon: '🥇', color: '#d97706', bg: '#fef3c7' },
-          { label: 'Tasa de conversión promedio', value: `${avgConversion}%`, icon: '📈', color: '#059669', bg: '#d1fae5' },
-        ].map(card => (
-          <div key={card.label} className="bg-white rounded-xl border border-gray-200 p-4" style={{ borderTop: `3px solid ${card.color}` }}>
-            <div className="flex items-start justify-between">
-              <div className="min-w-0">
-                <div className="text-2xl font-extrabold leading-none truncate" style={{ color: '#0f172a' }}>{card.value}</div>
-                <div className="text-xs font-medium mt-1.5 text-gray-500">{card.label}</div>
-              </div>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: card.bg }}>{card.icon}</div>
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <button className={tab === 'top' ? TAB_ACTIVE : TAB_INACTIVE}
+          style={tab === 'top' ? { background: '#10253f' } : {}}
+          onClick={() => setTab('top')}>
+          Top Referidores
+        </button>
+        <button className={tab === 'solicitar' ? TAB_ACTIVE : TAB_INACTIVE}
+          style={tab === 'solicitar' ? { background: '#10253f' } : {}}
+          onClick={() => setTab('solicitar')}>
+          Solicitar Referidos
+        </button>
+      </div>
+
+      {tab === 'top' && (
+        loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-gray-400">Cargando referidos...</div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Clientes que refirieron', value: totalReferrers, icon: '👥', color: '#10253f', bg: '#e8f2f8' },
+                { label: 'Total prospectos referidos', value: totalReferrals, icon: '🔗', color: '#2a6496', bg: '#dbeafe' },
+                { label: 'Mejor referidor', value: best ? best.clientName.split(' ')[0] + ' (' + best.totalReferrals + ')' : '—', icon: '🥇', color: '#d97706', bg: '#fef3c7' },
+                { label: 'Tasa de conversión promedio', value: `${avgConversion}%`, icon: '📈', color: '#059669', bg: '#d1fae5' },
+              ].map(card => (
+                <div key={card.label} className="bg-white rounded-xl border border-gray-200 p-4" style={{ borderTop: `3px solid ${card.color}` }}>
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0">
+                      <div className="text-2xl font-extrabold leading-none truncate" style={{ color: '#0f172a' }}>{card.value}</div>
+                      <div className="text-xs font-medium mt-1.5 text-gray-500">{card.label}</div>
+                    </div>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: card.bg }}>{card.icon}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Table or empty state */}
-      {referrers.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <div className="text-4xl mb-4">🤝</div>
-          <h3 className="font-bold text-lg text-gray-700 mb-2">¡Aún no hay referidos!</h3>
-          <p className="text-sm text-gray-500 mb-6">Motiva a tus clientes a referir amigos y familiares que necesiten seguro de salud.</p>
-          <button onClick={broadcastWhatsApp}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-semibold transition-all hover:opacity-90"
-            style={{ background: '#25d366' }}>
-            💬 Enviar mensaje a clientes
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-sm" style={{ color: '#10253f' }}>Top Referidores</h2>
+            {/* Table or empty state */}
+            {referrers.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <div className="text-4xl mb-4">🤝</div>
+                <h3 className="font-bold text-lg text-gray-700 mb-2">¡Aún no hay referidos!</h3>
+                <p className="text-sm text-gray-500 mb-6">Motiva a tus clientes a referir amigos y familiares que necesiten seguro de salud.</p>
+                <button onClick={broadcastWhatsApp}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-semibold transition-all hover:opacity-90"
+                  style={{ background: '#25d366' }}>
+                  💬 Enviar mensaje a clientes
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100">
+                  <h2 className="font-semibold text-sm" style={{ color: '#10253f' }}>Top Referidores</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center w-12">#</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Cliente</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Referidos</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Convertidos</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Pendientes</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Tasa conv.</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Último</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referrers.map((r, i) => (
+                        <ReferrerRow key={r.clientId} referrer={r} rank={i} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center w-12">#</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Cliente</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Referidos</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Convertidos</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Pendientes</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Tasa conv.</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Último</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {referrers.map((r, i) => (
-                  <ReferrerRow key={r.clientId} referrer={r} rank={i} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        )
       )}
+
+      {tab === 'solicitar' && <RequestReferralsTab />}
     </div>
   )
 }

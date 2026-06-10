@@ -75,6 +75,9 @@ model Client {
   portalPassword       String?
   sherpaUrl            String?
   googleReview         String?
+  referralRequestStage    String?   // "Solicitado", "Recordatorio enviado", "Refirió", "No por ahora" (vacío/null = "Por enviar")
+  referralRequestSentAt   DateTime?
+  referralRequestLastSent DateTime?
   notes                String?
   preferredLanguage    String?   // Español, English
   dentalInsurer        String?
