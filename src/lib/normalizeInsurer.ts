@@ -25,6 +25,8 @@ const INSURER_MAP: { keywords: string[]; standard: string }[] = [
   { keywords: ['alliant'],                standard: 'Alliant' },
   { keywords: ['amerihealth'],            standard: 'AmeriHealth' },
   { keywords: ['health spring', 'healthspring'], standard: 'Health Spring' },
+  { keywords: ['health first', 'healthfirst'], standard: 'Health First' },
+  { keywords: ['avmed', 'av-med', 'av med'], standard: 'AvMed' },
   { keywords: ['aetna'],                  standard: 'Aetna' },
   { keywords: ['humana'],                 standard: 'Humana' },
   { keywords: ['centene'],               standard: 'Ambetter' },  // Centene is Ambetter's parent

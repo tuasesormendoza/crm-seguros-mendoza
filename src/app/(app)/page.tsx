@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
+import { getMotivationalQuote } from '@/lib/motivationalQuotes'
 
 const REVIEW_LINK = 'https://g.page/r/CbFgt44hL28OEAE/review'
 
@@ -196,6 +197,7 @@ export default function Dashboard() {
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches'
+  const motivationalQuote = getMotivationalQuote()
 
   const kpis = [
     { label: 'Total Pólizas',      value: data.totalPolicies, icon: '📋', accent: 'var(--brand-500)', iconBg: 'rgba(var(--brand-500-rgb), .12)', border: 'var(--brand-500)' },
@@ -228,6 +230,13 @@ export default function Dashboard() {
             💾 Backup
           </a>
         </div>
+      </div>
+
+      {/* Frase motivadora */}
+      <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl"
+        style={{ background: 'linear-gradient(135deg, rgba(var(--brand-800-rgb), .08), rgba(var(--brand-500-rgb), .08))', border: '1px solid rgba(var(--brand-500-rgb), .18)' }}>
+        <div className="text-xl shrink-0">✨</div>
+        <p className="text-sm italic font-medium" style={{ color: 'var(--gray-700, #334155)' }}>&ldquo;{motivationalQuote}&rdquo;</p>
       </div>
 
       {/* AEP Banner */}

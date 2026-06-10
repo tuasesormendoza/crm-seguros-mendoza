@@ -51,6 +51,7 @@ export default function NewClientPage() {
         onSubmit={handleSubmit}
         onFieldChange={(name, ssn) => setCheckKey({ name, ssn })}
         duplicates={duplicates}
+        onCancel={() => router.push('/clients')}
       />
     </div>
   )
@@ -60,10 +61,12 @@ function DuplicateAwareForm({
   onSubmit,
   onFieldChange,
   duplicates,
+  onCancel,
 }: {
   onSubmit: (data: Record<string, unknown>) => Promise<void>
   onFieldChange: (name: string, ssn: string) => void
   duplicates: Duplicate[]
+  onCancel: () => void
 }) {
   const [lastName, setLastName] = useState('')
   const [lastSsn, setLastSsn] = useState('')
@@ -87,6 +90,7 @@ function DuplicateAwareForm({
         onSubmit={handleSubmit}
         submitLabel="Crear Cliente"
         onFieldChange={onFieldChange}
+        onCancel={onCancel}
       />
       {duplicates.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-yellow-50 border-2 border-yellow-400 rounded-xl shadow-xl p-4">
@@ -117,10 +121,12 @@ function ClientFormWithTracking({
   onSubmit,
   submitLabel,
   onFieldChange,
+  onCancel,
 }: {
   onSubmit: (data: Record<string, unknown>) => Promise<void>
   submitLabel: string
   onFieldChange: (name: string, ssn: string) => void
+  onCancel?: () => void
 }) {
   const [formSnapshot, setFormSnapshot] = useState({ name: '', ssn: '' })
 
@@ -166,6 +172,7 @@ function ClientFormWithTracking({
       <ClientForm
         onSubmit={handleSubmit}
         submitLabel={submitLabel}
+        onCancel={onCancel}
       />
     </div>
   )

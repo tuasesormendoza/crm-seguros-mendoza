@@ -15,6 +15,12 @@ export async function GET(request: NextRequest) {
     include: { client: { select: { id: true, fullName: true } } },
   })
 
+  // Manually-created calendar events
+  const events = await prisma.calendarEvent.findMany({
+    where: { date: { gte: start, lte: end } },
+    orderBy: { date: 'asc' },
+  })
+
   // Renewals
   const renewals = await prisma.client.findMany({
     where: { renewalDate: { gte: start, lte: end } },
@@ -59,5 +65,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ appointments, renewals, birthdays })
+  return NextResponse.json({ appointments, renewals, birthdays, events })
 }

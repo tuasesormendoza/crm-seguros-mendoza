@@ -2,18 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 const DEFAULT_RATES: Record<string, number> = {
+  'Blue Cross Blue Shield': 25,
+  'UnitedHealthcare': 18,
   'Oscar': 18,
   'Ambetter': 18,
   'Cigna': 20,
-  'Kaiser': 18,
-  'Blue Cross Blue Shield': 25,
-  'UnitedHealthcare': 18,
-  'Molina': 18,
+  'Aetna': 18,
   'CareSource': 19,
-  'Anthem': 20,
-  'Alliant': 18,
   'AmeriHealth': 20,
+  'Molina': 18,
+  'Anthem': 20,
+  'Kaiser': 18,
+  'Alliant': 18,
+  'AvMed': 18,
   'Health Spring': 18,
+  'Health First': 18,
   'Florida Blue': 18,
 }
 

@@ -55,6 +55,33 @@ interface PaymentsSummary {
   byPeriod: { period: string; total: number; items: PaymentItem[] }[]
 }
 
+interface ReconciliationClient {
+  id: string
+  fullName: string
+  lives: number
+  pmpm: number
+  expected: number
+  received: boolean
+}
+
+interface ReconciliationInsurer {
+  insurer: string
+  expectedTotal: number
+  confirmedTotal: number
+  missingTotal: number
+  paymentReceived: number
+  clients: ReconciliationClient[]
+}
+
+interface Reconciliation {
+  period: string
+  insurers: ReconciliationInsurer[]
+  totalExpected: number
+  totalConfirmed: number
+  totalMissing: number
+  totalPaymentReceived: number
+}
+
 interface ClientRow {
   id: string
   fullName: string
@@ -84,6 +111,7 @@ interface CommissionData {
     byInsurer: InsurerSummary[]
     wn: WnSummary
     payments: PaymentsSummary
+    reconciliation: Reconciliation
   }
   clients: ClientRow[]
 }
@@ -97,7 +125,7 @@ interface RateRow {
 export default function CommissionsPage() {
   const [data, setData] = useState<CommissionData | null>(null)
   const [rates, setRates] = useState<RateRow[]>([])
-  const [tab, setTab] = useState<'resumen' | 'clientes'>('resumen')
+  const [tab, setTab] = useState<'resumen' | 'clientes' | 'conciliacion'>('resumen')
   const [showRates, setShowRates] = useState(false)
   const [savingRates, setSavingRates] = useState(false)
   const [sortDesc, setSortDesc] = useState(true)
@@ -116,16 +144,31 @@ export default function CommissionsPage() {
   const [payError, setPayError] = useState('')
   const [deletingPayment, setDeletingPayment] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
+  // ── Conciliación de comisiones ───────────────────────────────────────────
+  const [reconPeriod, setReconPeriod] = useState(currentPeriod)
+  const [checkSaving, setCheckSaving] = useState<string | null>(null)
+
+  const load = useCallback(async (period?: string) => {
     const [commRes, ratesRes] = await Promise.all([
-      fetch('/api/commissions'),
+      fetch(`/api/commissions?period=${period || reconPeriod}`),
       fetch('/api/commission-rates'),
     ])
     setData(await commRes.json())
     setRates(await ratesRes.json())
-  }, [])
+  }, [reconPeriod])
 
   useEffect(() => { load() }, [load])
+
+  const toggleCheck = useCallback(async (clientId: string, received: boolean) => {
+    setCheckSaving(clientId)
+    await fetch('/api/commission-checks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, period: reconPeriod, received }),
+    })
+    setCheckSaving(null)
+    load()
+  }, [load, reconPeriod])
 
   const toggleWnFlag = useCallback(async (clientId: string, field: 'wnSecondPaymentReceived' | 'wnClawbackReturned', current: boolean) => {
     setWnSaving(`${clientId}-${field}`)
@@ -259,6 +302,11 @@ export default function CommissionsPage() {
           style={tab === 'clientes' ? { background: '#10253f' } : {}}
           onClick={() => setTab('clientes')}>
           Por Cliente
+        </button>
+        <button className={tab === 'conciliacion' ? TAB_ACTIVE : TAB_INACTIVE}
+          style={tab === 'conciliacion' ? { background: '#10253f' } : {}}
+          onClick={() => setTab('conciliacion')}>
+          Conciliación
         </button>
       </div>
 
@@ -507,6 +555,120 @@ export default function CommissionsPage() {
               </tfoot>
             </table>
           </div>
+        </div>
+      )}
+
+      {tab === 'conciliacion' && (
+        <div className="space-y-6">
+          <div className={CARD}>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
+              <div>
+                <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>🔎 Conciliación de Comisiones</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Marca cada cliente cuya comisión confirmas que recibiste para el mes seleccionado. Los que queden sin marcar son los que probablemente faltan por pagarte.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Mes a conciliar</label>
+                <input
+                  type="month"
+                  value={reconPeriod}
+                  onChange={e => setReconPeriod(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              <div className="rounded-xl p-4 border" style={{ background: '#dbeafe', borderColor: '#dbeafe' }}>
+                <p className="text-xs font-medium text-gray-600 mb-1">Esperado del mes</p>
+                <p className="text-2xl font-bold" style={{ color: '#1e40af' }}>{formatCurrency(data.summary.reconciliation.totalExpected)}</p>
+              </div>
+              <div className="rounded-xl p-4 border" style={{ background: '#dcfce7', borderColor: '#dcfce7' }}>
+                <p className="text-xs font-medium text-gray-600 mb-1">✅ Confirmado recibido</p>
+                <p className="text-2xl font-bold" style={{ color: '#166534' }}>{formatCurrency(data.summary.reconciliation.totalConfirmed)}</p>
+              </div>
+              <div className="rounded-xl p-4 border" style={{ background: '#fee2e2', borderColor: '#fee2e2' }}>
+                <p className="text-xs font-medium text-gray-600 mb-1">⚠️ Falta por confirmar</p>
+                <p className="text-2xl font-bold" style={{ color: '#991b1b' }}>{formatCurrency(data.summary.reconciliation.totalMissing)}</p>
+              </div>
+              <div className="rounded-xl p-4 border" style={{ background: '#f3e8ff', borderColor: '#f3e8ff' }}>
+                <p className="text-xs font-medium text-gray-600 mb-1">💵 Pagos registrados (mes)</p>
+                <p className="text-2xl font-bold" style={{ color: '#6b21a8' }}>{formatCurrency(data.summary.reconciliation.totalPaymentReceived)}</p>
+              </div>
+            </div>
+          </div>
+
+          {data.summary.reconciliation.insurers.length === 0 ? (
+            <div className={CARD}>
+              <p className="text-sm text-gray-400 text-center py-4">No hay clientes con comisión esperada para este mes.</p>
+            </div>
+          ) : (
+            data.summary.reconciliation.insurers.map(row => (
+              <div key={row.insurer} className={CARD}>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                  <h3 className="font-semibold text-base" style={{ color: '#10253f' }}>{row.insurer}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: '#dbeafe', color: '#1e40af' }}>
+                      Esperado: {formatCurrency(row.expectedTotal)}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: '#dcfce7', color: '#166534' }}>
+                      Confirmado: {formatCurrency(row.confirmedTotal)}
+                    </span>
+                    {row.missingTotal > 0 && (
+                      <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: '#fee2e2', color: '#991b1b' }}>
+                        Falta: {formatCurrency(row.missingTotal)}
+                      </span>
+                    )}
+                    <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: '#f3e8ff', color: '#6b21a8' }}>
+                      Pago registrado: {formatCurrency(row.paymentReceived)}
+                    </span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                        <th className={TH} style={{ color: '#507b88' }}>Cliente</th>
+                        <th className={TH} style={{ color: '#507b88' }}>Vidas</th>
+                        <th className={TH} style={{ color: '#507b88' }}>PMPM</th>
+                        <th className={TH} style={{ color: '#507b88' }}>Esperado</th>
+                        <th className={TH} style={{ color: '#507b88' }}>¿Recibido?</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {row.clients.map(c => (
+                        <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50" style={!c.received ? { background: '#fef2f2' } : {}}>
+                          <td className={TD}>
+                            <a href={`/clients/${c.id}`} className="font-medium hover:underline" style={{ color: '#10253f' }}>{c.fullName}</a>
+                          </td>
+                          <td className={TD}>{c.lives}</td>
+                          <td className={TD}>{formatCurrency(c.pmpm)}</td>
+                          <td className={TD + ' font-semibold'} style={{ color: '#166534' }}>{formatCurrency(c.expected)}</td>
+                          <td className={TD}>
+                            <label className="inline-flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={c.received}
+                                disabled={checkSaving === c.id}
+                                onChange={() => toggleCheck(c.id, !c.received)}
+                                className="w-4 h-4"
+                              />
+                              {c.received ? (
+                                <span className="text-xs font-semibold" style={{ color: '#166534' }}>✅ Recibido</span>
+                              ) : (
+                                <span className="text-xs font-semibold" style={{ color: '#991b1b' }}>⚠️ Falta</span>
+                              )}
+                            </label>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

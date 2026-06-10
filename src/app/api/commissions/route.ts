@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 const DEFAULT_RATES: Record<string, number> = {
-  'Oscar': 18, 'Ambetter': 18, 'Cigna': 20, 'Kaiser': 18,
-  'Blue Cross Blue Shield': 25, 'UnitedHealthcare': 18, 'Molina': 18,
-  'CareSource': 19, 'Anthem': 20, 'Alliant': 18, 'AmeriHealth': 20,
-  'Health Spring': 18, 'Florida Blue': 18,
+  'Blue Cross Blue Shield': 25, 'UnitedHealthcare': 18, 'Oscar': 18, 'Ambetter': 18,
+  'Cigna': 20, 'Aetna': 18, 'CareSource': 19, 'AmeriHealth': 20, 'Molina': 18,
+  'Anthem': 20, 'Kaiser': 18, 'Alliant': 18, 'AvMed': 18, 'Health Spring': 18,
+  'Health First': 18, 'Florida Blue': 18,
 }
 
 /**
@@ -57,10 +57,12 @@ function addMonths(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + n, d.getDate())
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const today = new Date()
+  const { searchParams } = new URL(request.url)
+  const period = searchParams.get('period') || today.toISOString().slice(0, 7) // "YYYY-MM"
 
-  const [clients, wnClientsRaw, storedRates, payments] = await Promise.all([
+  const [clients, wnClientsRaw, storedRates, payments, checks] = await Promise.all([
     prisma.client.findMany({
       where: { status: 'Activo' },
       select: {
@@ -81,6 +83,7 @@ export async function GET() {
     }),
     prisma.commissionRate.findMany(),
     prisma.commissionPayment.findMany({ orderBy: [{ period: 'desc' }, { receivedDate: 'desc' }] }),
+    prisma.commissionCheck.findMany({ where: { period } }),
   ])
 
   // Build rates map
@@ -283,6 +286,64 @@ export async function GET() {
     byPeriod: Object.values(periodMap).sort((a, b) => b.period.localeCompare(a.period)),
   }
 
+  // ── Conciliación de comisiones ──────────────────────────────────────────
+  // Para el período seleccionado, determina qué clientes ya deberían estar
+  // generando comisión (firstPaymentDate <= fin del período) y compara contra
+  // las marcas manuales de "recibido" (CommissionCheck) y los pagos globales
+  // registrados por aseguradora (CommissionPayment) para detectar a quién le
+  // falta el pago.
+  const [pYear, pMon] = period.split('-').map(Number)
+  const periodEnd = new Date(pYear, pMon, 0, 23, 59, 59)
+  const checkedSet = new Set(checks.filter(c => c.received).map(c => c.clientId))
+
+  const paymentsForPeriodByInsurer: Record<string, number> = {}
+  for (const p of payments) {
+    if (p.period !== period) continue
+    paymentsForPeriodByInsurer[p.insurer] = (paymentsForPeriodByInsurer[p.insurer] ?? 0) + p.amount
+  }
+
+  type ReconciliationClient = { id: string; fullName: string; lives: number; pmpm: number; expected: number; received: boolean }
+  type ReconciliationInsurer = {
+    insurer: string
+    expectedTotal: number
+    confirmedTotal: number
+    missingTotal: number
+    paymentReceived: number
+    clients: ReconciliationClient[]
+  }
+  const reconciliationMap: Record<string, ReconciliationInsurer> = {}
+
+  for (const c of clientRows) {
+    if (!c.firstPaymentDate) continue
+    if (new Date(c.firstPaymentDate) > periodEnd) continue
+    if (!reconciliationMap[c.insurer]) {
+      reconciliationMap[c.insurer] = {
+        insurer: c.insurer, expectedTotal: 0, confirmedTotal: 0, missingTotal: 0,
+        paymentReceived: paymentsForPeriodByInsurer[c.insurer] ?? 0, clients: [],
+      }
+    }
+    const received = checkedSet.has(c.id)
+    const row = reconciliationMap[c.insurer]
+    row.expectedTotal += c.acaCommission
+    if (received) row.confirmedTotal += c.acaCommission
+    row.clients.push({ id: c.id, fullName: c.fullName, lives: c.lives, pmpm: c.pmpm, expected: c.acaCommission, received })
+  }
+
+  for (const r of Object.values(reconciliationMap)) {
+    r.missingTotal = r.expectedTotal - r.confirmedTotal
+    r.clients.sort((a, b) => Number(a.received) - Number(b.received) || a.fullName.localeCompare(b.fullName))
+  }
+
+  const reconciliationInsurers = Object.values(reconciliationMap).sort((a, b) => b.expectedTotal - a.expectedTotal)
+  const reconciliation = {
+    period,
+    insurers: reconciliationInsurers,
+    totalExpected: reconciliationInsurers.reduce((s, r) => s + r.expectedTotal, 0),
+    totalConfirmed: reconciliationInsurers.reduce((s, r) => s + r.confirmedTotal, 0),
+    totalMissing: reconciliationInsurers.reduce((s, r) => s + r.missingTotal, 0),
+    totalPaymentReceived: reconciliationInsurers.reduce((s, r) => s + r.paymentReceived, 0),
+  }
+
   return NextResponse.json({
     summary: {
       totalMonthlyCommission: totalActiveMonthly,
@@ -294,6 +355,7 @@ export async function GET() {
       byInsurer: Object.values(insurerMap).sort((a, b) => b.monthly - a.monthly),
       wn: wnSummary,
       payments: paymentsSummary,
+      reconciliation,
     },
     clients: clientRows.sort((a, b) => {
       // Active first, then pending sorted by days until payment

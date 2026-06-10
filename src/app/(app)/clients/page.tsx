@@ -198,7 +198,7 @@ export default function ClientsPage() {
           </select>
           <select value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} style={INPUT_STYLE}>
             <option value="">Todas las aseguradoras</option>
-            {['Oscar','Ambetter','Cigna','Kaiser','Blue Cross Blue Shield','Anthem','UnitedHealthcare','Molina','CareSource','Alliant','AmeriHealth','Health Spring'].map(s => <option key={s}>{s}</option>)}
+            {['Blue Cross Blue Shield','UnitedHealthcare','Oscar','Ambetter','Cigna','Aetna','CareSource','AmeriHealth','Molina','Anthem','Kaiser','Alliant','AvMed','Health Spring','Health First'].map(s => <option key={s}>{s}</option>)}
           </select>
           <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} style={INPUT_STYLE}>
             <option value="">Todos los estados</option>

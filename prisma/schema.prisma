@@ -93,6 +93,7 @@ model Client {
   activities           Activity[]
   policyHistory        PolicyHistory[]
   documents            Document[]
+  commissionChecks     CommissionCheck[]
 }
 
 model PolicyHistory {
@@ -163,6 +164,31 @@ model CommissionPayment {
   createdAt    DateTime @default(now())
 
   @@index([insurer, period])
+}
+
+// Conciliación de comisiones: marca si la comisión de un cliente, para un mes
+// (período) específico, ya fue confirmada como recibida. Se usa para comparar
+// contra el total reportado en CommissionPayment y detectar qué cliente falta.
+model CommissionCheck {
+  id        String   @id @default(cuid())
+  clientId  String
+  period    String   // "YYYY-MM"
+  received  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, period])
+  @@index([period])
+}
+
+// Eventos de calendario creados manualmente por el agente (no ligados
+// necesariamente a un cliente), ej. recordatorios, reuniones, tareas.
+model CalendarEvent {
+  id        String   @id @default(cuid())
+  title     String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
 }
 
 model Document {

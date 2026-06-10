@@ -3,9 +3,9 @@
 import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react'
 
 const INSURERS = [
-  'Anthem', 'Cigna', 'Ambetter', 'CareSource', 'Oscar',
-  'Alliant', 'UnitedHealthcare', 'Molina', 'AmeriHealth', 'Health Spring',
-  'Kaiser', 'Blue Cross Blue Shield',
+  'Blue Cross Blue Shield', 'UnitedHealthcare', 'Oscar', 'Ambetter', 'Cigna',
+  'Aetna', 'CareSource', 'AmeriHealth', 'Molina', 'Anthem', 'Kaiser',
+  'Alliant', 'AvMed', 'Health Spring', 'Health First',
 ]
 
 const PREDEFINED_TAGS = [
@@ -450,6 +450,7 @@ interface Props {
   onSubmit: (data: Record<string, unknown>) => Promise<void>
   submitLabel?: string
   clientId?: string  // for excluding self when editing
+  onCancel?: () => void
 }
 
 function toDateInput(val?: string | null): string {
@@ -471,7 +472,7 @@ function parseWnPolicies(val?: string | WnPolicy[] | null): WnPolicy[] {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guardar', clientId }: Props) {
+export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guardar', clientId, onCancel }: Props) {
   const [saving, setSaving] = useState(false)
   const [showSSN, setShowSSN] = useState(false)
   const [duplicates, setDuplicates] = useState<DuplicateResult[]>([])
@@ -1008,7 +1009,18 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
         </div>
       </div>
 
-      <div className="flex justify-end pb-4">
+      <div className="flex justify-end gap-3 pb-4">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="px-8 py-2.5 rounded-lg font-semibold transition-opacity disabled:opacity-50"
+            style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
+          >
+            Cancelar
+          </button>
+        )}
         <button
           type="submit"
           disabled={saving || !form.fullName}
