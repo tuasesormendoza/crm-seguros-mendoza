@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { decryptClientFields } from '@/lib/encrypt'
 import { requireAdmin } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // Exports all CRM data as a downloadable JSON file.
 // The old SQLite backup (dev.db) no longer exists — we now use Neon/Postgres.
@@ -62,6 +63,7 @@ export async function GET() {
   const date = new Date().toISOString().split('T')[0]
   const json = JSON.stringify(backup, null, 2)
 
+  await logAudit(auth, { action: 'backup', entity: 'data', entityLabel: 'Respaldo completo (JSON)', metadata: { clients: clients.length } })
   return new NextResponse(json, {
     headers: {
       'Content-Type': 'application/json',

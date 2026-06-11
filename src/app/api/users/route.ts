@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   const auth = await requireAdmin()
@@ -51,5 +52,6 @@ export async function POST(request: NextRequest) {
     },
     select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
   })
+  await logAudit(auth, { action: 'create', entity: 'user', entityId: user.id, entityLabel: user.name, metadata: { email: user.email, role: user.role } })
   return NextResponse.json(user, { status: 201 })
 }

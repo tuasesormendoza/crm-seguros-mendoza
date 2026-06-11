@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { encrypt, decryptClientFields } from '@/lib/encrypt'
 import { validateClient, validationError } from '@/lib/validate'
 import { getAuth } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // Verifica que el cliente exista Y pertenezca a la agencia del usuario.
 // Devuelve true si es accesible. Evita que una agencia toque datos de otra.
@@ -156,6 +157,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/clients/
     data: { ...parsed, dependents: dependents ? { create: parseDependents(dependents).map(d => ({ ...d, agencyId: auth.agencyId })) } : undefined },
     include: { dependents: true, appointments: { orderBy: { date: 'asc' } } },
   })
+  await logAudit(auth, { action: 'update', entity: 'client', entityId: client.id, entityLabel: client.fullName })
   return NextResponse.json(decryptClientFields(client))
 }
 
@@ -163,8 +165,11 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/clients/
   const auth = await getAuth()
   if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
+  // Carga el nombre antes de borrar, para dejarlo en el registro de auditoría.
+  const existing = await prisma.client.findFirst({ where: { id, agencyId: auth.agencyId }, select: { fullName: true } })
   // deleteMany con scope de agencia: si el cliente no es de esta agencia, borra 0.
   const res = await prisma.client.deleteMany({ where: { id, agencyId: auth.agencyId } })
   if (res.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  await logAudit(auth, { action: 'delete', entity: 'client', entityId: id, entityLabel: existing?.fullName })
   return NextResponse.json({ success: true })
 }

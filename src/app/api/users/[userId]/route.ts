@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export async function PUT(request: NextRequest, ctx: RouteContext<'/api/users/[userId]'>) {
   const auth = await requireAdmin()
@@ -35,6 +36,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/users/[u
     data: updateData,
     select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
   })
+  await logAudit(auth, { action: 'update', entity: 'user', entityId: user.id, entityLabel: user.name, metadata: { role: user.role, active: user.active } })
   return NextResponse.json(user)
 }
 
@@ -57,5 +59,6 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/users/[u
   }
 
   await prisma.user.delete({ where: { id: userId } })
+  await logAudit(auth, { action: 'delete', entity: 'user', entityId: userId, entityLabel: user.name, metadata: { email: user.email } })
   return NextResponse.json({ success: true })
 }

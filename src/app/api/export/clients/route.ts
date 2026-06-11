@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   const auth = await getAuth()
@@ -37,6 +38,7 @@ export async function GET() {
 
   const csv = [headers.join(','), ...rows].join('\n')
 
+  await logAudit(auth, { action: 'export', entity: 'data', entityLabel: 'Exportación CSV de clientes', metadata: { count: clients.length } })
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',

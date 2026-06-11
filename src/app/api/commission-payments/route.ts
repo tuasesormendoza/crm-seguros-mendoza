@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // Registro manual de pagos de comisión efectivamente recibidos (insurer + período
 // "YYYY-MM" + monto + fecha). Se usa para comparar lo cobrado vs. lo proyectado.
@@ -46,5 +47,6 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  await logAudit(auth, { action: 'create', entity: 'commissionPayment', entityId: payment.id, entityLabel: `${payment.insurer} ${payment.period}`, metadata: { amount: payment.amount } })
   return NextResponse.json(payment, { status: 201 })
 }

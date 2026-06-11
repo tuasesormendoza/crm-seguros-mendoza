@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { deleteFile } from '@/lib/storage'
 import { getAuth } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/documents/[docId]'>) {
   const auth = await getAuth()
@@ -15,5 +16,6 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/document
   await deleteFile(doc.clientId, doc.storedName)
 
   await prisma.document.delete({ where: { id: docId } })
+  await logAudit(auth, { action: 'delete', entity: 'document', entityId: docId, entityLabel: doc.fileName, metadata: { clientId: doc.clientId } })
   return NextResponse.json({ success: true })
 }

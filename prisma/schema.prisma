@@ -370,3 +370,25 @@ model LoginAttempt {
   lockedUntil DateTime?
   updatedAt   DateTime @updatedAt
 }
+
+// Registro de auditoría: quién hizo qué y cuándo. Cada acción sensible (crear/
+// editar/borrar clientes, documentos, usuarios; exportar/respaldar datos; login)
+// deja una huella inmutable, aislada por agencia. Indispensable para vender el
+// CRM (cumplimiento y trazabilidad de datos personales).
+model AuditLog {
+  id          String   @id @default(cuid())
+  agencyId    String?
+  userId      String?
+  userName    String?  // nombre del usuario, cacheado para mostrar
+  userEmail   String?
+  action      String   // create | update | delete | export | backup | login
+  entity      String   // client | document | user | prospect | commissionPayment | session | data
+  entityId    String?
+  entityLabel String?  // etiqueta legible (ej. nombre del cliente)
+  metadata    String?  // JSON opcional con contexto extra
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([agencyId, createdAt])
+  @@index([agencyId, entity, entityId])
+}

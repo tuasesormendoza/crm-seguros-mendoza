@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { encrypt, decryptClientFields } from '@/lib/encrypt'
 import { validateClient, validationError } from '@/lib/validate'
 import { getAuth } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 function parseClientData(d: Record<string, unknown>) {
   return {
@@ -131,5 +132,6 @@ export async function POST(request: NextRequest) {
     },
     include: { dependents: true },
   })
+  await logAudit(auth, { action: 'create', entity: 'client', entityId: client.id, entityLabel: client.fullName })
   return NextResponse.json(decryptClientFields(client), { status: 201 })
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { saveFile } from '@/lib/storage'
 import { randomUUID } from 'crypto'
 import { getAuth, clientInAgency } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_TYPES = [
@@ -64,5 +65,6 @@ export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients
     },
   })
 
+  await logAudit(auth, { action: 'create', entity: 'document', entityId: doc.id, entityLabel: doc.fileName, metadata: { clientId: id, category } })
   return NextResponse.json(doc, { status: 201 })
 }

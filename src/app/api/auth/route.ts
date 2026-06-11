@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from '@/lib/rateLimit'
+import { logAudit } from '@/lib/audit'
 
 function getIP(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -93,6 +94,13 @@ export async function POST(request: NextRequest) {
   session.role = user.role
   session.agencyId = user.agencyId ?? undefined  // inquilino para aislamiento multi-tenant
   await session.save()
+
+  if (user.agencyId) {
+    await logAudit(
+      { agencyId: user.agencyId, userId: user.id, name: user.name, email: user.email },
+      { action: 'login', entity: 'session', entityLabel: user.name, ip }
+    )
+  }
 
   return NextResponse.json({ success: true, name: user.name, role: user.role })
 }
