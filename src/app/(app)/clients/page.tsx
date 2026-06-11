@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import ContactButtons from '@/components/ContactButtons'
@@ -54,14 +54,6 @@ interface Client {
 
 type SortKey = 'fullName' | 'state' | 'insurer' | 'totalMonthly' | 'renewalDate' | 'status'
 
-function hasWN(wnPolicies: string | null): boolean {
-  if (!wnPolicies) return false
-  try {
-    const arr = JSON.parse(wnPolicies)
-    return Array.isArray(arr) && arr.some((p: { type?: string }) => p.type)
-  } catch { return false }
-}
-
 function getWNTypes(wnPolicies: string | null): string[] {
   if (!wnPolicies) return []
   try {
@@ -100,8 +92,15 @@ const INPUT_STYLE: React.CSSProperties = {
   outline: 'none',
 }
 
+const PAGE_SIZE = 50
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [availableStates, setAvailableStates] = useState<string[]>([])
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [insurerFilter, setInsurerFilter] = useState('')
@@ -111,54 +110,41 @@ export default function ClientsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('fullName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
+  // Toda la búsqueda/filtrado/orden/paginación ocurre en el SERVIDOR (rápido y
+  // sin traer todos los clientes al navegador).
   const fetchClients = useCallback(() => {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams({
+      paginated: '1', page: String(page), pageSize: String(PAGE_SIZE),
+      sort: sortKey, dir: sortDir,
+    })
     if (search) params.set('search', search)
     if (statusFilter) params.set('status', statusFilter)
     if (insurerFilter) params.set('insurer', insurerFilter)
-    fetch(`/api/clients?${params}`).then(r => r.json()).then((data: Client[]) => {
-      setClients(data)
-    })
-  }, [search, statusFilter, insurerFilter])
+    if (stateFilter) params.set('state', stateFilter)
+    if (tagFilter) params.set('tag', tagFilter)
+    if (wnFilter) params.set('wn', wnFilter)
+    setLoading(true)
+    fetch(`/api/clients?${params}`).then(r => r.json()).then((data) => {
+      setClients(data.clients || [])
+      setTotal(data.total || 0)
+      setTotalPages(data.totalPages || 1)
+      if (Array.isArray(data.states)) setAvailableStates(data.states)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [page, search, statusFilter, insurerFilter, stateFilter, tagFilter, wnFilter, sortKey, sortDir])
 
   useEffect(() => {
     const t = setTimeout(fetchClients, 300)
     return () => clearTimeout(t)
   }, [fetchClients])
 
+  // Volver a la página 1 cuando cambian los filtros o el orden.
+  useEffect(() => { setPage(1) }, [search, statusFilter, insurerFilter, stateFilter, tagFilter, wnFilter, sortKey, sortDir])
+
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
-
-  const filtered = useMemo(() => {
-    let list = [...clients]
-    if (stateFilter) list = list.filter(c => c.state === stateFilter)
-    if (tagFilter) list = list.filter(c => {
-      try { return JSON.parse(c.tags || '[]').includes(tagFilter) } catch { return false }
-    })
-    if (wnFilter === 'con') list = list.filter(c => hasWN(c.wnPolicies))
-    if (wnFilter === 'sin') list = list.filter(c => !hasWN(c.wnPolicies))
-    list.sort((a, b) => {
-      let av: string | number = ''
-      let bv: string | number = ''
-      if (sortKey === 'fullName')    { av = a.fullName ?? ''; bv = b.fullName ?? '' }
-      if (sortKey === 'state')       { av = a.state ?? ''; bv = b.state ?? '' }
-      if (sortKey === 'insurer')     { av = a.insurer ?? ''; bv = b.insurer ?? '' }
-      if (sortKey === 'totalMonthly'){ av = a.totalMonthly ?? 0; bv = b.totalMonthly ?? 0 }
-      if (sortKey === 'renewalDate') { av = a.renewalDate ?? ''; bv = b.renewalDate ?? '' }
-      if (sortKey === 'status')      { av = a.status ?? ''; bv = b.status ?? '' }
-      if (av < bv) return sortDir === 'asc' ? -1 : 1
-      if (av > bv) return sortDir === 'asc' ? 1 : -1
-      return 0
-    })
-    return list
-  }, [clients, stateFilter, tagFilter, wnFilter, sortKey, sortDir])
-
-  const availableStates = useMemo(() =>
-    [...new Set(clients.map(c => c.state).filter(Boolean) as string[])].sort(),
-    [clients]
-  )
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -166,7 +152,9 @@ export default function ClientsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#0f172a' }}>Clientes</h1>
-          <p className="text-sm mt-1" style={{ color: '#64748b' }}>{filtered.length} de {clients.length} clientes</p>
+          <p className="text-sm mt-1" style={{ color: '#64748b' }}>
+            {total} cliente(s){totalPages > 1 ? ` · página ${page} de ${totalPages}` : ''}
+          </p>
         </div>
         <div className="flex gap-2">
           <a href="/api/export/clients" download
@@ -234,12 +222,12 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c, idx) => {
+              {clients.map((c, idx) => {
                 const wnTypes = getWNTypes(c.wnPolicies)
                 const wn = wnTypes.length > 0
                 return (
                   <tr key={c.id}
-                    style={{ borderBottom: idx < filtered.length - 1 ? '1px solid #e2e8f0' : 'none' }}
+                    style={{ borderBottom: idx < clients.length - 1 ? '1px solid #e2e8f0' : 'none' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     {/* Cliente */}
@@ -339,12 +327,12 @@ export default function ClientsPage() {
                   </tr>
                 )
               })}
-              {filtered.length === 0 && (
+              {clients.length === 0 && (
                 <tr>
                   <td colSpan={9} className="text-center py-16" style={{ color: '#94a3b8' }}>
-                    <div className="text-3xl mb-2">🔍</div>
-                    <div className="text-sm font-medium">No se encontraron clientes</div>
-                    <div className="text-xs mt-1">Prueba ajustando los filtros</div>
+                    <div className="text-3xl mb-2">{loading ? '⏳' : '🔍'}</div>
+                    <div className="text-sm font-medium">{loading ? 'Cargando...' : 'No se encontraron clientes'}</div>
+                    {!loading && <div className="text-xs mt-1">Prueba ajustando los filtros</div>}
                   </td>
                 </tr>
               )}
@@ -352,6 +340,25 @@ export default function ClientsPage() {
           </table>
         </div>
       </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1 || loading}
+            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white">
+            ← Anterior
+          </button>
+          <span className="text-sm" style={{ color: '#64748b' }}>Página {page} de {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || loading}
+            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white">
+            Siguiente →
+          </button>
+        </div>
+      )}
     </div>
   )
 }

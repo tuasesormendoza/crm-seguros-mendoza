@@ -118,6 +118,12 @@ model Client {
   insurerHistory       InsurerHistory[]
 
   @@index([agencyId])
+  // Índices compuestos para las consultas más frecuentes (lista paginada
+  // ordenada por nombre, filtro por estatus, y rangos de renovación en
+  // dashboard/calendario/hoy) — mantienen la app rápida al crecer los datos.
+  @@index([agencyId, fullName])
+  @@index([agencyId, status])
+  @@index([agencyId, renewalDate])
 }
 
 // Historial de cambios de aseguradora de un cliente (ej. tenía Oscar y se

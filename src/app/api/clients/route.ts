@@ -88,6 +88,30 @@ function parseDependents(deps: { type: string; name?: string; birthDate?: string
   }))
 }
 
+// Campos sensibles que NUNCA deben viajar al navegador en una LISTA (solo se
+// descifran y muestran en el perfil individual del cliente).
+const SENSITIVE_FIELDS = ['ssn', 'bankAccount', 'bankRouting', 'portalPassword'] as const
+
+function stripSensitive<T extends Record<string, unknown>>(client: T): T {
+  const out = { ...client } as Record<string, unknown>
+  for (const k of SENSITIVE_FIELDS) delete out[k]
+  if (Array.isArray(out.dependents)) {
+    out.dependents = (out.dependents as Record<string, unknown>[]).map(d => {
+      const dd = { ...d }; delete dd.ssn; return dd
+    })
+  }
+  return out as T
+}
+
+// Campos que necesita la LISTA paginada de clientes (sin PII sensible).
+const LIST_SELECT = {
+  id: true, fullName: true, email: true, phone: true, state: true,
+  insurer: true, planCategory: true, coverageType: true, totalMonthly: true,
+  status: true, renewalDate: true, affiliatesCount: true, tags: true, wnPolicies: true,
+} as const
+
+const SORT_FIELDS = ['fullName', 'state', 'insurer', 'totalMonthly', 'renewalDate', 'status']
+
 export async function GET(request: NextRequest) {
   const auth = await getAuth()
   if (auth instanceof NextResponse) return auth
@@ -96,24 +120,66 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search') || ''
   const status = searchParams.get('status') || ''
   const insurer = searchParams.get('insurer') || ''
+  const state = searchParams.get('state') || ''
+  const tag = searchParams.get('tag') || ''
+  const wn = searchParams.get('wn') || '' // 'con' | 'sin'
 
+  // Filtro unificado (se aplica tanto a la lista paginada como al arreglo).
+  const where = {
+    agencyId: auth.agencyId,
+    AND: [
+      search ? { OR: [
+        { fullName: { contains: search, mode: 'insensitive' as const } },
+        { email: { contains: search, mode: 'insensitive' as const } },
+        { phone: { contains: search } },
+      ] } : {},
+      status ? { status } : {},
+      insurer ? { insurer } : {},
+      state ? { state } : {},
+      // tags se guarda como arreglo JSON en texto, ej. ["VIP"] → busca "VIP" entre comillas
+      tag ? { tags: { contains: `"${tag}"` } } : {},
+      // wnPolicies con al menos una póliza con "type" = tiene Washington National
+      wn === 'con' ? { wnPolicies: { contains: '"type"' } } : {},
+      wn === 'sin' ? { OR: [{ wnPolicies: null }, { NOT: { wnPolicies: { contains: '"type"' } } }] } : {},
+    ],
+  }
+
+  // ── Modo paginado (lo usa la página de Clientes) ────────────────────────────
+  if (searchParams.get('paginated') === '1') {
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50') || 50))
+    const sortParam = searchParams.get('sort') || 'fullName'
+    const sort = SORT_FIELDS.includes(sortParam) ? sortParam : 'fullName'
+    const dir = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
+
+    const [total, clients, stateGroups] = await Promise.all([
+      prisma.client.count({ where }),
+      prisma.client.findMany({
+        where, select: LIST_SELECT, orderBy: { [sort]: dir },
+        skip: (page - 1) * pageSize, take: pageSize,
+      }),
+      prisma.client.groupBy({ by: ['state'], where: { agencyId: auth.agencyId, state: { not: null } } }),
+    ])
+
+    return NextResponse.json({
+      clients,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      states: stateGroups.map(g => g.state).filter(Boolean).sort(),
+    })
+  }
+
+  // ── Modo arreglo (compatibilidad: pipeline, documentos, reportes, búsqueda) ──
+  // Devuelve los clientes SIN los campos sensibles (no se descifran ni viajan
+  // al navegador en vistas de lista).
   const clients = await prisma.client.findMany({
-    where: {
-      agencyId: auth.agencyId,
-      AND: [
-        search ? { OR: [
-          { fullName: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search } },
-        ] } : {},
-        status ? { status } : {},
-        insurer ? { insurer } : {},
-      ]
-    },
+    where,
     include: { dependents: true },
     orderBy: { fullName: 'asc' },
   })
-  return NextResponse.json(clients.map(decryptClientFields))
+  return NextResponse.json(clients.map(stripSensitive))
 }
 
 export async function POST(request: NextRequest) {
