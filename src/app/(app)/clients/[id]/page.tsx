@@ -71,7 +71,7 @@ interface Client {
   sherpaUrl?: string | null
   googleReview?: string | null; notes?: string | null
   preferredLanguage?: string | null
-  dentalInsurer?: string | null; dentalDeductible?: string | null; dentalMaxBenefit?: string | null
+  dentalInsurer?: string | null; dentalDeductible?: string | null; dentalMaxBenefit?: string | null; dentalMonthly?: number | null
   firstPaymentPaid?: boolean | null; firstPaymentDate?: string | null
   tags?: string | null
   applicantInPolicy?: boolean | null; applicantExclusionReason?: string | null
@@ -971,7 +971,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 ))}
                 <div className="flex justify-between items-center pt-2">
-                  <span className="text-sm font-bold" style={{ color: '#10253f' }}>Total Mensual (ACA + WN)</span>
+                  <span className="text-sm font-bold" style={{ color: '#10253f' }}>Total Mensual (ACA + WN + Dental)</span>
                   <span className="text-base font-bold" style={{ color: '#10253f' }}>{formatCurrency(client.totalMonthly)}</span>
                 </div>
               </div>
@@ -979,16 +979,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </Section>
 
           {/* Dental Insurance */}
-          {(client.dentalInsurer || client.dentalDeductible || client.dentalMaxBenefit) && (
+          {(client.dentalInsurer || client.dentalDeductible || client.dentalMaxBenefit || client.dentalMonthly) && (
             <Section title="🦷 Póliza Dental">
               <dl className="space-y-3">
                 <InfoItem label="Aseguradora Dental" value={client.dentalInsurer} />
                 <InfoItem label="Deducible" value={client.dentalDeductible} />
                 <InfoItem label="Beneficio Máximo Anual" value={client.dentalMaxBenefit} />
+                {!!client.dentalMonthly && <InfoItem label="Precio del Plan" value={`${formatCurrency(client.dentalMonthly)}/mes`} />}
               </dl>
             </Section>
           )}
-          {!(client.dentalInsurer || client.dentalDeductible || client.dentalMaxBenefit) && (
+          {!(client.dentalInsurer || client.dentalDeductible || client.dentalMaxBenefit || client.dentalMonthly) && (
             <div className="bg-white rounded-xl border border-dashed border-gray-200 p-4 text-center">
               <p className="text-sm text-gray-400">🦷 Sin póliza dental registrada</p>
               <p className="text-xs text-gray-300 mt-0.5">Agrega la información en Editar → Póliza Dental</p>

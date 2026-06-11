@@ -10,6 +10,21 @@ function getIP(request: NextRequest): string {
     || 'unknown'
 }
 
+// Returns the current session info (role, name, email) so client components
+// can decide what to render — e.g. gate the Settings page for non-admins.
+export async function GET() {
+  const session = await getSession()
+  if (!session.isLoggedIn) {
+    return NextResponse.json({ isLoggedIn: false }, { status: 401 })
+  }
+  return NextResponse.json({
+    isLoggedIn: true,
+    name: session.name,
+    email: session.email,
+    role: session.role || 'agent',
+  })
+}
+
 export async function POST(request: NextRequest) {
   const ip = getIP(request)
 

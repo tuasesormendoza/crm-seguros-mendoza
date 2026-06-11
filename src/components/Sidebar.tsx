@@ -83,6 +83,7 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [agentName, setAgentName] = useState('Omar Mendoza')
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(true)
   const [search, setSearch] = useState('')
   const [searchResults, setSearchResults] = useState<{id:string;fullName:string;insurer:string|null;status:string|null}[]>([])
   const [showSearch, setShowSearch] = useState(false)
@@ -92,6 +93,7 @@ export default function Sidebar() {
       if (d.agentName) setAgentName(d.agentName)
       if (d.logoUrl && d.logoUrl !== 'undefined') setLogoUrl(d.logoUrl)
     }).catch(()=>{})
+    fetch('/api/auth').then(r=>r.json()).then(d => setIsAdmin(d.role === 'admin')).catch(()=>{})
   }, [])
 
   useEffect(() => {
@@ -241,11 +243,13 @@ export default function Sidebar() {
 
       {/* Bottom: Agent + Settings + Logout */}
       <div className="shrink-0 p-3 space-y-1" style={{ borderTop: '1px solid rgba(var(--brand-300-rgb), .10)' }}>
-        <Link href="/settings"
-          className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-all text-white/50 hover:text-white/80 hover:bg-white/5">
-          <span className="text-white/40">{Icons.settings}</span>
-          {!collapsed && <span>Configuración</span>}
-        </Link>
+        {isAdmin && (
+          <Link href="/settings"
+            className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-all text-white/50 hover:text-white/80 hover:bg-white/5">
+            <span className="text-white/40">{Icons.settings}</span>
+            {!collapsed && <span>Configuración</span>}
+          </Link>
+        )}
         <button onClick={logout}
           className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-all text-white/50 hover:text-white/80 hover:bg-white/5 w-full">
           <span className="text-white/40">{Icons.logout}</span>

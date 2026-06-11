@@ -12,8 +12,8 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/users/[u
   const { userId } = await ctx.params
   const { name, email, password, role, active } = await request.json()
 
-  // Don't allow deleting the last admin
-  if (active === false || role === 'agent') {
+  // Don't allow demoting/deactivating the last admin
+  if (active === false || (role !== undefined && role !== 'admin')) {
     const admins = await prisma.user.count({ where: { role: 'admin', active: true, id: { not: userId } } })
     if (admins === 0) {
       return NextResponse.json({ error: 'Debe haber al menos un administrador activo' }, { status: 400 })
@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/users/[u
   const updateData: Record<string, unknown> = {}
   if (name !== undefined)   updateData.name = name
   if (email !== undefined)  updateData.email = email.trim().toLowerCase()
-  if (role !== undefined)   updateData.role = role
+  if (role !== undefined)   updateData.role = ['admin', 'assistant'].includes(role) ? role : 'agent'
   if (active !== undefined) updateData.active = active
   if (password && password.length >= 8) updateData.password = await bcrypt.hash(password, 12)
 

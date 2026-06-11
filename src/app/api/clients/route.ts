@@ -66,6 +66,7 @@ function parseClientData(d: Record<string, unknown>) {
     dentalInsurer: d.dentalInsurer as string || null,
     dentalDeductible: d.dentalDeductible as string || null,
     dentalMaxBenefit: d.dentalMaxBenefit as string || null,
+    dentalMonthly: d.dentalMonthly ? parseFloat(d.dentalMonthly as string) : 0,
     firstPaymentPaid: d.firstPaymentPaid != null ? (d.firstPaymentPaid === true || d.firstPaymentPaid === 'Sí') : null,
     firstPaymentDate: d.firstPaymentDate ? new Date(d.firstPaymentDate as string) : null,
     tags: Array.isArray(d.tags) ? JSON.stringify(d.tags) : (d.tags as string || null),

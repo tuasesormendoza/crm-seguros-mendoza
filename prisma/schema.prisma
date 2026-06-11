@@ -83,6 +83,7 @@ model Client {
   dentalInsurer        String?
   dentalDeductible     String?
   dentalMaxBenefit     String?
+  dentalMonthly        Float?    @default(0)
   firstPaymentPaid         Boolean?  @default(false)
   firstPaymentDate         DateTime?
   tags                     String?   // JSON array e.g. ["VIP","Necesita seguimiento"]
@@ -263,7 +264,7 @@ model User {
   email     String   @unique
   name      String
   password  String
-  role      String   @default("agent")   // admin, agent
+  role      String   @default("agent")   // admin, agent, assistant
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -412,7 +412,7 @@ export interface FormData {
   preferredDoctors: string[]; specificMedications: string[]
   bankHolder: string; bankName: string; bankRouting: string; bankAccount: string; bankAccountType: string
   portalUser: string; portalPassword: string; sherpaUrl: string; googleReview: string; notes: string
-  preferredLanguage: string; dentalInsurer: string; dentalDeductible: string; dentalMaxBenefit: string
+  preferredLanguage: string; dentalInsurer: string; dentalDeductible: string; dentalMaxBenefit: string; dentalMonthly: string
   dependents: Dependent[]
   firstPaymentPaid: string
   firstPaymentDate: string
@@ -434,7 +434,7 @@ interface InitialData {
   preferredDoctors?: string | string[]; specificMedications?: string | string[]
   bankHolder?: string; bankName?: string; bankRouting?: string; bankAccount?: string; bankAccountType?: string
   portalUser?: string; portalPassword?: string; sherpaUrl?: string; googleReview?: string; notes?: string
-  preferredLanguage?: string; dentalInsurer?: string; dentalDeductible?: string; dentalMaxBenefit?: string
+  preferredLanguage?: string; dentalInsurer?: string; dentalDeductible?: string; dentalMaxBenefit?: string; dentalMonthly?: number | string
   dependents?: { type: string; name?: string; birthDate?: string; ssn?: string; inPolicy?: boolean | null; coverageNote?: string }[]
   firstPaymentPaid?: boolean | string | null
   firstPaymentDate?: string | null
@@ -545,6 +545,7 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
     dentalInsurer: initialData?.dentalInsurer || '',
     dentalDeductible: initialData?.dentalDeductible || '',
     dentalMaxBenefit: initialData?.dentalMaxBenefit || '',
+    dentalMonthly: initialData?.dentalMonthly?.toString() || '0',
     firstPaymentPaid: initialData?.firstPaymentPaid === true ? 'Sí' : initialData?.firstPaymentPaid === false ? 'No' : (initialData?.firstPaymentPaid as string || 'Pendiente'),
     firstPaymentDate: toDateInput(initialData?.firstPaymentDate),
     tags: (() => {
@@ -592,7 +593,8 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
       arr[i] = { ...arr[i], [key]: val }
       const wnTotal = arr.reduce((sum, p) => sum + (parseFloat(p.monthly) || 0), 0)
       const acaPrice = parseFloat(f.acaPrice) || 0
-      return { ...f, wnPolicies: arr, totalMonthly: (acaPrice + wnTotal).toFixed(2) }
+      const dentalMonthly = parseFloat(f.dentalMonthly) || 0
+      return { ...f, wnPolicies: arr, totalMonthly: (acaPrice + wnTotal + dentalMonthly).toFixed(2) }
     }), [])
 
   // Recalculate total when ACA price changes
@@ -600,7 +602,17 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
     setForm(f => {
       const acaPrice = parseFloat(val) || 0
       const wnTotal = f.wnPolicies.reduce((sum, p) => sum + (parseFloat(p.monthly) || 0), 0)
-      return { ...f, acaPrice: val, totalMonthly: (acaPrice + wnTotal).toFixed(2) }
+      const dentalMonthly = parseFloat(f.dentalMonthly) || 0
+      return { ...f, acaPrice: val, totalMonthly: (acaPrice + wnTotal + dentalMonthly).toFixed(2) }
+    }), [])
+
+  // Recalculate total when the dental plan price changes
+  const setDentalMonthly = useCallback((val: string) =>
+    setForm(f => {
+      const dentalMonthly = parseFloat(val) || 0
+      const acaPrice = parseFloat(f.acaPrice) || 0
+      const wnTotal = f.wnPolicies.reduce((sum, p) => sum + (parseFloat(p.monthly) || 0), 0)
+      return { ...f, dentalMonthly: val, totalMonthly: (acaPrice + wnTotal + dentalMonthly).toFixed(2) }
     }), [])
 
   const age = calcAge(form.birthDate)
@@ -860,7 +872,7 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
         {form.wnPolicies.length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end">
             <div className="text-sm font-semibold" style={{ color: '#10253f' }}>
-              Total Mensual (ACA + WN): <span className="text-lg">${form.totalMonthly}</span>
+              Total Mensual (ACA + WN + Dental): <span className="text-lg">${form.totalMonthly}</span>
             </div>
           </div>
         )}
@@ -997,6 +1009,7 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
           <Field label="Aseguradora Dental" value={form.dentalInsurer} onChange={v => setField('dentalInsurer', v)} placeholder="Ej: Delta Dental, Cigna..." />
           <Field label="Deducible Dental" value={form.dentalDeductible} onChange={v => setField('dentalDeductible', v)} placeholder="Ej: $50, $100" />
           <Field label="Beneficio Máximo Anual" value={form.dentalMaxBenefit} onChange={v => setField('dentalMaxBenefit', v)} placeholder="Ej: $1,000, $1,500" />
+          <CurrencyField label="Precio del Plan ($)" value={form.dentalMonthly} onChange={setDentalMonthly} />
         </div>
       </div>
 

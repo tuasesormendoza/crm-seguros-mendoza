@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   }
 
   const user = await prisma.user.create({
-    data: { email: email.trim().toLowerCase(), name, password: await bcrypt.hash(password, 12), role: role === 'admin' ? 'admin' : 'agent', active: true },
+    data: { email: email.trim().toLowerCase(), name, password: await bcrypt.hash(password, 12), role: ['admin', 'assistant'].includes(role) ? role : 'agent', active: true },
     select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
   })
   return NextResponse.json(user, { status: 201 })

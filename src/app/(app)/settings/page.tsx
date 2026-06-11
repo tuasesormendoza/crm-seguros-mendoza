@@ -16,6 +16,13 @@ interface User {
   id: string; email: string; name: string; role: string; active: boolean; createdAt: string
 }
 
+const ROLE_META: Record<string, { label: string; bg: string; color: string; avatarBg: string }> = {
+  admin:     { label: 'Admin',     bg: '#dbeafe', color: '#1e40af', avatarBg: 'linear-gradient(135deg, #2a6496, #0891b2)' },
+  agent:     { label: 'Agente',    bg: '#f1f5f9', color: '#64748b', avatarBg: '#64748b' },
+  assistant: { label: 'Asistente', bg: '#fef3c7', color: '#92400e', avatarBg: '#a16207' },
+}
+function roleMeta(role: string) { return ROLE_META[role] || ROLE_META.agent }
+
 function UserManagement() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -148,6 +155,7 @@ function UserManagement() {
                   value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
                   <option value="admin">Administrador (acceso completo)</option>
                   <option value="agent">Agente (acceso estándar)</option>
+                  <option value="assistant">Asistente (acceso limitado)</option>
                 </select>
               </div>
               {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">⚠️ {error}</div>}
@@ -177,15 +185,15 @@ function UserManagement() {
               style={{ borderColor: u.active ? '#e2e8f0' : '#fca5a5', background: u.active ? '#f8fafc' : '#fff5f5' }}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                  style={{ background: u.role === 'admin' ? 'linear-gradient(135deg, #2a6496, #0891b2)' : '#64748b' }}>
+                  style={{ background: roleMeta(u.role).avatarBg }}>
                   {u.name.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold" style={{ color: '#10253f' }}>{u.name}</span>
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ background: u.role === 'admin' ? '#dbeafe' : '#f1f5f9', color: u.role === 'admin' ? '#1e40af' : '#64748b' }}>
-                      {u.role === 'admin' ? 'Admin' : 'Agente'}
+                      style={{ background: roleMeta(u.role).bg, color: roleMeta(u.role).color }}>
+                      {roleMeta(u.role).label}
                     </span>
                     {!u.active && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Inactivo</span>}
                   </div>
@@ -358,10 +366,15 @@ const THEME_COLOR_FIELDS: { key: keyof typeof THEME_DEFAULTS; label: string; des
 function ColorSettings({ settings, set, onSave }: {
   settings: Settings
   set: (key: string, value: string) => void
-  onSave: () => Promise<void>
+  onSave: (overrides?: Record<string, string>) => Promise<void>
 }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // Returns a guaranteed-valid 6-digit hex for a given field — used for the
+  // color swatch, live preview and applyTheme (which all require a real hex).
+  const validColor = (key: keyof typeof THEME_DEFAULTS) =>
+    (settings[key] && /^#[0-9a-fA-F]{6}$/.test(settings[key])) ? settings[key] : THEME_DEFAULTS[key]
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -369,15 +382,23 @@ function ColorSettings({ settings, set, onSave }: {
     await onSave()
     // Apply immediately so the user sees the result without reloading
     const theme: Record<string, string> = {}
-    THEME_COLOR_FIELDS.forEach(f => { theme[f.key] = settings[f.key] || THEME_DEFAULTS[f.key] })
+    THEME_COLOR_FIELDS.forEach(f => { theme[f.key] = validColor(f.key) })
     applyTheme(theme)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
-  function reset() {
+  async function reset() {
+    setSaving(true)
     THEME_COLOR_FIELDS.forEach(f => set(f.key, THEME_DEFAULTS[f.key]))
+    // Apply immediately and persist — pass the defaults explicitly since the
+    // `settings` state above won't reflect the just-applied changes yet.
+    applyTheme(THEME_DEFAULTS)
+    await onSave(THEME_DEFAULTS)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
   }
 
   return (
@@ -389,7 +410,12 @@ function ColorSettings({ settings, set, onSave }: {
       <form onSubmit={handleSave} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {THEME_COLOR_FIELDS.map(f => {
-            const value = (settings[f.key] && /^#[0-9a-fA-F]{6}$/.test(settings[f.key])) ? settings[f.key] : THEME_DEFAULTS[f.key]
+            // The color swatch needs a valid 6-digit hex at all times, but the
+            // text field should reflect exactly what the user is typing —
+            // gating it through the regex caused the value to snap back to
+            // the default on every keystroke of an in-progress hex code.
+            const swatchValue = validColor(f.key)
+            const textValue = settings[f.key] ?? THEME_DEFAULTS[f.key]
             return (
               <div key={f.key}>
                 <label className={LABEL}>{f.label}</label>
@@ -397,13 +423,13 @@ function ColorSettings({ settings, set, onSave }: {
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={value}
+                    value={swatchValue}
                     onChange={e => set(f.key, e.target.value)}
                     className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer p-1 bg-white shrink-0"
                   />
                   <input
                     type="text"
-                    value={value}
+                    value={textValue}
                     onChange={e => set(f.key, e.target.value)}
                     maxLength={7}
                     className={INPUT + ' font-mono text-xs uppercase'}
@@ -416,22 +442,22 @@ function ColorSettings({ settings, set, onSave }: {
 
         {/* Live preview */}
         <div className="rounded-xl p-4 flex items-center gap-3 flex-wrap"
-          style={{ background: settings.themeBrand800 || THEME_DEFAULTS.themeBrand800 }}>
+          style={{ background: validColor('themeBrand800') }}>
           <div className="px-3 py-1.5 rounded-lg text-xs font-bold"
-            style={{ background: `linear-gradient(135deg, ${settings.themeBrand500 || THEME_DEFAULTS.themeBrand500}, ${settings.themeBrand300 || THEME_DEFAULTS.themeBrand300})`, color: settings.themeBrand800 || THEME_DEFAULTS.themeBrand800 }}>
+            style={{ background: `linear-gradient(135deg, ${validColor('themeBrand500')}, ${validColor('themeBrand300')})`, color: validColor('themeBrand800') }}>
             Botón principal
           </div>
           <div className="px-3 py-1.5 rounded-lg text-xs font-bold"
-            style={{ background: settings.themeAccent || THEME_DEFAULTS.themeAccent, color: settings.themeBrand800 || THEME_DEFAULTS.themeBrand800 }}>
+            style={{ background: validColor('themeAccent'), color: validColor('themeBrand800') }}>
             + Nuevo Cliente
           </div>
-          <span className="text-xs font-medium" style={{ color: settings.themeBrand300 || THEME_DEFAULTS.themeBrand300 }}>
+          <span className="text-xs font-medium" style={{ color: validColor('themeBrand300') }}>
             Vista previa en vivo
           </span>
         </div>
 
         <div className="flex items-center justify-between pt-1">
-          <button type="button" onClick={reset} className="text-xs font-medium text-gray-500 hover:text-gray-700 underline">
+          <button type="button" onClick={reset} disabled={saving} className="text-xs font-medium text-gray-500 hover:text-gray-700 underline disabled:opacity-50">
             Restaurar colores por defecto
           </button>
           <SaveBtn saving={saving} saved={saved} />
@@ -444,6 +470,17 @@ function ColorSettings({ settings, set, onSave }: {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
+
+  // Only admins can access this page — everyone else sees a friendly message
+  // instead of the full settings UI (and instead of a hard crash from /api/users
+  // returning a 403 to non-admins).
+  const [role, setRole] = useState<string | null>(null)
+  useEffect(() => {
+    fetch('/api/auth')
+      .then(res => res.ok ? res.json() : { role: 'agent' })
+      .then(data => setRole(data.role || 'agent'))
+      .catch(() => setRole('agent'))
+  }, [])
 
   // Per-section save states
   const [savingProfile, setSavingProfile] = useState(false)
@@ -501,10 +538,10 @@ export default function SettingsPage() {
   const set = (key: string, value: string) =>
     setSettings(s => ({ ...s, [key]: value }))
 
-  async function saveSection(keys: string[], setSaving: (v: boolean) => void, setSaved: (v: boolean) => void) {
+  async function saveSection(keys: string[], setSaving: (v: boolean) => void, setSaved: (v: boolean) => void, overrides?: Record<string, string>) {
     setSaving(true)
     const partial: Settings = {}
-    keys.forEach(k => { partial[k] = settings[k] ?? '' })
+    keys.forEach(k => { partial[k] = overrides?.[k] ?? settings[k] ?? '' })
     await fetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -578,6 +615,22 @@ export default function SettingsPage() {
     setTimeout(() => setPwSuccess(false), 5000)
   }
 
+  if (role === null) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-gray-400">Cargando configuración...</div>
+    </div>
+  )
+
+  if (role !== 'admin') return (
+    <div className="max-w-md mx-auto mt-20 text-center bg-white rounded-2xl border border-gray-200 p-8">
+      <div className="text-5xl mb-4">🔒</div>
+      <h1 className="text-xl font-bold mb-2" style={{ color: '#10253f' }}>Acceso no autorizado</h1>
+      <p className="text-sm text-gray-500">
+        No tienes permisos para acceder a esta sección. Contacta a tu administrador si necesitas realizar cambios aquí.
+      </p>
+    </div>
+  )
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="text-gray-400">Cargando configuración...</div>
@@ -595,7 +648,7 @@ export default function SettingsPage() {
       <LogoUploader currentUrl={settings.logoUrl} onUploaded={url => set('logoUrl', url || '')} />
 
       {/* ── Colores del Sistema ───────────────────────────────── */}
-      <ColorSettings settings={settings} set={set} onSave={() => saveSection(['themeBrand800','themeBrand500','themeBrand300','themeAccent'], () => {}, () => {})} />
+      <ColorSettings settings={settings} set={set} onSave={(overrides) => saveSection(['themeBrand800','themeBrand500','themeBrand300','themeAccent'], () => {}, () => {}, overrides)} />
 
       {/* ── Perfil del Agente ─────────────────────────────────── */}
       <div className={SECTION}>
