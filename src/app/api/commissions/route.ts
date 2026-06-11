@@ -1,98 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
-
-const DEFAULT_RATES: Record<string, number> = {
-  'Blue Cross Blue Shield': 25, 'UnitedHealthcare': 18, 'Oscar': 18, 'Ambetter': 18,
-  'Cigna': 20, 'Aetna': 18, 'CareSource': 19, 'AmeriHealth': 20, 'Molina': 18,
-  'Anthem': 20, 'Kaiser': 18, 'Alliant': 18, 'AvMed': 18, 'Health Spring': 18,
-  'Health First': 18, 'Florida Blue': 18,
-}
-
-/**
- * Commission payment logic:
- *   - Policy activation = 1st day of month AFTER contractDate
- *     e.g. contracted 06/15 → activates 07/01
- *   - First commission payment = activation + N months, donde N
- *     ("monthsToFirstPayment") es configurable por aseguradora (por defecto 2).
- *     e.g. activates 07/01 → first payment 09/01 (N=2)
- *
- *   - Si un cliente cambió de aseguradora a mitad de póliza (ver
- *     InsurerHistory), cada "tramo" (stint) con una aseguradora se trata
- *     igual: el reloj de "primera comisión" se reinicia desde el inicio del
- *     tramo, usando el N configurado para esa aseguradora.
- */
-function getActivationDate(contractDate: Date | null): Date | null {
-  if (!contractDate) return null
-  const d = new Date(contractDate)
-  // 1st day of the following month
-  return new Date(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)
-}
-
-// Un "tramo" (stint) representa un período continuo durante el cual un
-// cliente estuvo con una aseguradora específica. endDate === null significa
-// "aseguradora actual" (sin fecha de fin todavía).
-type Stint = { insurer: string; startDate: Date; endDate: Date | null }
-
-function buildStints(
-  insurer: string,
-  contractDate: Date | null,
-  history: { insurer: string; startDate: Date; endDate: Date | null }[]
-): Stint[] {
-  if (history.length === 0) {
-    const activation = getActivationDate(contractDate)
-    if (!activation) return []
-    return [{ insurer, startDate: activation, endDate: null }]
-  }
-  const sorted = [...history]
-    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-    .map(h => ({ insurer: h.insurer, startDate: new Date(h.startDate), endDate: h.endDate ? new Date(h.endDate) : null }))
-
-  // Si el último tramo registrado ya terminó, completar el resto del
-  // historial con la aseguradora ACTUAL del cliente (client.insurer) a
-  // partir del mes siguiente — así el agente solo necesita registrar el(los)
-  // tramo(s) anterior(es) y no uno "actual" cada vez.
-  const last = sorted[sorted.length - 1]
-  if (last.endDate) {
-    const nextStart = new Date(last.endDate.getFullYear(), last.endDate.getMonth() + 1, 1)
-    sorted.push({ insurer, startDate: nextStart, endDate: null })
-  }
-  return sorted
-}
-
-// ¿Este tramo cubre el mes que empieza en `periodStart` (1ro del mes)?
-function stintCovers(stint: Stint, periodStart: Date): boolean {
-  if (stint.startDate > periodStart) return false
-  if (stint.endDate && stint.endDate < periodStart) return false
-  return true
-}
-
-function getStintFirstPaymentDate(stint: Stint, monthsMap: Record<string, number>): Date {
-  const months = monthsMap[stint.insurer] ?? 2
-  return new Date(stint.startDate.getFullYear(), stint.startDate.getMonth() + months, 1)
-}
-
-/**
- * Washington National (WN) ancillary-policy commission logic — completely
- * separate from the ACA/PMPM commission tracking above:
- *   - Commission = 30% of the policy's ANNUALIZED monthly premium, paid ONCE
- *     (not per renewal). e.g. $100/mo → $1,200/yr → $360 commission.
- *   - 75% of that ($270) is paid up front, right when the policy is submitted.
- *   - The remaining 25% ($90) is paid after the client has had the policy
- *     active for 8 months.
- *   - Clawback: if the client cancels BEFORE completing 7 months active, the
- *     agent must return the 75% already received and forfeits the 25%.
- *     Reaching month 7 makes the 75% safe (no clawback risk anymore).
- */
-function monthsBetween(start: Date, end: Date): number {
-  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
-  if (end.getDate() < start.getDate()) months -= 1
-  return Math.max(months, 0)
-}
-
-function addMonths(d: Date, n: number): Date {
-  return new Date(d.getFullYear(), d.getMonth() + n, d.getDate())
-}
+// Lógica pura extraída a un módulo testeable (ver src/lib/commissions.test.ts).
+import {
+  DEFAULT_RATES,
+  getActivationDate,
+  buildStints,
+  stintCovers,
+  getStintFirstPaymentDate,
+  monthsBetween,
+  addMonths,
+  type Stint,
+} from '@/lib/commissions'
 
 export async function GET(request: NextRequest) {
   const auth = await requireRole(COMMISSIONS_ROLES)
