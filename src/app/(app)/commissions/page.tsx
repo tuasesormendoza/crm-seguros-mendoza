@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
+import StatementImport from '@/components/StatementImport'
 
 interface InsurerSummary {
   insurer: string
@@ -128,7 +129,7 @@ interface RateRow {
 export default function CommissionsPage() {
   const [data, setData] = useState<CommissionData | null>(null)
   const [rates, setRates] = useState<RateRow[]>([])
-  const [tab, setTab] = useState<'resumen' | 'clientes' | 'conciliacion'>('resumen')
+  const [tab, setTab] = useState<'resumen' | 'clientes' | 'conciliacion' | 'importar'>('resumen')
   const [showRates, setShowRates] = useState(false)
   const [savingRates, setSavingRates] = useState(false)
   const [sortDesc, setSortDesc] = useState(true)
@@ -331,6 +332,11 @@ export default function CommissionsPage() {
           style={tab === 'conciliacion' ? { background: '#10253f' } : {}}
           onClick={() => setTab('conciliacion')}>
           Conciliación
+        </button>
+        <button className={tab === 'importar' ? TAB_ACTIVE : TAB_INACTIVE}
+          style={tab === 'importar' ? { background: '#10253f' } : {}}
+          onClick={() => setTab('importar')}>
+          📥 Importar estado de cuenta
         </button>
       </div>
 
@@ -712,6 +718,15 @@ export default function CommissionsPage() {
             ))
           )}
         </div>
+      )}
+
+      {tab === 'importar' && (
+        <StatementImport
+          period={reconPeriod}
+          insurers={data.summary.reconciliation.insurers}
+          onApplied={() => load()}
+          onPeriodChange={setReconPeriod}
+        />
       )}
 
       {/* Pagos recibidos */}
