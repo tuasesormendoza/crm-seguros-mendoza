@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+  const agencyId = auth.agencyId
+
   const { searchParams } = new URL(request.url)
   const month = searchParams.get('month') || new Date().toISOString().slice(0, 7)
   const [year, mon] = month.split('-').map(Number)
@@ -11,30 +16,30 @@ export async function GET(request: NextRequest) {
 
   // Appointments
   const appointments = await prisma.appointment.findMany({
-    where: { date: { gte: start, lte: end } },
+    where: { agencyId, date: { gte: start, lte: end } },
     include: { client: { select: { id: true, fullName: true } } },
   })
 
   // Manually-created calendar events
   const events = await prisma.calendarEvent.findMany({
-    where: { date: { gte: start, lte: end } },
+    where: { agencyId, date: { gte: start, lte: end } },
     orderBy: { date: 'asc' },
   })
 
   // Renewals
   const renewals = await prisma.client.findMany({
-    where: { renewalDate: { gte: start, lte: end } },
+    where: { agencyId, renewalDate: { gte: start, lte: end } },
     select: { id: true, fullName: true, renewalDate: true, insurer: true },
   })
 
   // Birthdays - all clients + dependents, check month/day
   const allClients = await prisma.client.findMany({
     select: { id: true, fullName: true, birthDate: true },
-    where: { birthDate: { not: null } },
+    where: { agencyId, birthDate: { not: null } },
   })
   const allDependents = await prisma.dependent.findMany({
     select: { id: true, name: true, birthDate: true, clientId: true },
-    where: { birthDate: { not: null } },
+    where: { agencyId, birthDate: { not: null } },
   })
 
   const birthdays: { id: string; name: string; date: string; clientId?: string }[] = []

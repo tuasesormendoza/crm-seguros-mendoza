@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+
   const { pdfText } = await request.json()
 
   if (!pdfText) return NextResponse.json({ error: 'No se recibió texto del PDF' }, { status: 400 })
 
-  // Get API key from DB settings first, then env
-  const stored = await prisma.settings.findUnique({ where: { key: 'anthropicApiKey' } }).catch(() => null)
+  // Get API key from DB settings first (por agencia), then env
+  const stored = await prisma.settings.findFirst({ where: { agencyId: auth.agencyId, key: 'anthropicApiKey' } }).catch(() => null)
   const apiKey = stored?.value || process.env.ANTHROPIC_API_KEY || ''
 
   if (!apiKey) {

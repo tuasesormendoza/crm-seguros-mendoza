@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
 
 const DEFAULT_RATES: Record<string, number> = {
   'Blue Cross Blue Shield': 25, 'UnitedHealthcare': 18, 'Oscar': 18, 'Ambetter': 18,
@@ -94,13 +95,17 @@ function addMonths(d: Date, n: number): Date {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireRole(COMMISSIONS_ROLES)
+  if (auth instanceof NextResponse) return auth
+  const agencyId = auth.agencyId
+
   const today = new Date()
   const { searchParams } = new URL(request.url)
   const period = searchParams.get('period') || today.toISOString().slice(0, 7) // "YYYY-MM"
 
   const [clients, wnClientsRaw, storedRates, payments, checks, insurerHistoryRows] = await Promise.all([
     prisma.client.findMany({
-      where: { status: 'Activo' },
+      where: { agencyId, status: 'Activo' },
       select: {
         id: true, fullName: true, insurer: true,
         affiliatesCount: true, applicantInPolicy: true,
@@ -110,17 +115,17 @@ export async function GET(request: NextRequest) {
     }),
     // Washington National tracking needs to see cancelled clients too (clawback risk)
     prisma.client.findMany({
-      where: { wnPolicies: { not: null } },
+      where: { agencyId, wnPolicies: { not: null } },
       select: {
         id: true, fullName: true, insurer: true, status: true,
         wnPolicies: true, contractDate: true, wnContractDate: true,
         cancellationDate: true, wnSecondPaymentReceived: true, wnClawbackReturned: true,
       },
     }),
-    prisma.commissionRate.findMany(),
-    prisma.commissionPayment.findMany({ orderBy: [{ period: 'desc' }, { receivedDate: 'desc' }] }),
-    prisma.commissionCheck.findMany({ where: { period } }),
-    prisma.insurerHistory.findMany(),
+    prisma.commissionRate.findMany({ where: { agencyId } }),
+    prisma.commissionPayment.findMany({ where: { agencyId }, orderBy: [{ period: 'desc' }, { receivedDate: 'desc' }] }),
+    prisma.commissionCheck.findMany({ where: { agencyId, period } }),
+    prisma.insurerHistory.findMany({ where: { agencyId } }),
   ])
 
   // Build rates map

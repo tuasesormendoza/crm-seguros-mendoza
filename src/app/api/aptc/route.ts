@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth } from '@/lib/auth'
 
 // ── FPL applicable percentage table (IRS) ─────────────────────────────────────
 const APPLICABLE_PCT: [number, number, number][] = [
@@ -21,15 +22,18 @@ function getApplicablePct(fplPct: number): number {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+
   const { zipcode, income, householdSize, age, ages, year, state } = await request.json()
 
   if (!zipcode || !income || !age) {
     return NextResponse.json({ error: 'ZIP code, ingreso y edad son requeridos' }, { status: 400 })
   }
 
-  // Get settings
+  // Get settings (por agencia)
   const rows = await prisma.settings.findMany({
-    where: { key: { in: ['cmsApiKey', 'fpl1Person', 'fplPerPerson', 'fplYear', 'bestPlansRankMode'] } }
+    where: { agencyId: auth.agencyId, key: { in: ['cmsApiKey', 'fpl1Person', 'fplPerPerson', 'fplYear', 'bestPlansRankMode'] } }
   })
   const s: Record<string, string> = {}
   rows.forEach(r => { s[r.key] = r.value })

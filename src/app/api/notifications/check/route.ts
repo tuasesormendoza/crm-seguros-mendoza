@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
+import { getAuth } from '@/lib/auth'
 
 function monthsBetween(start: Date, end: Date): number {
   let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
@@ -17,15 +18,26 @@ function getAge(birth: Date): number {
 }
 
 export async function POST() {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+  const agencyId = auth.agencyId
+
+  // Helpers de "log de notificación" con scope de agencia, para no repetir
+  // la misma notificación y para mantener todo aislado por inquilino.
+  const alreadySent = (type: string, refId: string) =>
+    prisma.notificationLog.findUnique({ where: { agencyId_type_refId: { agencyId, type, refId } } })
+  const markSent = (type: string, refId: string) =>
+    prisma.notificationLog.create({ data: { agencyId, type, refId } })
+
   const today = new Date()
   const results: string[] = []
 
   const clients = await prisma.client.findMany({
-    where: { status: 'Activo' },
+    where: { agencyId, status: 'Activo' },
     select: { id: true, fullName: true, phone: true, email: true, birthDate: true, renewalDate: true, firstPaymentPaid: true, contractDate: true, insurer: true }
   })
 
-  const agentName = (await prisma.settings.findUnique({ where: { key: 'agentName' } }))?.value || 'Agente'
+  const agentName = (await prisma.settings.findFirst({ where: { agencyId, key: 'agentName' } }))?.value || 'Agente'
 
   // 1. BIRTHDAYS today
   for (const c of clients) {
@@ -33,7 +45,7 @@ export async function POST() {
     const birth = new Date(c.birthDate)
     if (birth.getUTCMonth() === today.getMonth() && birth.getUTCDate() === today.getDate()) {
       const key = `birthday-${c.id}-${today.getFullYear()}`
-      const already = await prisma.notificationLog.findUnique({ where: { type_refId: { type: 'birthday', refId: key } } })
+      const already = await alreadySent('birthday', key)
       if (!already) {
         const age = getAge(birth)
         const subject = `🎂 Cumpleaños hoy: ${c.fullName}`
@@ -50,9 +62,9 @@ export async function POST() {
             </p>
             <p style="color:#94a3b8;font-size:12px;margin-top:20px">CRM Agentes de Seguros · ${new Date().toLocaleDateString('en-US')}</p>
           </div>`
-        const res = await sendEmail(subject, html)
+        const res = await sendEmail(agencyId, subject, html)
         if (res.sent) {
-          await prisma.notificationLog.create({ data: { type: 'birthday', refId: key } })
+          await markSent('birthday', key)
           results.push(`✓ Birthday: ${c.fullName}`)
         }
       }
@@ -68,7 +80,7 @@ export async function POST() {
     const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     if (renewalLocal >= todayLocal && renewalLocal <= in7Local) {
       const key = `renewal-${c.id}-${renewalLocal.toISOString().split('T')[0]}`
-      const already = await prisma.notificationLog.findUnique({ where: { type_refId: { type: 'renewal', refId: key } } })
+      const already = await alreadySent('renewal', key)
       if (!already) {
         const daysLeft = Math.ceil((renewalLocal.getTime() - todayLocal.getTime()) / (1000*60*60*24))
         const subject = `🔄 Renovación en ${daysLeft} días: ${c.fullName}`
@@ -83,9 +95,9 @@ export async function POST() {
             </table>
             <p style="color:#94a3b8;font-size:12px;margin-top:20px">CRM Agentes de Seguros · ${new Date().toLocaleDateString('en-US')}</p>
           </div>`
-        const res = await sendEmail(subject, html)
+        const res = await sendEmail(agencyId, subject, html)
         if (res.sent) {
-          await prisma.notificationLog.create({ data: { type: 'renewal', refId: key } })
+          await markSent('renewal', key)
           results.push(`✓ Renewal: ${c.fullName} (${daysLeft}d)`)
         }
       }
@@ -100,7 +112,7 @@ export async function POST() {
   )
   if (overdueClients.length > 0) {
     const key = `firstpayment-overdue-${today.toISOString().split('T')[0]}`
-    const already = await prisma.notificationLog.findUnique({ where: { type_refId: { type: 'firstpayment', refId: key } } })
+    const already = await alreadySent('firstpayment', key)
     if (!already) {
       const subject = `⚠️ ${overdueClients.length} cliente(s) con primer pago vencido`
       const html = `
@@ -110,9 +122,9 @@ export async function POST() {
           <ul>${overdueClients.map(c => `<li><strong>${c.fullName}</strong>${c.phone ? ` · ${c.phone}` : ''}</li>`).join('')}</ul>
           <p style="color:#94a3b8;font-size:12px;margin-top:20px">CRM Agentes de Seguros · ${new Date().toLocaleDateString('en-US')}</p>
         </div>`
-      const res = await sendEmail(subject, html)
+      const res = await sendEmail(agencyId, subject, html)
       if (res.sent) {
-        await prisma.notificationLog.create({ data: { type: 'firstpayment', refId: key } })
+        await markSent('firstpayment', key)
         results.push(`✓ First payment overdue: ${overdueClients.length} clients`)
       }
     }
@@ -121,7 +133,7 @@ export async function POST() {
   // 4. WASHINGTON NATIONAL (WN) — clawback safety reached (month 7) & second
   // commission payment due (month 8). One-time alerts per client/milestone.
   const wnClients = await prisma.client.findMany({
-    where: { wnPolicies: { not: null }, status: 'Activo' },
+    where: { agencyId, wnPolicies: { not: null }, status: 'Activo' },
     select: { id: true, fullName: true, phone: true, wnPolicies: true, contractDate: true, wnContractDate: true },
   })
   for (const c of wnClients) {
@@ -139,7 +151,7 @@ export async function POST() {
     // Reached month 7 → no more clawback risk on the 75% already received
     if (monthsActive === 7) {
       const key = `wn-clawback-safe-${c.id}`
-      const already = await prisma.notificationLog.findUnique({ where: { type_refId: { type: 'wn', refId: key } } })
+      const already = await alreadySent('wn', key)
       if (!already) {
         const subject = `✅ WN: riesgo de devolución superado — ${c.fullName}`
         const html = `
@@ -148,9 +160,9 @@ export async function POST() {
             <p><strong>${c.fullName}</strong> cumplió <strong>7 meses</strong> con su póliza WN activa — el 75% de la comisión ya recibido queda <strong>asegurado</strong> (no hay que devolverlo aunque cancele después).</p>
             <p style="color:#94a3b8;font-size:12px;margin-top:20px">CRM Agentes de Seguros · ${new Date().toLocaleDateString('en-US')}</p>
           </div>`
-        const res = await sendEmail(subject, html)
+        const res = await sendEmail(agencyId, subject, html)
         if (res.sent) {
-          await prisma.notificationLog.create({ data: { type: 'wn', refId: key } })
+          await markSent('wn', key)
           results.push(`✓ WN clawback-safe: ${c.fullName}`)
         }
       }
@@ -159,7 +171,7 @@ export async function POST() {
     // Reached month 8 → second payment (25%) should now be coming
     if (monthsActive === 8) {
       const key = `wn-second-payment-${c.id}`
-      const already = await prisma.notificationLog.findUnique({ where: { type_refId: { type: 'wn', refId: key } } })
+      const already = await alreadySent('wn', key)
       if (!already) {
         const subject = `💰 WN: 2do pago de comisión esperado — ${c.fullName}`
         const html = `
@@ -168,9 +180,9 @@ export async function POST() {
             <p><strong>${c.fullName}</strong> cumplió <strong>8 meses</strong> con su póliza Washington National activa — el 25% restante de la comisión debería estar por llegar. Verifica y márcalo como recibido en la página de Comisiones.</p>
             <p style="color:#94a3b8;font-size:12px;margin-top:20px">CRM Agentes de Seguros · ${new Date().toLocaleDateString('en-US')}</p>
           </div>`
-        const res = await sendEmail(subject, html)
+        const res = await sendEmail(agencyId, subject, html)
         if (res.sent) {
-          await prisma.notificationLog.create({ data: { type: 'wn', refId: key } })
+          await markSent('wn', key)
           results.push(`✓ WN second-payment due: ${c.fullName}`)
         }
       }

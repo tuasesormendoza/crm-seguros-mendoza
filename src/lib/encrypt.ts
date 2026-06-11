@@ -25,7 +25,15 @@ function getKey(): Buffer | null {
 export function encrypt(plaintext: string | null | undefined): string | null {
   if (!plaintext) return plaintext ?? null
   const key = getKey()
-  if (!key) return plaintext // No key → store as plaintext
+  if (!key) {
+    // En PRODUCCIÓN el cifrado es OBLIGATORIO: nunca se debe guardar PII
+    // (SSN, cuentas bancarias, contraseñas de portal) en texto plano. Si la
+    // llave no está configurada, fallamos ruidosamente en vez de degradar.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENCRYPTION_KEY no está configurada — no se pueden guardar datos sensibles sin cifrado. Agrégala en las variables de entorno de Netlify (64 caracteres hex).')
+    }
+    return plaintext // Solo en desarrollo: se permite texto plano por conveniencia
+  }
   const iv = randomBytes(12)
   const cipher = createCipheriv(ALGORITHM, key, iv)
   const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])

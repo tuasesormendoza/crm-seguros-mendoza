@@ -1,9 +1,11 @@
 import nodemailer from 'nodemailer'
 import { prisma } from './prisma'
 
-export async function getEmailConfig() {
+// Multi-tenant: la configuración de email (SMTP) es POR AGENCIA. Siempre se debe
+// pasar el agencyId para no mezclar credenciales entre inquilinos.
+export async function getEmailConfig(agencyId: string) {
   const rows = await prisma.settings.findMany({
-    where: { key: { in: ['emailEnabled','emailFrom','emailTo','smtpHost','smtpPort','smtpUser','smtpPass'] } }
+    where: { agencyId, key: { in: ['emailEnabled','emailFrom','emailTo','smtpHost','smtpPort','smtpUser','smtpPass'] } }
   })
   const map: Record<string,string> = {}
   rows.forEach(r => { map[r.key] = r.value })
@@ -18,8 +20,8 @@ export async function getEmailConfig() {
   }
 }
 
-export async function sendEmail(subject: string, html: string) {
-  const cfg = await getEmailConfig()
+export async function sendEmail(agencyId: string, subject: string, html: string) {
+  const cfg = await getEmailConfig(agencyId)
   if (!cfg.enabled || !cfg.to || !cfg.user || !cfg.pass) return { sent: false, reason: 'Email not configured' }
 
   const transporter = nodemailer.createTransport({

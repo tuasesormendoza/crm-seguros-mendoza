@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 
 export async function GET() {
-  const session = await getSession()
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
+  const auth = await requireAdmin()
+  if (auth instanceof NextResponse) return auth
 
   const users = await prisma.user.findMany({
+    where: { agencyId: auth.agencyId },
     select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   })
@@ -17,10 +16,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession()
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
+  const auth = await requireAdmin()
+  if (auth instanceof NextResponse) return auth
 
   const { email, name, password, role } = await request.json()
 
@@ -31,20 +28,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
   }
 
-  // Max 3 users
-  const count = await prisma.user.count()
+  // Máximo 3 usuarios POR AGENCIA
+  const count = await prisma.user.count({ where: { agencyId: auth.agencyId } })
   if (count >= 3) {
     return NextResponse.json({ error: 'Máximo 3 usuarios permitidos' }, { status: 400 })
   }
 
-  // Check email not taken
+  // Email único a nivel global (la tabla User tiene email @unique)
   const existing = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } })
   if (existing) {
     return NextResponse.json({ error: 'Este email ya está registrado' }, { status: 400 })
   }
 
   const user = await prisma.user.create({
-    data: { email: email.trim().toLowerCase(), name, password: await bcrypt.hash(password, 12), role: ['admin', 'assistant'].includes(role) ? role : 'agent', active: true },
+    data: {
+      agencyId: auth.agencyId,
+      email: email.trim().toLowerCase(),
+      name,
+      password: await bcrypt.hash(password, 12),
+      role: ['admin', 'assistant'].includes(role) ? role : 'agent',
+      active: true,
+    },
     select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
   })
   return NextResponse.json(user, { status: 201 })

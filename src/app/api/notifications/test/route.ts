@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
+import { requireAdmin } from '@/lib/auth'
 
 export async function POST() {
+  const auth = await requireAdmin()
+  if (auth instanceof NextResponse) return auth
   const res = await sendEmail(
+    auth.agencyId,
     '✅ CRM Seguros — Email configurado correctamente',
     `<div style="font-family:sans-serif;padding:20px;max-width:500px;margin:auto">
       <h2 style="color:#10253f">✅ ¡Email funcionando!</h2>

@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth } from '@/lib/auth'
 
 export async function GET() {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+  const agencyId = auth.agencyId
+
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
@@ -10,20 +15,21 @@ export async function GET() {
 
   // Today's appointments
   const todayAppointments = await prisma.appointment.findMany({
-    where: { date: { gte: todayStart, lt: todayEnd } },
+    where: { agencyId, date: { gte: todayStart, lt: todayEnd } },
     include: { client: { select: { id: true, fullName: true } } },
     orderBy: { date: 'asc' },
   })
 
   // Urgent renewals: renewalDate within next 7 days
   const urgentRenewals = await prisma.client.findMany({
-    where: { renewalDate: { gte: now, lte: in7 } },
+    where: { agencyId, renewalDate: { gte: now, lte: in7 } },
     select: { id: true, fullName: true, insurer: true, renewalDate: true },
     orderBy: { renewalDate: 'asc' },
   })
 
   // Clients with birthday in next 7 days
   const allClients = await prisma.client.findMany({
+    where: { agencyId },
     select: { id: true, fullName: true, birthDate: true, contractDate: true, firstPaymentPaid: true, tags: true, phone: true },
   })
 

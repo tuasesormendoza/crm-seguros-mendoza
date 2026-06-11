@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth } from '@/lib/auth'
 
 export async function GET() {
-  const goalsRow = await prisma.settings.findUnique({ where: { key: 'productionGoals' } })
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+  const agencyId = auth.agencyId
+
+  const goalsRow = await prisma.settings.findFirst({ where: { agencyId, key: 'productionGoals' } })
   if (!goalsRow) return NextResponse.json({ goals: null, progress: null })
 
   let goals
@@ -13,12 +18,12 @@ export async function GET() {
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
   const clients = await prisma.client.findMany({
-    where: { contractDate: { gte: startOfMonth, lte: endOfMonth } },
+    where: { agencyId, contractDate: { gte: startOfMonth, lte: endOfMonth } },
     select: { id: true, wnPolicies: true, totalMonthly: true }
   })
 
   const activeClients = await prisma.client.findMany({
-    where: { status: 'Activo' },
+    where: { agencyId, status: 'Activo' },
     select: { totalMonthly: true }
   })
 

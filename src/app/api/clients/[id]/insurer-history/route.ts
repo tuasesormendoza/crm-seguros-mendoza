@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth, clientInAgency } from '@/lib/auth'
 
 // Historial de cambios de aseguradora de un cliente — usado para que la
 // conciliación de comisiones atribuya cada mes a la aseguradora que
@@ -13,16 +14,21 @@ function periodToDate(period: string): Date | null {
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
   const history = await prisma.insurerHistory.findMany({
-    where: { clientId: id },
+    where: { clientId: id, agencyId: auth.agencyId },
     orderBy: { startDate: 'asc' },
   })
   return NextResponse.json(history)
 }
 
 export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
+  if (!(await clientInAgency(id, auth.agencyId))) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const body = await request.json().catch(() => ({}))
   const { insurer, startPeriod, endPeriod, notes } = body as {
     insurer?: string
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients
     }
   }
 
-  const client = await prisma.client.findUnique({ where: { id }, select: { id: true, insurer: true } })
+  const client = await prisma.client.findFirst({ where: { id, agencyId: auth.agencyId }, select: { id: true, insurer: true } })
   if (!client) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
 
   // Si esta entrada representa la aseguradora ACTUAL (sin fecha de fin),
@@ -59,7 +65,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients
   // client.insurer para mantenerlo en sincronía.
   if (!endDate) {
     const openEntries = await prisma.insurerHistory.findMany({
-      where: { clientId: id, endDate: null },
+      where: { clientId: id, agencyId: auth.agencyId, endDate: null },
     })
     for (const entry of openEntries) {
       const closeAt = new Date(startDate.getFullYear(), startDate.getMonth() - 1, 1)
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients
   }
 
   const entry = await prisma.insurerHistory.create({
-    data: { clientId: id, insurer, startDate, endDate, notes: notes || null },
+    data: { clientId: id, agencyId: auth.agencyId, insurer, startDate, endDate, notes: notes || null },
   })
 
   return NextResponse.json(entry, { status: 201 })

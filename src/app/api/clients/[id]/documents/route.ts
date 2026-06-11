@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { saveFile } from '@/lib/storage'
 import { randomUUID } from 'crypto'
+import { getAuth, clientInAgency } from '@/lib/auth'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_TYPES = [
@@ -14,16 +15,21 @@ const ALLOWED_TYPES = [
 ]
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
   const docs = await prisma.document.findMany({
-    where: { clientId: id },
+    where: { clientId: id, agencyId: auth.agencyId },
     orderBy: { uploadedAt: 'desc' },
   })
   return NextResponse.json(docs)
 }
 
 export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
+  if (!(await clientInAgency(id, auth.agencyId))) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
@@ -48,6 +54,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<'/api/clients
   const doc = await prisma.document.create({
     data: {
       clientId: id,
+      agencyId: auth.agencyId,
       fileName: file.name,
       storedName,
       fileSize: file.size,

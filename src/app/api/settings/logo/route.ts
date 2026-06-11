@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin } from '@/lib/auth'
 
 const ALLOWED = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml']
 const MAX_SIZE = 2 * 1024 * 1024 // 2 MB
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin()
+  if (auth instanceof NextResponse) return auth
+
   const formData = await request.formData()
   const file = formData.get('logo') as File | null
 
@@ -39,22 +43,25 @@ export async function POST(request: NextRequest) {
 
   const logoUrl = `/${fileName}?v=${Date.now()}`
 
-  // Save to settings
+  // Save to settings (por agencia)
   await prisma.settings.upsert({
-    where: { key: 'logoUrl' },
+    where: { agencyId_key: { agencyId: auth.agencyId, key: 'logoUrl' } },
     update: { value: logoUrl },
-    create: { key: 'logoUrl', value: logoUrl },
+    create: { agencyId: auth.agencyId, key: 'logoUrl', value: logoUrl },
   })
 
   return NextResponse.json({ success: true, logoUrl })
 }
 
 export async function DELETE() {
+  const auth = await requireAdmin()
+  if (auth instanceof NextResponse) return auth
+
   // Remove logo file
   const { unlink } = await import('fs/promises')
   for (const e of ['png','jpg','jpeg','webp','svg']) {
     await unlink(path.join(process.cwd(), 'public', `brand-logo.${e}`)).catch(() => null)
   }
-  await prisma.settings.deleteMany({ where: { key: 'logoUrl' } })
+  await prisma.settings.deleteMany({ where: { agencyId: auth.agencyId, key: 'logoUrl' } })
   return NextResponse.json({ success: true })
 }

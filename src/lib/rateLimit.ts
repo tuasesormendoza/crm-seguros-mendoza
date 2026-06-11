@@ -1,63 +1,66 @@
 /**
- * Simple in-memory rate limiter for login attempts.
- * Blocks an IP after MAX_ATTEMPTS failed logins for LOCKOUT_MS milliseconds.
+ * Limitador de intentos de login PERSISTENTE (tabla LoginAttempt).
+ *
+ * El anterior era en memoria, lo cual es inútil en serverless (Netlify): cada
+ * petición puede caer en una instancia distinta y la memoria se borra en cada
+ * cold-start, así que el bloqueo casi nunca se aplicaba. Esta versión guarda los
+ * intentos en Postgres (Neon), por lo que el bloqueo es real y compartido entre
+ * todas las instancias.
  */
+import { prisma } from '@/lib/prisma'
 
-const MAX_ATTEMPTS = 5          // max failed attempts before lockout
-const LOCKOUT_MS   = 15 * 60 * 1000  // 15 minutes lockout
-const WINDOW_MS    = 10 * 60 * 1000  // track attempts within 10-minute window
+const MAX_ATTEMPTS = 5               // intentos fallidos antes del bloqueo
+const LOCKOUT_MS   = 15 * 60 * 1000  // bloqueo de 15 minutos
+const WINDOW_MS    = 10 * 60 * 1000  // ventana de conteo de 10 minutos
 
-interface Attempt {
-  count: number
-  firstAttempt: number
-  lockedUntil?: number
-}
-
-// In-memory store — resets on server restart (acceptable for this use case)
-const store = new Map<string, Attempt>()
-
-export function checkRateLimit(ip: string): { allowed: boolean; remaining: number; retryAfter?: number } {
+export async function checkRateLimit(identifier: string): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> {
   const now = Date.now()
-  const entry = store.get(ip)
+  const entry = await prisma.loginAttempt.findUnique({ where: { identifier } }).catch(() => null)
 
-  // Check if currently locked
-  if (entry?.lockedUntil && now < entry.lockedUntil) {
-    const retryAfter = Math.ceil((entry.lockedUntil - now) / 1000 / 60) // minutes
+  if (entry?.lockedUntil && now < entry.lockedUntil.getTime()) {
+    const retryAfter = Math.ceil((entry.lockedUntil.getTime() - now) / 1000 / 60) // minutos
     return { allowed: false, remaining: 0, retryAfter }
   }
 
-  // Reset if window expired
-  if (entry && now - entry.firstAttempt > WINDOW_MS) {
-    store.delete(ip)
+  // Ventana expirada → empezar de cero
+  if (entry && now - entry.firstAt.getTime() > WINDOW_MS) {
     return { allowed: true, remaining: MAX_ATTEMPTS }
   }
 
   const count = entry?.count ?? 0
-  return { allowed: true, remaining: MAX_ATTEMPTS - count }
+  return { allowed: true, remaining: Math.max(MAX_ATTEMPTS - count, 0) }
 }
 
-export function recordFailedAttempt(ip: string): { blocked: boolean; remaining: number } {
-  const now = Date.now()
-  const entry = store.get(ip)
+export async function recordFailedAttempt(identifier: string): Promise<{ blocked: boolean; remaining: number }> {
+  const now = new Date()
+  const entry = await prisma.loginAttempt.findUnique({ where: { identifier } }).catch(() => null)
 
-  // Reset if window expired
-  if (entry && now - entry.firstAttempt > WINDOW_MS) {
-    store.set(ip, { count: 1, firstAttempt: now })
+  // Sin registro o ventana expirada → reiniciar conteo
+  if (!entry || now.getTime() - entry.firstAt.getTime() > WINDOW_MS) {
+    await prisma.loginAttempt.upsert({
+      where: { identifier },
+      update: { count: 1, firstAt: now, lockedUntil: null },
+      create: { identifier, count: 1, firstAt: now },
+    }).catch(() => null)
     return { blocked: false, remaining: MAX_ATTEMPTS - 1 }
   }
 
-  const newCount = (entry?.count ?? 0) + 1
-  const firstAttempt = entry?.firstAttempt ?? now
-
+  const newCount = entry.count + 1
   if (newCount >= MAX_ATTEMPTS) {
-    store.set(ip, { count: newCount, firstAttempt, lockedUntil: now + LOCKOUT_MS })
+    await prisma.loginAttempt.update({
+      where: { identifier },
+      data: { count: newCount, lockedUntil: new Date(now.getTime() + LOCKOUT_MS) },
+    }).catch(() => null)
     return { blocked: true, remaining: 0 }
   }
 
-  store.set(ip, { count: newCount, firstAttempt })
+  await prisma.loginAttempt.update({
+    where: { identifier },
+    data: { count: newCount },
+  }).catch(() => null)
   return { blocked: false, remaining: MAX_ATTEMPTS - newCount }
 }
 
-export function clearAttempts(ip: string) {
-  store.delete(ip)
+export async function clearAttempts(identifier: string): Promise<void> {
+  await prisma.loginAttempt.deleteMany({ where: { identifier } }).catch(() => null)
 }

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth } from '@/lib/auth'
 
 export async function GET() {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+
   const prospects = await prisma.prospect.findMany({
-    where: { referredByClientId: { not: null } },
+    where: { agencyId: auth.agencyId, referredByClientId: { not: null } },
     orderBy: { createdAt: 'desc' }
   })
 
@@ -11,7 +15,7 @@ export async function GET() {
 
   const clientIds = [...new Set(prospects.map(p => p.referredByClientId!))]
   const clients = await prisma.client.findMany({
-    where: { id: { in: clientIds } },
+    where: { id: { in: clientIds }, agencyId: auth.agencyId },
     select: { id: true, fullName: true, phone: true, email: true }
   })
   const clientMap = new Map(clients.map(c => [c.id, c]))

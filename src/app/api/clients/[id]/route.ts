@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { encrypt, decryptClientFields } from '@/lib/encrypt'
 import { validateClient, validationError } from '@/lib/validate'
+import { getAuth } from '@/lib/auth'
+
+// Verifica que el cliente exista Y pertenezca a la agencia del usuario.
+// Devuelve true si es accesible. Evita que una agencia toque datos de otra.
+async function clientInAgency(id: string, agencyId: string): Promise<boolean> {
+  const found = await prisma.client.findFirst({ where: { id, agencyId }, select: { id: true } })
+  return !!found
+}
 
 function parseClientData(d: Record<string, unknown>) {
   return {
@@ -94,19 +102,26 @@ function encryptPatchFields(data: Record<string, unknown>): Record<string, unkno
 
 // PATCH — partial update (e.g. sherpaUrl only)
 export async function PATCH(request: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
+  if (!(await clientInAgency(id, auth.agencyId))) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
   const data = await request.json()
+  const { agencyId: _ignore, ...safe } = data  // nunca permitir reasignar la agencia desde el cliente
   const client = await prisma.client.update({
     where: { id },
-    data: encryptPatchFields(data),
+    data: encryptPatchFields(safe),
     include: { dependents: true, appointments: { orderBy: { date: 'asc' } } },
   })
   return NextResponse.json(decryptClientFields(client))
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
-  const client = await prisma.client.findUnique({ where: { id }, include: { dependents: true, appointments: { orderBy: { date: 'asc' } } } })
+  const client = await prisma.client.findFirst({ where: { id, agencyId: auth.agencyId }, include: { dependents: true, appointments: { orderBy: { date: 'asc' } } } })
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(decryptClientFields(client))
 }
@@ -122,9 +137,13 @@ const PLAN_BENEFIT_KEYS = [
 ] as const
 
 export async function PUT(request: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
+  if (!(await clientInAgency(id, auth.agencyId))) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
   const data = await request.json()
-  const { dependents, appointments: _appts, ...rest } = data
+  const { dependents, appointments: _appts, agencyId: _ignore, ...rest } = data
   const errors = validateClient(rest)
   if (Object.keys(errors).length > 0) return validationError(errors)
   const parsed: Record<string, unknown> = parseClientData(rest)
@@ -134,14 +153,18 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/clients/
   await prisma.dependent.deleteMany({ where: { clientId: id } })
   const client = await prisma.client.update({
     where: { id },
-    data: { ...parsed, dependents: dependents ? { create: parseDependents(dependents) } : undefined },
+    data: { ...parsed, dependents: dependents ? { create: parseDependents(dependents).map(d => ({ ...d, agencyId: auth.agencyId })) } : undefined },
     include: { dependents: true, appointments: { orderBy: { date: 'asc' } } },
   })
   return NextResponse.json(decryptClientFields(client))
 }
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/clients/[id]'>) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const { id } = await ctx.params
-  await prisma.client.delete({ where: { id } })
+  // deleteMany con scope de agencia: si el cliente no es de esta agencia, borra 0.
+  const res = await prisma.client.deleteMany({ where: { id, agencyId: auth.agencyId } })
+  if (res.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json({ success: true })
 }

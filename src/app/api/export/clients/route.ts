@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getAuth } from '@/lib/auth'
 
 export async function GET() {
-  const session = await getSession()
-  if (!session.isLoggedIn) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const clients = await prisma.client.findMany({
+    where: { agencyId: auth.agencyId },
     select: {
       fullName: true, email: true, phone: true, insurer: true,
       planName: true, planCategory: true, status: true, renewalDate: true,

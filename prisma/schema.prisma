@@ -7,8 +7,25 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Multi-tenant (SaaS): cada "Agencia" es un inquilino aislado. TODO registro de
+// datos lleva un `agencyId` y TODA consulta se filtra por la agencia del usuario
+// logueado, de modo que una agencia NUNCA puede ver los datos de otra. Dentro de
+// una misma agencia, todos los usuarios (admin/agente/asistente) comparten la
+// cartera de clientes.
+// ─────────────────────────────────────────────────────────────────────────────
+model Agency {
+  id        String   @id @default(cuid())
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
 model Client {
   id                   String    @id @default(cuid())
+  agencyId             String?   // Inquilino (agencia) dueño de este registro
   contractDate         DateTime?
   policyYear           Int?
   fullName             String
@@ -99,6 +116,8 @@ model Client {
   documents            Document[]
   commissionChecks     CommissionCheck[]
   insurerHistory       InsurerHistory[]
+
+  @@index([agencyId])
 }
 
 // Historial de cambios de aseguradora de un cliente (ej. tenía Oscar y se
@@ -109,6 +128,7 @@ model Client {
 // "aseguradora actual", y el período posterior se cubre con client.insurer).
 model InsurerHistory {
   id        String    @id @default(cuid())
+  agencyId  String?
   clientId  String
   insurer   String
   startDate DateTime
@@ -118,10 +138,12 @@ model InsurerHistory {
   client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([agencyId])
 }
 
 model PolicyHistory {
   id           String   @id @default(cuid())
+  agencyId     String?
   clientId     String
   year         Int
   insurer      String?
@@ -133,11 +155,14 @@ model PolicyHistory {
   notes        String?
   recordedAt   DateTime @default(now())
   client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
 }
 
 
 model Dependent {
   id             String    @id @default(cuid())
+  agencyId       String?
   clientId       String
   type           String
   name           String?
@@ -146,30 +171,39 @@ model Dependent {
   inPolicy       Boolean?
   coverageNote   String?   // Medicaid, Medicare, CHIP, Otro
   client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
 }
 
 model Appointment {
   id        String   @id @default(cuid())
+  agencyId  String?
   clientId  String
   date      DateTime
   notes     String?
   status    String   @default("Programada")
   createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
 }
 
 model Activity {
   id        String   @id @default(cuid())
+  agencyId  String?
   clientId  String
   type      String
   content   String
   createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
 }
 
 model CommissionRate {
   id                   String   @id @default(cuid())
-  insurer              String   @unique
+  agencyId             String?
+  insurer              String
   pmpm                 Float
   paymentDay           Int?     // Día del mes en que la aseguradora paga la comisión (1-31)
   // Meses entre la activación (o el cambio de aseguradora) y la primera
@@ -178,12 +212,16 @@ model CommissionRate {
   monthsToFirstPayment Int?     @default(2)
   notes                String?
   updatedAt            DateTime @updatedAt
+
+  @@unique([agencyId, insurer])
+  @@index([agencyId])
 }
 
 // Registro manual de pagos de comisión efectivamente recibidos, para comparar
 // contra lo proyectado (PMPM × vidas) y ajustar las cifras a la realidad.
 model CommissionPayment {
   id           String   @id @default(cuid())
+  agencyId     String?
   insurer      String
   period       String   // Mes que cubre el pago, formato "YYYY-MM" (ej. "2026-04")
   amount       Float
@@ -192,6 +230,7 @@ model CommissionPayment {
   createdAt    DateTime @default(now())
 
   @@index([insurer, period])
+  @@index([agencyId])
 }
 
 // Conciliación de comisiones: marca si la comisión de un cliente, para un mes
@@ -199,6 +238,7 @@ model CommissionPayment {
 // contra el total reportado en CommissionPayment y detectar qué cliente falta.
 model CommissionCheck {
   id        String   @id @default(cuid())
+  agencyId  String?
   clientId  String
   period    String   // "YYYY-MM"
   received  Boolean  @default(false)
@@ -207,20 +247,25 @@ model CommissionCheck {
 
   @@unique([clientId, period])
   @@index([period])
+  @@index([agencyId])
 }
 
 // Eventos de calendario creados manualmente por el agente (no ligados
 // necesariamente a un cliente), ej. recordatorios, reuniones, tareas.
 model CalendarEvent {
   id        String   @id @default(cuid())
+  agencyId  String?
   title     String
   date      DateTime
   notes     String?
   createdAt DateTime @default(now())
+
+  @@index([agencyId])
 }
 
 model Document {
   id          String   @id @default(cuid())
+  agencyId    String?
   clientId    String
   fileName    String   // original file name shown to user
   storedName  String   // UUID-based name on disk
@@ -230,24 +275,38 @@ model Document {
   notes       String?
   uploadedAt  DateTime @default(now())
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
 }
 
+// Configuración por agencia (colores, marca, plantillas, llaves API, metas…).
+// Antes la llave (`key`) era global; ahora es única POR agencia para que cada
+// inquilino tenga su propia configuración aislada.
 model Settings {
-  key       String   @id
+  id        String   @id @default(cuid())
+  agencyId  String?
+  key       String
   value     String
   updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, key])
+  @@index([agencyId])
 }
 
 model NotificationLog {
   id        String   @id @default(cuid())
+  agencyId  String?
   type      String   // birthday, renewal, firstpayment
   refId     String   // clientId or date string
   sentAt    DateTime @default(now())
-  @@unique([type, refId])
+
+  @@unique([agencyId, type, refId])
+  @@index([agencyId])
 }
 
 model Prospect {
   id                String   @id @default(cuid())
+  agencyId          String?
   fullName          String
   phone             String?
   email             String?
@@ -281,10 +340,13 @@ model Prospect {
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([agencyId])
 }
 
 model User {
   id        String   @id @default(cuid())
+  agencyId  String?
   email     String   @unique
   name      String
   password  String
@@ -292,4 +354,19 @@ model User {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  agency    Agency?  @relation(fields: [agencyId], references: [id])
+
+  @@index([agencyId])
+}
+
+// Limitador de intentos de login persistente (reemplaza el rate-limit en memoria,
+// que es inútil en serverless porque se reinicia en cada cold-start). Registra
+// intentos fallidos por identificador (IP/email) con ventana y bloqueo temporal.
+model LoginAttempt {
+  id          String   @id @default(cuid())
+  identifier  String   @unique // IP o email normalizado
+  count       Int      @default(0)
+  firstAt     DateTime @default(now())
+  lockedUntil DateTime?
+  updatedAt   DateTime @updatedAt
 }

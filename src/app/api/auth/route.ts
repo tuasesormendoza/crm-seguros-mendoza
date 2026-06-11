@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   const ip = getIP(request)
 
   // ── Rate limit check ──────────────────────────────────────────────────────
-  const rateCheck = checkRateLimit(ip)
+  const rateCheck = await checkRateLimit(ip)
   if (!rateCheck.allowed) {
     return NextResponse.json({
       error: `Demasiados intentos fallidos. Intenta de nuevo en ${rateCheck.retryAfter} minuto(s).`
@@ -46,28 +46,11 @@ export async function POST(request: NextRequest) {
     where: { email: email.trim().toLowerCase() }
   }).catch(() => null)
 
-  // ── Fallback: no users in DB → check legacy settings password ─────────────
+  // Sin usuario → credenciales inválidas. (Se eliminó el fallback con contraseña
+  // hardcodeada 'admin123'; los usuarios se administran en la tabla User.)
   if (!user) {
-    const legacyRaw = (await prisma.settings.findUnique({ where: { key: 'appPassword' } }))?.value
-      || process.env.SESSION_PASSWORD || 'admin123'
-
-    const legacyOk = legacyRaw.startsWith('$2')
-      ? await bcrypt.compare(password, legacyRaw)
-      : password === legacyRaw
-
-    if (!legacyOk) {
-      recordFailedAttempt(ip)
-      return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
-    }
-
-    clearAttempts(ip)
-    const session = await getSession()
-    session.isLoggedIn = true
-    session.email = email
-    session.name = 'Agente'
-    session.role = 'admin'
-    await session.save()
-    return NextResponse.json({ success: true })
+    await recordFailedAttempt(ip)
+    return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
   }
 
   // ── Check active ──────────────────────────────────────────────────────────
@@ -91,7 +74,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!passwordOk) {
-    const result = recordFailedAttempt(ip)
+    const result = await recordFailedAttempt(ip)
     const remaining = result.remaining
     return NextResponse.json({
       error: remaining > 0
@@ -101,13 +84,14 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Login successful ──────────────────────────────────────────────────────
-  clearAttempts(ip)
+  await clearAttempts(ip)
   const session = await getSession()
   session.isLoggedIn = true
   session.userId = user.id
   session.email = user.email
   session.name = user.name
   session.role = user.role
+  session.agencyId = user.agencyId ?? undefined  // inquilino para aislamiento multi-tenant
   await session.save()
 
   return NextResponse.json({ success: true, name: user.name, role: user.role })

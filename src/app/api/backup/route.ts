@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { decryptClientFields } from '@/lib/encrypt'
+import { requireAdmin } from '@/lib/auth'
 
 // Exports all CRM data as a downloadable JSON file.
 // The old SQLite backup (dev.db) no longer exists — we now use Neon/Postgres.
 // This endpoint exports all tables so you can restore or migrate data if needed.
+// Multi-tenant: solo exporta los datos de la agencia del admin que lo solicita.
 
 export async function GET() {
-  const session = await getSession()
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
+  const auth = await requireAdmin()
+  if (auth instanceof NextResponse) return auth
+  const agencyId = auth.agencyId
 
   const [
     clients,
@@ -26,18 +26,18 @@ export async function GET() {
     notificationLog,
     users,
   ] = await Promise.all([
-    prisma.client.findMany({ orderBy: { fullName: 'asc' } }),
-    prisma.dependent.findMany(),
-    prisma.document.findMany(),
-    prisma.appointment.findMany(),
-    prisma.activity.findMany(),
-    prisma.policyHistory.findMany(),
-    prisma.prospect.findMany(),
-    prisma.commissionRate.findMany(),
-    prisma.settings.findMany(),
-    prisma.notificationLog.findMany(),
+    prisma.client.findMany({ where: { agencyId }, orderBy: { fullName: 'asc' } }),
+    prisma.dependent.findMany({ where: { agencyId } }),
+    prisma.document.findMany({ where: { agencyId } }),
+    prisma.appointment.findMany({ where: { agencyId } }),
+    prisma.activity.findMany({ where: { agencyId } }),
+    prisma.policyHistory.findMany({ where: { agencyId } }),
+    prisma.prospect.findMany({ where: { agencyId } }),
+    prisma.commissionRate.findMany({ where: { agencyId } }),
+    prisma.settings.findMany({ where: { agencyId } }),
+    prisma.notificationLog.findMany({ where: { agencyId } }),
     // Export users without passwords for security
-    prisma.user.findMany({ select: { id: true, email: true, name: true, role: true, active: true, createdAt: true } }),
+    prisma.user.findMany({ where: { agencyId }, select: { id: true, email: true, name: true, role: true, active: true, createdAt: true } }),
   ])
 
   const backup = {

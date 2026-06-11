@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer'
 import { prisma } from '@/lib/prisma'
 import { readFile } from 'fs/promises'
 import path from 'path'
+import { getAuth } from '@/lib/auth'
 
 /**
  * Finds the logo file in /public and returns a base64 data URL.
@@ -44,15 +45,18 @@ async function inlineLogoForEmail(html: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+
   const { toEmail, toName, subject, html } = await request.json()
 
   if (!toEmail) return NextResponse.json({ error: 'Email del destinatario requerido' }, { status: 400 })
   if (!subject) return NextResponse.json({ error: 'Asunto requerido' }, { status: 400 })
   if (!html)    return NextResponse.json({ error: 'Contenido del documento requerido' }, { status: 400 })
 
-  // Get SMTP config from settings
+  // Get SMTP config from settings (por agencia)
   const rows = await prisma.settings.findMany({
-    where: { key: { in: ['smtpHost','smtpPort','smtpUser','smtpPass','emailFrom','agentName'] } }
+    where: { agencyId: auth.agencyId, key: { in: ['smtpHost','smtpPort','smtpUser','smtpPass','emailFrom','agentName'] } }
   })
   const s: Record<string, string> = {}
   rows.forEach(r => { s[r.key] = r.value })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
 
 const DEFAULT_RATES: Record<string, number> = {
   'Blue Cross Blue Shield': 25,
@@ -21,7 +22,9 @@ const DEFAULT_RATES: Record<string, number> = {
 }
 
 export async function GET() {
-  const stored = await prisma.commissionRate.findMany()
+  const auth = await requireRole(COMMISSIONS_ROLES)
+  if (auth instanceof NextResponse) return auth
+  const stored = await prisma.commissionRate.findMany({ where: { agencyId: auth.agencyId } })
   const storedMap: Record<string, { pmpm: number; paymentDay: number | null; monthsToFirstPayment: number | null }> = {}
   for (const r of stored) storedMap[r.insurer] = { pmpm: r.pmpm, paymentDay: r.paymentDay ?? null, monthsToFirstPayment: r.monthsToFirstPayment ?? null }
 
@@ -36,12 +39,14 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireRole(COMMISSIONS_ROLES)
+  if (auth instanceof NextResponse) return auth
   const data: { insurer: string; pmpm: number; paymentDay?: number | null; monthsToFirstPayment?: number | null }[] = await request.json()
   for (const { insurer, pmpm, paymentDay, monthsToFirstPayment } of data) {
     await prisma.commissionRate.upsert({
-      where: { insurer },
+      where: { agencyId_insurer: { agencyId: auth.agencyId, insurer } },
       update: { pmpm, paymentDay: paymentDay ?? null, monthsToFirstPayment: monthsToFirstPayment ?? 2 },
-      create: { insurer, pmpm, paymentDay: paymentDay ?? null, monthsToFirstPayment: monthsToFirstPayment ?? 2 },
+      create: { agencyId: auth.agencyId, insurer, pmpm, paymentDay: paymentDay ?? null, monthsToFirstPayment: monthsToFirstPayment ?? 2 },
     })
   }
   return NextResponse.json({ ok: true })

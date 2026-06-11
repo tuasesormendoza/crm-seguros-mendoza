@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { encrypt, decryptClientFields } from '@/lib/encrypt'
 import { validateClient, validationError } from '@/lib/validate'
+import { getAuth } from '@/lib/auth'
 
 function parseClientData(d: Record<string, unknown>) {
   return {
@@ -87,6 +88,9 @@ function parseDependents(deps: { type: string; name?: string; birthDate?: string
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
   const status = searchParams.get('status') || ''
@@ -94,6 +98,7 @@ export async function GET(request: NextRequest) {
 
   const clients = await prisma.client.findMany({
     where: {
+      agencyId: auth.agencyId,
       AND: [
         search ? { OR: [
           { fullName: { contains: search, mode: 'insensitive' } },
@@ -111,12 +116,19 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+
   const data = await request.json()
   const { dependents, ...rest } = data
   const errors = validateClient(rest)
   if (Object.keys(errors).length > 0) return validationError(errors)
   const client = await prisma.client.create({
-    data: { ...parseClientData(rest), dependents: dependents ? { create: parseDependents(dependents) } : undefined },
+    data: {
+      ...parseClientData(rest),
+      agencyId: auth.agencyId,
+      dependents: dependents ? { create: parseDependents(dependents).map(d => ({ ...d, agencyId: auth.agencyId })) } : undefined,
+    },
     include: { dependents: true },
   })
   return NextResponse.json(decryptClientFields(client), { status: 201 })

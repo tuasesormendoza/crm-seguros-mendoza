@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
+
   const { searchParams } = new URL(request.url)
   const ssn = searchParams.get('ssn') || ''
   const name = searchParams.get('name') || ''
@@ -11,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   if (ssn && ssn.replace(/\D/g, '').length === 9) {
     const bySSN = await prisma.client.findMany({
-      where: { ssn, id: excludeId ? { not: excludeId } : undefined },
+      where: { ssn, agencyId: auth.agencyId, id: excludeId ? { not: excludeId } : undefined },
       select: { id: true, fullName: true }
     })
     bySSN.forEach(c => duplicates.push({ ...c, reason: 'SSN idéntico' }))
@@ -21,6 +25,7 @@ export async function GET(request: NextRequest) {
     const byName = await prisma.client.findMany({
       where: {
         fullName: { contains: name.split(' ')[0], mode: 'insensitive' },
+        agencyId: auth.agencyId,
         id: excludeId ? { not: excludeId } : undefined
       },
       select: { id: true, fullName: true }

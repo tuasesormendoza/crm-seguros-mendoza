@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { getAuth, requireAdmin } from '@/lib/auth'
 
 // Keys that must never be sent to non-admin users
 const SECRET_KEYS = ['cmsApiKey', 'anthropicApiKey', 'smtpUser', 'smtpPass']
@@ -43,8 +44,10 @@ const DEFAULTS: Record<string, string> = {
 }
 
 export async function GET() {
+  const auth = await getAuth()
+  if (auth instanceof NextResponse) return auth
   const session = await getSession()
-  const rows = await prisma.settings.findMany()
+  const rows = await prisma.settings.findMany({ where: { agencyId: auth.agencyId } })
   const map: Record<string, string> = { ...DEFAULTS }
   rows.forEach(r => { map[r.key] = r.value })
 
@@ -61,10 +64,8 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const session = await getSession()
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
+  const auth = await requireAdmin()
+  if (auth instanceof NextResponse) return auth
 
   const body: Record<string, string> = await request.json()
 
@@ -72,9 +73,9 @@ export async function PUT(request: NextRequest) {
   const entries = Object.entries(body).filter(([k]) => k !== 'passwordHash')
   await Promise.all(entries.map(([key, value]) =>
     prisma.settings.upsert({
-      where: { key },
+      where: { agencyId_key: { agencyId: auth.agencyId, key } },
       update: { value },
-      create: { key, value },
+      create: { agencyId: auth.agencyId, key, value },
     })
   ))
   return NextResponse.json({ success: true })
