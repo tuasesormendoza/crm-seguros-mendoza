@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { parseStatement, matchRows, type MatchResult } from '@/lib/statementImport'
 
@@ -17,12 +17,19 @@ interface Props {
 // Fila editable del previo (permite corregir el emparejamiento a mano)
 type Row = MatchResult & { ignore: boolean }
 
+type RawRow = { name: string; amount: number }
+
 export default function StatementImport({ period, insurers, onApplied, onPeriodChange }: Props) {
   const [insurer, setInsurer] = useState('')
   const [text, setText] = useState('')
   const [rows, setRows] = useState<Row[] | null>(null)
   const [applying, setApplying] = useState(false)
   const [error, setError] = useState('')
+  // Subida de PDF
+  const [uploading, setUploading] = useState(false)
+  const [pdfInfo, setPdfInfo] = useState<string | null>(null)
+  const [pendingRows, setPendingRows] = useState<RawRow[] | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const candidates = useMemo(
     () => insurers.find(i => i.insurer === insurer)?.clients ?? [],
@@ -34,6 +41,22 @@ export default function StatementImport({ period, insurers, onApplied, onPeriodC
     return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
   }, [period])
 
+  function runMatch(raw: RawRow[]) {
+    const parsed = raw.map(r => ({ rawLine: r.name, name: r.name, amount: r.amount }))
+    const results = matchRows(parsed, candidates.map(c => ({ id: c.id, fullName: c.fullName, expected: c.expected })))
+    setRows(results.map(r => ({ ...r, ignore: false })))
+  }
+
+  // Cuando un PDF deja filas pendientes y ya hay candidatos para la aseguradora/mes
+  // detectados (tras recargar la conciliación de ese periodo), empareja solo.
+  useEffect(() => {
+    if (pendingRows && candidates.length > 0) {
+      runMatch(pendingRows)
+      setPendingRows(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRows, candidates])
+
   function analyze() {
     setError('')
     if (!insurer) { setError('Selecciona la aseguradora del estado de cuenta.'); return }
@@ -44,8 +67,39 @@ export default function StatementImport({ period, insurers, onApplied, onPeriodC
       setRows(null)
       return
     }
-    const results = matchRows(parsed, candidates.map(c => ({ id: c.id, fullName: c.fullName, expected: c.expected })))
-    setRows(results.map(r => ({ ...r, ignore: false })))
+    runMatch(parsed.map(p => ({ name: p.name, amount: p.amount })))
+  }
+
+  async function handlePdf(file: File) {
+    setError(''); setRows(null); setPdfInfo(null); setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/commissions/parse-statement', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'No se pudo leer el PDF.'); return }
+
+      const detectedInsurer: string | null = data.insurer
+      const matchedInsurer = detectedInsurer
+        ? insurers.find(i => i.insurer.toLowerCase() === detectedInsurer.toLowerCase())?.insurer ?? ''
+        : ''
+      if (matchedInsurer) setInsurer(matchedInsurer)
+      if (data.period && /^\d{4}-\d{2}$/.test(data.period)) onPeriodChange(data.period)
+
+      setPdfInfo(
+        `Leídos ${data.rows.length} cliente(s)` +
+        (detectedInsurer ? ` · ${detectedInsurer}` : '') +
+        (data.period ? ` · ${data.period}` : '') +
+        (data.totalPayment != null ? ` · total ${formatCurrency(data.totalPayment)}` : '')
+      )
+      // Deja las filas pendientes; el efecto las empareja cuando lleguen los candidatos.
+      setPendingRows(data.rows as RawRow[])
+    } catch {
+      setError('No se pudo subir el PDF. Intenta de nuevo.')
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
   }
 
   function setRowClient(idx: number, clientId: string) {
@@ -126,9 +180,43 @@ export default function StatementImport({ period, insurers, onApplied, onPeriodC
       <div className={CARD}>
         <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>📥 Importar estado de cuenta</h2>
         <p className="text-xs text-gray-500 mt-1">
-          Elige el mes y la aseguradora, pega el estado de cuenta y el sistema emparejará cada línea con tus
-          clientes para marcar las comisiones recibidas de un solo paso.
+          Sube el PDF del estado de cuenta de tu broker y el sistema lee automáticamente los nombres y montos,
+          detecta la aseguradora y el mes, y empareja cada cliente para marcar las comisiones recibidas de un solo paso.
         </p>
+
+        {/* Subir PDF (método principal) */}
+        <div className="mt-4 rounded-xl p-4 text-center" style={{ background: '#f0f7fb', border: '2px dashed #b8d4e8' }}>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handlePdf(f) }}
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: '#305a72' }}
+          >
+            {uploading ? '⏳ Leyendo PDF...' : '📄 Subir PDF del estado de cuenta'}
+          </button>
+          <p className="text-xs text-gray-500 mt-2">El archivo se procesa en tu sistema; reconoce tablas con columnas de cliente y monto.</p>
+          {pdfInfo && (
+            <p className="text-xs font-semibold mt-2" style={{ color: '#166534' }}>✅ {pdfInfo}</p>
+          )}
+          {pendingRows && candidates.length === 0 && (
+            <p className="text-xs mt-2" style={{ color: '#92400e' }}>
+              Ajusta el mes o la aseguradora abajo para ver los clientes esperados y emparejar.
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 my-4">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400">o pega el texto manualmente</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
 
         <div className="mt-4">
           <label className="block text-xs font-medium text-gray-600 mb-1">Mes que cubre el estado de cuenta</label>

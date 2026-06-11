@@ -54,10 +54,14 @@ describe('normalizeName + nameSimilarity', () => {
     assert.equal(nameSimilarity('VIVAS MARY', 'Mary Vivas'), 1)
     assert.equal(nameSimilarity('Óscar Hernández', 'oscar hernandez'), 1)
   })
-  test('coincidencia parcial da puntaje intermedio', () => {
-    // 2 de 3 palabras coinciden → 2/3 ≈ 0.667
-    const score = nameSimilarity('Oscar Hernandez', 'Oscar Hernandez Gomez')
-    assert.ok(score > 0.6 && score < 0.7)
+  test('nombre del estado de cuenta con palabras extra/cortado empareja fuerte', () => {
+    // "MARY VIVAS PAR" contiene a "Mary Vivas" → misma persona (≥0.9)
+    assert.ok(nameSimilarity('MARY VIVAS PAR', 'Mary Vivas') >= 0.9)
+    assert.ok(nameSimilarity('Oscar Hernandez Gomez', 'Oscar Hernandez') >= 0.9)
+  })
+  test('coincidencia parcial real (no contenida) da puntaje intermedio', () => {
+    // comparten solo 1 de 2 palabras, no hay contención → 0.5
+    assert.equal(nameSimilarity('Oscar Hernandez', 'Oscar Gomez'), 0.5)
   })
   test('nombres distintos → bajo', () => {
     assert.ok(nameSimilarity('Mary Vivas', 'Pedro Gomez') < 0.5)

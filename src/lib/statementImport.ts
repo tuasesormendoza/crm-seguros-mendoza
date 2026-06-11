@@ -74,7 +74,13 @@ export function nameSimilarity(a: string, b: string): number {
   if (ta.size === 0 || tb.size === 0) return 0
   let inter = 0
   for (const t of ta) if (tb.has(t)) inter++
-  return inter / Math.max(ta.size, tb.size)
+  const minSize = Math.min(ta.size, tb.size)
+  const base = inter / Math.max(ta.size, tb.size)
+  // Si el conjunto MÁS PEQUEÑO (con ≥2 palabras) está totalmente contenido en el
+  // otro, es muy probablemente la misma persona aunque el estado de cuenta traiga
+  // palabras extra o el nombre cortado (ej. "MARY VIVAS PAR" ⊇ "Mary Vivas").
+  if (inter === minSize && minSize >= 2) return Math.max(base, 0.9)
+  return base
 }
 
 const MATCH_THRESHOLD = 0.75   // ≥ → emparejado automático
