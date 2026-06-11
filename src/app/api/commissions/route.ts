@@ -12,8 +12,14 @@ const DEFAULT_RATES: Record<string, number> = {
  * Commission payment logic:
  *   - Policy activation = 1st day of month AFTER contractDate
  *     e.g. contracted 06/15 → activates 07/01
- *   - First commission payment = activation + 2 months
- *     e.g. activates 07/01 → first payment 09/01
+ *   - First commission payment = activation + N months, donde N
+ *     ("monthsToFirstPayment") es configurable por aseguradora (por defecto 2).
+ *     e.g. activates 07/01 → first payment 09/01 (N=2)
+ *
+ *   - Si un cliente cambió de aseguradora a mitad de póliza (ver
+ *     InsurerHistory), cada "tramo" (stint) con una aseguradora se trata
+ *     igual: el reloj de "primera comisión" se reinicia desde el inicio del
+ *     tramo, usando el N configurado para esa aseguradora.
  */
 function getActivationDate(contractDate: Date | null): Date | null {
   if (!contractDate) return null
@@ -22,17 +28,47 @@ function getActivationDate(contractDate: Date | null): Date | null {
   return new Date(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)
 }
 
-function getFirstPaymentDate(contractDate: Date | null): Date | null {
-  const activation = getActivationDate(contractDate)
-  if (!activation) return null
-  // 2 months after activation
-  return new Date(activation.getFullYear(), activation.getMonth() + 2, 1)
+// Un "tramo" (stint) representa un período continuo durante el cual un
+// cliente estuvo con una aseguradora específica. endDate === null significa
+// "aseguradora actual" (sin fecha de fin todavía).
+type Stint = { insurer: string; startDate: Date; endDate: Date | null }
+
+function buildStints(
+  insurer: string,
+  contractDate: Date | null,
+  history: { insurer: string; startDate: Date; endDate: Date | null }[]
+): Stint[] {
+  if (history.length === 0) {
+    const activation = getActivationDate(contractDate)
+    if (!activation) return []
+    return [{ insurer, startDate: activation, endDate: null }]
+  }
+  const sorted = [...history]
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+    .map(h => ({ insurer: h.insurer, startDate: new Date(h.startDate), endDate: h.endDate ? new Date(h.endDate) : null }))
+
+  // Si el último tramo registrado ya terminó, completar el resto del
+  // historial con la aseguradora ACTUAL del cliente (client.insurer) a
+  // partir del mes siguiente — así el agente solo necesita registrar el(los)
+  // tramo(s) anterior(es) y no uno "actual" cada vez.
+  const last = sorted[sorted.length - 1]
+  if (last.endDate) {
+    const nextStart = new Date(last.endDate.getFullYear(), last.endDate.getMonth() + 1, 1)
+    sorted.push({ insurer, startDate: nextStart, endDate: null })
+  }
+  return sorted
 }
 
-function commissionStatus(contractDate: Date | null): 'active' | 'pending' | 'unknown' {
-  const firstPayment = getFirstPaymentDate(contractDate)
-  if (!firstPayment) return 'unknown'
-  return new Date() >= firstPayment ? 'active' : 'pending'
+// ¿Este tramo cubre el mes que empieza en `periodStart` (1ro del mes)?
+function stintCovers(stint: Stint, periodStart: Date): boolean {
+  if (stint.startDate > periodStart) return false
+  if (stint.endDate && stint.endDate < periodStart) return false
+  return true
+}
+
+function getStintFirstPaymentDate(stint: Stint, monthsMap: Record<string, number>): Date {
+  const months = monthsMap[stint.insurer] ?? 2
+  return new Date(stint.startDate.getFullYear(), stint.startDate.getMonth() + months, 1)
 }
 
 /**
@@ -62,7 +98,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const period = searchParams.get('period') || today.toISOString().slice(0, 7) // "YYYY-MM"
 
-  const [clients, wnClientsRaw, storedRates, payments, checks] = await Promise.all([
+  const [clients, wnClientsRaw, storedRates, payments, checks, insurerHistoryRows] = await Promise.all([
     prisma.client.findMany({
       where: { status: 'Activo' },
       select: {
@@ -84,14 +120,32 @@ export async function GET(request: NextRequest) {
     prisma.commissionRate.findMany(),
     prisma.commissionPayment.findMany({ orderBy: [{ period: 'desc' }, { receivedDate: 'desc' }] }),
     prisma.commissionCheck.findMany({ where: { period } }),
+    prisma.insurerHistory.findMany(),
   ])
 
   // Build rates map
   const ratesMap: Record<string, number> = { ...DEFAULT_RATES }
   const paymentDayMap: Record<string, number | null> = {}
+  const monthsMap: Record<string, number> = {}
   for (const r of storedRates) {
     ratesMap[r.insurer] = r.pmpm
     paymentDayMap[r.insurer] = r.paymentDay ?? null
+    monthsMap[r.insurer] = r.monthsToFirstPayment ?? 2
+  }
+
+  // Group insurer-change history by client and build "stints" — continuous
+  // periods with a single insurer (see buildStints / Stint above). Used both
+  // for the current commission status and for per-period reconciliation.
+  const historyByClient: Record<string, { insurer: string; startDate: Date; endDate: Date | null }[]> = {}
+  for (const h of insurerHistoryRows) {
+    if (!historyByClient[h.clientId]) historyByClient[h.clientId] = []
+    historyByClient[h.clientId].push({ insurer: h.insurer, startDate: new Date(h.startDate), endDate: h.endDate ? new Date(h.endDate) : null })
+  }
+  const stintsByClient: Record<string, Stint[]> = {}
+  for (const c of clients) {
+    const insurer = c.insurer || 'Desconocida'
+    const contractDate = c.contractDate ? new Date(c.contractDate) : null
+    stintsByClient[c.id] = buildStints(insurer, contractDate, historyByClient[c.id] || [])
   }
 
   const clientRows = clients.map(c => {
@@ -117,11 +171,17 @@ export async function GET(request: NextRequest) {
       } catch { /* ignore */ }
     }
 
-    // Payment dates
+    // Payment dates — basados en el tramo (stint) ACTUAL del cliente con su
+    // aseguradora actual (ver buildStints). Si el cliente cambió de
+    // aseguradora a mitad de póliza, el "reloj" de primera comisión se
+    // reinicia desde el inicio de ese tramo, usando el N de meses
+    // configurado para esa aseguradora.
     const contractDate = c.contractDate ? new Date(c.contractDate) : null
-    const activationDate = getActivationDate(contractDate)
-    const firstPaymentDate = getFirstPaymentDate(contractDate)
-    const status = commissionStatus(contractDate)
+    const stints = stintsByClient[c.id] || []
+    const currentStint = stints.length > 0 ? stints[stints.length - 1] : null
+    const activationDate = currentStint ? currentStint.startDate : getActivationDate(contractDate)
+    const firstPaymentDate = currentStint ? getStintFirstPaymentDate(currentStint, monthsMap) : null
+    const status: 'active' | 'pending' | 'unknown' = !firstPaymentDate ? 'unknown' : (today >= firstPaymentDate ? 'active' : 'pending')
 
     // Days until first payment
     const daysUntilPayment = firstPaymentDate
@@ -293,6 +353,7 @@ export async function GET(request: NextRequest) {
   // registrados por aseguradora (CommissionPayment) para detectar a quién le
   // falta el pago.
   const [pYear, pMon] = period.split('-').map(Number)
+  const periodStart = new Date(pYear, pMon - 1, 1)
   const periodEnd = new Date(pYear, pMon, 0, 23, 59, 59)
   const checkedSet = new Set(checks.filter(c => c.received).map(c => c.clientId))
 
@@ -313,20 +374,32 @@ export async function GET(request: NextRequest) {
   }
   const reconciliationMap: Record<string, ReconciliationInsurer> = {}
 
+  // Para cada cliente, se busca el tramo (stint) que cubre el período
+  // seleccionado — así, si cambió de aseguradora a mitad de póliza, su
+  // comisión de ese mes se atribuye a la aseguradora que aplicaba EN ESE
+  // MES, no a la aseguradora actual del cliente.
   for (const c of clientRows) {
-    if (!c.firstPaymentDate) continue
-    if (new Date(c.firstPaymentDate) > periodEnd) continue
-    if (!reconciliationMap[c.insurer]) {
-      reconciliationMap[c.insurer] = {
-        insurer: c.insurer, expectedTotal: 0, confirmedTotal: 0, missingTotal: 0,
-        paymentReceived: paymentsForPeriodByInsurer[c.insurer] ?? 0, clients: [],
+    const stints = stintsByClient[c.id] || []
+    const stint = stints.find(s => stintCovers(s, periodStart))
+    if (!stint) continue
+    const firstPay = getStintFirstPaymentDate(stint, monthsMap)
+    if (firstPay > periodEnd) continue
+
+    const stintInsurer = stint.insurer
+    const stintPmpm = ratesMap[stintInsurer] ?? 18
+    const expected = stintPmpm * c.lives
+
+    if (!reconciliationMap[stintInsurer]) {
+      reconciliationMap[stintInsurer] = {
+        insurer: stintInsurer, expectedTotal: 0, confirmedTotal: 0, missingTotal: 0,
+        paymentReceived: paymentsForPeriodByInsurer[stintInsurer] ?? 0, clients: [],
       }
     }
     const received = checkedSet.has(c.id)
-    const row = reconciliationMap[c.insurer]
-    row.expectedTotal += c.acaCommission
-    if (received) row.confirmedTotal += c.acaCommission
-    row.clients.push({ id: c.id, fullName: c.fullName, lives: c.lives, pmpm: c.pmpm, expected: c.acaCommission, received })
+    const row = reconciliationMap[stintInsurer]
+    row.expectedTotal += expected
+    if (received) row.confirmedTotal += expected
+    row.clients.push({ id: c.id, fullName: c.fullName, lives: c.lives, pmpm: stintPmpm, expected, received })
   }
 
   for (const r of Object.values(reconciliationMap)) {

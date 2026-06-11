@@ -98,6 +98,26 @@ model Client {
   policyHistory        PolicyHistory[]
   documents            Document[]
   commissionChecks     CommissionCheck[]
+  insurerHistory       InsurerHistory[]
+}
+
+// Historial de cambios de aseguradora de un cliente (ej. tenía Oscar y se
+// cambió a Ambetter en marzo). Permite que la conciliación de comisiones
+// atribuya cada mes a la aseguradora que realmente aplicaba en ese período,
+// en lugar de asumir siempre la aseguradora actual del cliente.
+// startDate/endDate se guardan como el día 1 del mes (endDate = null significa
+// "aseguradora actual", y el período posterior se cubre con client.insurer).
+model InsurerHistory {
+  id        String    @id @default(cuid())
+  clientId  String
+  insurer   String
+  startDate DateTime
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }
 
 model PolicyHistory {
@@ -148,12 +168,16 @@ model Activity {
 }
 
 model CommissionRate {
-  id         String   @id @default(cuid())
-  insurer    String   @unique
-  pmpm       Float
-  paymentDay Int?     // Día del mes en que la aseguradora paga la comisión (1-31)
-  notes      String?
-  updatedAt  DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  insurer              String   @unique
+  pmpm                 Float
+  paymentDay           Int?     // Día del mes en que la aseguradora paga la comisión (1-31)
+  // Meses entre la activación (o el cambio de aseguradora) y la primera
+  // comisión pagada. Por defecto 2 (deber ser estándar), pero algunas
+  // aseguradoras (ej. Oscar) pagan desde el mes siguiente a la activación (1).
+  monthsToFirstPayment Int?     @default(2)
+  notes                String?
+  updatedAt            DateTime @updatedAt
 }
 
 // Registro manual de pagos de comisión efectivamente recibidos, para comparar

@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRole } from '@/hooks/useRole'
+import AccessDenied from '@/components/AccessDenied'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -445,6 +447,14 @@ export default function ReportPage() {
   const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const insurers = [...new Set(clients.map(c => c.insurer).filter(Boolean) as string[])].sort()
   const states   = [...new Set(clients.map(c => c.state).filter(Boolean) as string[])].sort()
+
+  const role = useRole()
+  if (role === null) return (
+    <div className="flex items-center justify-center h-64">
+      <div style={{ color: '#94a3b8' }}>Generando reporte...</div>
+    </div>
+  )
+  if (role === 'assistant') return <AccessDenied />
 
   if (loading || !dash) return (
     <div className="flex items-center justify-center h-64">

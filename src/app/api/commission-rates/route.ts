@@ -22,25 +22,26 @@ const DEFAULT_RATES: Record<string, number> = {
 
 export async function GET() {
   const stored = await prisma.commissionRate.findMany()
-  const storedMap: Record<string, { pmpm: number; paymentDay: number | null }> = {}
-  for (const r of stored) storedMap[r.insurer] = { pmpm: r.pmpm, paymentDay: r.paymentDay ?? null }
+  const storedMap: Record<string, { pmpm: number; paymentDay: number | null; monthsToFirstPayment: number | null }> = {}
+  for (const r of stored) storedMap[r.insurer] = { pmpm: r.pmpm, paymentDay: r.paymentDay ?? null, monthsToFirstPayment: r.monthsToFirstPayment ?? null }
 
   const rates = Object.entries(DEFAULT_RATES).map(([insurer, defaultPmpm]) => ({
     insurer,
     pmpm: storedMap[insurer]?.pmpm ?? defaultPmpm,
     paymentDay: storedMap[insurer]?.paymentDay ?? null,
+    monthsToFirstPayment: storedMap[insurer]?.monthsToFirstPayment ?? 2,
   }))
 
   return NextResponse.json(rates)
 }
 
 export async function PUT(request: NextRequest) {
-  const data: { insurer: string; pmpm: number; paymentDay?: number | null }[] = await request.json()
-  for (const { insurer, pmpm, paymentDay } of data) {
+  const data: { insurer: string; pmpm: number; paymentDay?: number | null; monthsToFirstPayment?: number | null }[] = await request.json()
+  for (const { insurer, pmpm, paymentDay, monthsToFirstPayment } of data) {
     await prisma.commissionRate.upsert({
       where: { insurer },
-      update: { pmpm, paymentDay: paymentDay ?? null },
-      create: { insurer, pmpm, paymentDay: paymentDay ?? null },
+      update: { pmpm, paymentDay: paymentDay ?? null, monthsToFirstPayment: monthsToFirstPayment ?? 2 },
+      create: { insurer, pmpm, paymentDay: paymentDay ?? null, monthsToFirstPayment: monthsToFirstPayment ?? 2 },
     })
   }
   return NextResponse.json({ ok: true })

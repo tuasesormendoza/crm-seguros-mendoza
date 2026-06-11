@@ -34,8 +34,8 @@ const NAV = [
   ]},
   { group: 'Herramientas', items: [
     { href: '/calendar',     label: 'Calendario',   icon: 'calendar' },
-    { href: '/commissions',  label: 'Comisiones',   icon: 'commissions' },
-    { href: '/report',       label: 'Reporte',      icon: 'report' },
+    { href: '/commissions',  label: 'Comisiones',   icon: 'commissions', hideForAssistant: true },
+    { href: '/report',       label: 'Reportes',     icon: 'report',      hideForAssistant: true },
     { href: '/tarjeta',      label: 'Tarjeta Plan', icon: 'card' },
     { href: '/aptc',         label: 'Calc. APTC',   icon: 'commissions' },
     { href: '/documentos',   label: 'Documentos',   icon: 'docs' },
@@ -83,7 +83,7 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [agentName, setAgentName] = useState('Omar Mendoza')
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(true)
+  const [role, setRole] = useState('admin')
   const [search, setSearch] = useState('')
   const [searchResults, setSearchResults] = useState<{id:string;fullName:string;insurer:string|null;status:string|null}[]>([])
   const [showSearch, setShowSearch] = useState(false)
@@ -93,7 +93,7 @@ export default function Sidebar() {
       if (d.agentName) setAgentName(d.agentName)
       if (d.logoUrl && d.logoUrl !== 'undefined') setLogoUrl(d.logoUrl)
     }).catch(()=>{})
-    fetch('/api/auth').then(r=>r.json()).then(d => setIsAdmin(d.role === 'admin')).catch(()=>{})
+    fetch('/api/auth').then(r=>r.json()).then(d => setRole(d.role || 'agent')).catch(()=>{})
   }, [])
 
   useEffect(() => {
@@ -202,7 +202,7 @@ export default function Sidebar() {
               </div>
             )}
             <div className="space-y-0.5">
-              {group.items.map(item => {
+              {group.items.filter(item => !(item.hideForAssistant && role === 'assistant')).map(item => {
                 const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
                 return (
                   <Link key={item.href} href={item.href}
@@ -243,7 +243,7 @@ export default function Sidebar() {
 
       {/* Bottom: Agent + Settings + Logout */}
       <div className="shrink-0 p-3 space-y-1" style={{ borderTop: '1px solid rgba(var(--brand-300-rgb), .10)' }}>
-        {isAdmin && (
+        {role === 'admin' && (
           <Link href="/settings"
             className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-all text-white/50 hover:text-white/80 hover:bg-white/5">
             <span className="text-white/40">{Icons.settings}</span>

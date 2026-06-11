@@ -44,6 +44,20 @@ interface PolicyHistoryEntry {
   recordedAt: string
 }
 
+interface InsurerHistoryEntry {
+  id: string
+  insurer: string
+  startDate: string
+  endDate: string | null
+  notes?: string | null
+}
+
+const INSURER_HISTORY_OPTIONS = [
+  'Blue Cross Blue Shield', 'UnitedHealthcare', 'Oscar', 'Ambetter', 'Cigna',
+  'Aetna', 'CareSource', 'AmeriHealth', 'Molina', 'Anthem', 'Kaiser',
+  'Alliant', 'AvMed', 'Health Spring', 'Health First', 'Florida Blue',
+]
+
 interface Client {
   id: string
   fullName: string; ssn?: string | null; birthDate?: string | null
@@ -554,6 +568,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [actSaving, setActSaving] = useState(false)
   const [policyHistory, setPolicyHistory] = useState<PolicyHistoryEntry[]>([])
   const [savingHistory, setSavingHistory] = useState(false)
+  const [insurerHistory, setInsurerHistory] = useState<InsurerHistoryEntry[]>([])
+  const [savingInsurerHistory, setSavingInsurerHistory] = useState(false)
+  const [insurerHistoryError, setInsurerHistoryError] = useState('')
+  const [newInsurerChange, setNewInsurerChange] = useState({ insurer: '', startPeriod: '', endPeriod: '' })
   const router = useRouter()
 
   const loadClient = useCallback((id: string) => {
@@ -568,9 +586,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     fetch(`/api/clients/${id}/policy-history`).then(r => r.json()).then(setPolicyHistory)
   }, [])
 
+  const loadInsurerHistory = useCallback((id: string) => {
+    fetch(`/api/clients/${id}/insurer-history`).then(r => r.json()).then(setInsurerHistory)
+  }, [])
+
   useEffect(() => {
-    params.then(p => { setClientId(p.id); loadClient(p.id); loadActivities(p.id); loadPolicyHistory(p.id) })
-  }, [params, loadClient, loadActivities, loadPolicyHistory])
+    params.then(p => { setClientId(p.id); loadClient(p.id); loadActivities(p.id); loadPolicyHistory(p.id); loadInsurerHistory(p.id) })
+  }, [params, loadClient, loadActivities, loadPolicyHistory, loadInsurerHistory])
 
   const handleDelete = async () => {
     if (!confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.')) return
@@ -644,6 +666,41 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     await fetch(`/api/clients/${clientId}/policy-history`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
     setSavingHistory(false)
     loadPolicyHistory(clientId)
+  }
+
+  const handleAddInsurerChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!clientId) return
+    setInsurerHistoryError('')
+    if (!newInsurerChange.insurer || !newInsurerChange.startPeriod) {
+      setInsurerHistoryError('Selecciona la aseguradora anterior y el mes en que empezó.')
+      return
+    }
+    setSavingInsurerHistory(true)
+    const res = await fetch(`/api/clients/${clientId}/insurer-history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        insurer: newInsurerChange.insurer,
+        startPeriod: newInsurerChange.startPeriod,
+        endPeriod: newInsurerChange.endPeriod || null,
+      }),
+    })
+    setSavingInsurerHistory(false)
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setInsurerHistoryError(body.error || 'No se pudo guardar el cambio de aseguradora.')
+      return
+    }
+    setNewInsurerChange({ insurer: '', startPeriod: '', endPeriod: '' })
+    loadInsurerHistory(clientId)
+    loadClient(clientId) // client.insurer puede haberse actualizado
+  }
+
+  const handleDeleteInsurerHistory = async (id: string) => {
+    if (!confirm('¿Eliminar este registro del historial de aseguradoras?')) return
+    await fetch(`/api/insurer-history/${id}`, { method: 'DELETE' })
+    loadInsurerHistory(clientId!)
   }
 
   const ACTIVITY_ICONS: Record<string, string> = {
@@ -1041,6 +1098,86 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Insurer History */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="font-semibold text-base mb-1" style={{ color: '#10253f' }}>🔄 Historial de Aseguradoras</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Si este cliente cambió de aseguradora durante su póliza (ej. tenía Oscar y se cambió a Ambetter), regístralo
+              aquí para que la conciliación de comisiones atribuya cada mes a la aseguradora correcta. Solo agrega
+              la(s) aseguradora(s) ANTERIOR(ES) con su mes de inicio y fin — el resto del tiempo se asume la aseguradora
+              actual ({client.insurer || '—'}).
+            </p>
+
+            {insurerHistory.length === 0 ? (
+              <p className="text-sm text-gray-400 mb-4">Sin cambios de aseguradora registrados.</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {insurerHistory.map(entry => {
+                  const fmtMonthYear = (iso: string) => {
+                    const d = /^\d{4}-\d{2}-\d{2}T00:00:00/.test(iso)
+                      ? (() => { const u = new Date(iso); return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()) })()
+                      : new Date(iso)
+                    return d.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })
+                  }
+                  return (
+                    <div key={entry.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: '#f8fafc' }}>
+                      <div className="text-sm">
+                        <span className="font-semibold" style={{ color: '#10253f' }}>{entry.insurer}</span>
+                        <span className="text-xs text-gray-500 ml-2">
+                          {fmtMonthYear(entry.startDate)} – {entry.endDate ? fmtMonthYear(entry.endDate) : 'Actual'}
+                        </span>
+                      </div>
+                      <button onClick={() => handleDeleteInsurerHistory(entry.id)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <form onSubmit={handleAddInsurerChange} className="grid grid-cols-1 md:grid-cols-4 gap-2 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Aseguradora anterior</label>
+                <select
+                  value={newInsurerChange.insurer}
+                  onChange={e => setNewInsurerChange(v => ({ ...v, insurer: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                >
+                  <option value="">Seleccionar...</option>
+                  {INSURER_HISTORY_OPTIONS.map(i => <option key={i} value={i}>{i}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Desde</label>
+                <input
+                  type="month"
+                  value={newInsurerChange.startPeriod}
+                  onChange={e => setNewInsurerChange(v => ({ ...v, startPeriod: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Hasta</label>
+                <input
+                  type="month"
+                  value={newInsurerChange.endPeriod}
+                  onChange={e => setNewInsurerChange(v => ({ ...v, endPeriod: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={savingInsurerHistory}
+                  className="w-full px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ background: '#305a72' }}
+                >
+                  {savingInsurerHistory ? '...' : '+ Agregar'}
+                </button>
+              </div>
+              {insurerHistoryError && <p className="md:col-span-4 text-xs text-red-600">{insurerHistoryError}</p>}
+            </form>
           </div>
         </div>
 

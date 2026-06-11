@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { formatCurrency } from '@/lib/utils'
+import { useRole } from '@/hooks/useRole'
+import AccessDenied from '@/components/AccessDenied'
 
 interface InsurerSummary {
   insurer: string
@@ -120,6 +122,7 @@ interface RateRow {
   insurer: string
   pmpm: number
   paymentDay?: number | null
+  monthsToFirstPayment?: number | null
 }
 
 export default function CommissionsPage() {
@@ -147,6 +150,7 @@ export default function CommissionsPage() {
   // ── Conciliación de comisiones ───────────────────────────────────────────
   const [reconPeriod, setReconPeriod] = useState(currentPeriod)
   const [checkSaving, setCheckSaving] = useState<string | null>(null)
+  const [bulkSaving, setBulkSaving] = useState<string | null>(null)
 
   const load = useCallback(async (period?: string) => {
     const [commRes, ratesRes] = await Promise.all([
@@ -167,6 +171,17 @@ export default function CommissionsPage() {
       body: JSON.stringify({ clientId, period: reconPeriod, received }),
     })
     setCheckSaving(null)
+    load()
+  }, [load, reconPeriod])
+
+  const bulkMarkInsurer = useCallback(async (insurer: string, clientIds: string[], received: boolean) => {
+    setBulkSaving(insurer)
+    await fetch('/api/commission-checks/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientIds, period: reconPeriod, received }),
+    })
+    setBulkSaving(null)
     load()
   }, [load, reconPeriod])
 
@@ -229,6 +244,14 @@ export default function CommissionsPage() {
     load()
   }
 
+  const role = useRole()
+  if (role === null) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-gray-400">Cargando comisiones...</div>
+    </div>
+  )
+  if (role === 'assistant') return <AccessDenied />
+
   if (!data) return (
     <div className="flex items-center justify-center h-64">
       <div className="text-gray-400">Cargando comisiones...</div>
@@ -264,8 +287,9 @@ export default function CommissionsPage() {
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl text-sm" style={{ background: '#f0f7fb', border: '1px solid #b8d4e8' }}>
         <span className="text-base shrink-0">ℹ️</span>
         <div style={{ color: '#1e4a6e' }}>
-          <strong>Lógica de pagos:</strong> Contratación → Activación el 1° del mes siguiente → Primera comisión 2 meses después.
-          <span className="ml-2 opacity-70">Ej: contrata el 06/15 → activa el 07/01 → primera comisión el 09/01</span>
+          <strong>Lógica de pagos:</strong> Contratación → Activación el 1° del mes siguiente → Primera comisión N meses después (por defecto 2, configurable por aseguradora abajo en &quot;Configuración de Tasas PMPM&quot;).
+          <span className="ml-2 opacity-70">Ej: contrata el 06/15 → activa el 07/01 → primera comisión el 09/01 (N=2)</span>
+          <span className="block mt-1 opacity-70">Si un cliente cambió de aseguradora a mitad de póliza, el conteo se reinicia desde el mes del cambio — regístralo en su perfil, sección &quot;Historial de Aseguradoras&quot;.</span>
         </div>
       </div>
 
@@ -623,6 +647,24 @@ export default function CommissionsPage() {
                     <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: '#f3e8ff', color: '#6b21a8' }}>
                       Pago registrado: {formatCurrency(row.paymentReceived)}
                     </span>
+                    <button
+                      type="button"
+                      disabled={bulkSaving === row.insurer}
+                      onClick={() => bulkMarkInsurer(row.insurer, row.clients.map(c => c.id), true)}
+                      className="text-xs px-2 py-1 rounded-full font-semibold border whitespace-nowrap disabled:opacity-50"
+                      style={{ borderColor: '#bbf7d0', color: '#166534' }}
+                    >
+                      {bulkSaving === row.insurer ? '…' : '✅ Marcar todos recibido'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={bulkSaving === row.insurer}
+                      onClick={() => bulkMarkInsurer(row.insurer, row.clients.map(c => c.id), false)}
+                      className="text-xs px-2 py-1 rounded-full font-semibold border whitespace-nowrap disabled:opacity-50"
+                      style={{ borderColor: '#e5e7eb', color: '#6b7280' }}
+                    >
+                      {bulkSaving === row.insurer ? '…' : '↩ Desmarcar todos'}
+                    </button>
                   </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -841,7 +883,7 @@ export default function CommissionsPage() {
 
         {showRates && (
           <div className="mt-4 space-y-3">
-            <p className="text-xs text-gray-500">PMPM = Dólares por miembro por mes (comisión ACA). WN siempre es 25% del total mensual de pólizas WN. &quot;Paga el día&quot; es opcional — el día del mes en que esa aseguradora deposita la comisión (ej. Oscar el 16, Ambetter el 2).</p>
+            <p className="text-xs text-gray-500">PMPM = Dólares por miembro por mes (comisión ACA). WN siempre es 25% del total mensual de pólizas WN. &quot;Paga el día&quot; es opcional — el día del mes en que esa aseguradora deposita la comisión (ej. Oscar el 16, Ambetter el 2). &quot;Meses hasta 1ra comisión&quot; es lo que tarda esa aseguradora en pagar la primera comisión después de la activación (por defecto 2 — algunas, como Oscar, pagan desde el mes siguiente, es decir 1).</p>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {rates.map((r, i) => (
                 <div key={r.insurer}>
@@ -862,7 +904,7 @@ export default function CommissionsPage() {
                         className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
                       />
                     </div>
-                    <div className="relative w-24">
+                    <div className="relative w-20">
                       <input
                         type="number"
                         min="1"
@@ -876,6 +918,23 @@ export default function CommissionsPage() {
                           setRates(newRates)
                         }}
                         title="Día del mes en que paga la comisión"
+                        className="w-full border border-gray-300 rounded-lg pl-3 pr-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
+                      />
+                    </div>
+                    <div className="relative w-16">
+                      <input
+                        type="number"
+                        min="0"
+                        max="12"
+                        placeholder="Meses"
+                        value={r.monthsToFirstPayment ?? 2}
+                        onChange={e => {
+                          const newRates = [...rates]
+                          const v = e.target.value
+                          newRates[i] = { ...r, monthsToFirstPayment: v === '' ? 2 : (parseInt(v, 10) || 0) }
+                          setRates(newRates)
+                        }}
+                        title="Meses hasta la 1ra comisión (después de la activación)"
                         className="w-full border border-gray-300 rounded-lg pl-3 pr-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
                       />
                     </div>
