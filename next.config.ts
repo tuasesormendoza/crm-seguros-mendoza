@@ -7,9 +7,6 @@ const nextConfig: NextConfig = {
     // Ignoramos el type-check en build para que Netlify pueda deployar.
     ignoreBuildErrors: true,
   },
-  // pdfjs-dist se carga en runtime (no se empaqueta) — necesario para leer los
-  // estados de cuenta en PDF dentro de la función serverless de Netlify.
-  serverExternalPackages: ['pdfjs-dist'],
 };
 
 export default nextConfig;

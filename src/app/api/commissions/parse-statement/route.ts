@@ -27,10 +27,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Carga diferida de pdfjs (paquete externo del servidor) — build legacy para Node.
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    // unpdf: lectura de PDF lista para serverless (sin el problema del "worker"
+    // de pdfjs en Netlify). Da los mismos items de texto con posición x/y.
+    const { getDocumentProxy } = await import('unpdf')
     const data = new Uint8Array(await file.arrayBuffer())
-    const doc = await pdfjs.getDocument({ data, useSystemFonts: true, isEvalSupported: false }).promise
+    const doc = await getDocumentProxy(data)
 
     const items: PdfItem[] = []
     for (let p = 1; p <= doc.numPages; p++) {
