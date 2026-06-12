@@ -688,6 +688,9 @@ export default function CommissionsPage() {
                             {!c.received && c.gapReason === 'cancelled' && (
                               <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#f1f5f9', color: '#64748b' }}>⚪ Canceló</span>
                             )}
+                            {!c.received && c.gapReason === 'switched' && (
+                              <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#dbeafe', color: '#1e40af' }}>🔵 Otra aseguradora</span>
+                            )}
                           </td>
                         </tr>
                       ))}

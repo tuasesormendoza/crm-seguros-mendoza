@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/utils'
-import { parseStatement, matchRows, type MatchResult } from '@/lib/statementImport'
+import { matchRows, type MatchResult } from '@/lib/statementImport'
 
 interface ClientRow {
   id: string
@@ -27,7 +27,6 @@ type RawRow = { name: string; amount: number }
 
 export default function StatementImport({ period, clients, onApplied, onPeriodChange }: Props) {
   const [insurer, setInsurer] = useState('')
-  const [text, setText] = useState('')
   const [rows, setRows] = useState<Row[] | null>(null)
   const [applying, setApplying] = useState(false)
   const [error, setError] = useState('')
@@ -90,19 +89,6 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingRows, candidates])
-
-  function analyze() {
-    setError('')
-    if (!insurer) { setError('Selecciona la aseguradora del estado de cuenta.'); return }
-    if (!text.trim()) { setError('Pega el contenido del estado de cuenta.'); return }
-    const parsed = parseStatement(text)
-    if (parsed.length === 0) {
-      setError('No se reconoció ninguna línea con nombre y monto. Revisa el formato (un cliente por línea, con el monto al final).')
-      setRows(null)
-      return
-    }
-    runMatch(parsed.map(p => ({ name: p.name, amount: p.amount })))
-  }
 
   async function handlePdf(file: File) {
     setError(''); setRows(null); setPdfInfo(null); setUploading(true)
@@ -222,7 +208,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
           items,
         }),
       })
-      setRows(null); setText(''); setInsurer(''); setMissingReasons({})
+      setRows(null); setInsurer(''); setMissingReasons({}); setPdfInfo(null)
       onApplied()
     } catch {
       setError('Ocurrió un error al conciliar. Intenta de nuevo.')
@@ -279,52 +265,34 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
           )}
         </div>
 
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-xs text-gray-400">o pega el texto manualmente</span>
-          <div className="flex-1 h-px bg-gray-200" />
-        </div>
-
-        <div className="mt-4">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Mes que cubre el estado de cuenta</label>
-          <input
-            type="month"
-            value={period}
-            onChange={e => { onPeriodChange(e.target.value); setRows(null) }}
-            className={INPUT}
-          />
-          <span className="text-xs text-gray-400 ml-2">Conciliando: <strong>{periodLabel}</strong></span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 mt-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Aseguradora</label>
-            <select value={insurer} onChange={e => { setInsurer(e.target.value); setRows(null) }} className={INPUT + ' w-full'}>
-              <option value="">Seleccionar...</option>
-              {insurerOptions.map(i => (
-                <option key={i.insurer} value={i.insurer}>{i.insurer} ({i.count} clientes)</option>
-              ))}
-            </select>
-            {insurer && insurerPool.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">No tienes clientes registrados con esta aseguradora (igual puedes emparejar manualmente por nombre).</p>
-            )}
+        {/* Mes y aseguradora — los detecta el PDF; puedes ajustarlos si hace falta */}
+        {(rows || pdfInfo) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Mes que cubre (detectado)</label>
+              <input
+                type="month"
+                value={period}
+                onChange={e => onPeriodChange(e.target.value)}
+                className={INPUT}
+              />
+              <span className="text-xs text-gray-400 ml-2 capitalize">{periodLabel}</span>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Aseguradora (detectada)</label>
+              <select value={insurer} onChange={e => setInsurer(e.target.value)} className={INPUT + ' w-full'}>
+                <option value="">Seleccionar...</option>
+                {insurerOptions.map(i => (
+                  <option key={i.insurer} value={i.insurer}>{i.insurer} ({i.count} clientes)</option>
+                ))}
+              </select>
+              {insurer && insurerPool.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">No tienes clientes registrados con esta aseguradora.</p>
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Estado de cuenta (pega aquí)</label>
-            <textarea
-              value={text} onChange={e => setText(e.target.value)} rows={5}
-              placeholder={'Pega el contenido, un cliente por línea con el monto al final. Ej:\nMARY VIVAS    18.00\nOSCAR HERNANDEZ    54.00'}
-              className={INPUT + ' w-full font-mono text-xs'}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 mt-3">
-          <button onClick={analyze} className="px-5 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: '#305a72' }}>
-            Analizar
-          </button>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-        </div>
+        )}
+        {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
       </div>
 
       {/* Previo de emparejamiento */}
@@ -424,6 +392,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                           <option value="">Motivo...</option>
                           <option value="broker">🔴 Reclamar al broker</option>
                           <option value="cancelled">⚪ El cliente canceló</option>
+                          <option value="switched">🔵 Está con otra aseguradora</option>
                         </select>
                       </div>
                     ))}

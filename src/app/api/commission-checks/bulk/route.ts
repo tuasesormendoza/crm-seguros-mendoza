@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(gaps)) {
     for (const g of gaps) {
       if (!ownSet.has(g.clientId)) continue
-      const reason = g.gapReason === 'broker' || g.gapReason === 'cancelled' ? g.gapReason : null
+      const reason = ['broker', 'cancelled', 'switched'].includes(g.gapReason ?? '') ? g.gapReason : null
       ops.push(prisma.commissionCheck.upsert({
         where: { clientId_period: { clientId: g.clientId, period } },
         update: { received: false, gapReason: reason },
