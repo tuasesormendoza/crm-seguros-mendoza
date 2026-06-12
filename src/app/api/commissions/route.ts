@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         affiliatesCount: true, applicantInPolicy: true,
         acaPrice: true, wnPolicies: true, totalMonthly: true,
         contractDate: true,
+        dependents: { select: { name: true } },
       },
     }),
     // Washington National tracking needs to see cancelled clients too (clawback risk)
@@ -132,6 +133,9 @@ export async function GET(request: NextRequest) {
       firstPaymentDate: firstPaymentDate?.toISOString() ?? null,
       commissionStatus: status,
       daysUntilPayment,
+      // Nombres de dependientes — usados como alias al importar estados de cuenta
+      // (el mercado a veces lista a un dependiente en una línea aparte).
+      dependentNames: (c.dependents ?? []).map(d => d.name).filter((n): n is string => !!n),
     }
   })
 

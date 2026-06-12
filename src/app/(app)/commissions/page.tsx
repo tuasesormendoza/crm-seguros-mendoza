@@ -101,6 +101,7 @@ interface ClientRow {
   firstPaymentDate: string | null
   commissionStatus: 'active' | 'pending' | 'unknown'
   daysUntilPayment: number | null
+  dependentNames?: string[]
 }
 
 interface CommissionData {
@@ -723,7 +724,7 @@ export default function CommissionsPage() {
       {tab === 'importar' && (
         <StatementImport
           period={reconPeriod}
-          insurers={data.summary.reconciliation.insurers}
+          clients={data.clients}
           onApplied={() => load()}
           onPeriodChange={setReconPeriod}
         />

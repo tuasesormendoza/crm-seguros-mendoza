@@ -96,4 +96,32 @@ HERNANDEZ OSCAR   54.00`)
     assert.equal(results[0].amount, 20)
     assert.equal(results[0].expected, 18) // diferencia visible: pagó 20, se esperaba 18
   })
+
+  test('empareja una línea de dependiente con el cliente titular (alias)', () => {
+    // Fabián tiene un dependiente "Luis Mendoza" que el mercado puso en línea aparte.
+    const withDeps = [
+      { id: 'f1', fullName: 'Fabian Mendoza', expected: 100, aliases: ['Luis Mendoza'] },
+      { id: 'c1', fullName: 'Mary Vivas', expected: 18 },
+    ]
+    const results = matchRows(parseStatement(`FABIAN MENDOZA   75.00
+LUIS MENDOZA J   25.00`), withDeps)
+    assert.equal(results[0].matchedClientId, 'f1') // titular por su propio nombre
+    assert.equal(results[1].matchedClientId, 'f1') // dependiente → mismo titular
+    assert.equal(results[1].status, 'matched')
+  })
+
+  test('caso real: "LUIS MENDOZA J" empareja al dependiente "Luis F. Mendoza Jimenez"', () => {
+    const withDeps = [
+      { id: 'f1', fullName: 'Fabian Mendoza', expected: 100, aliases: ['Luis F. Mendoza Jimenez'] },
+    ]
+    const results = matchRows(parseStatement('LUIS MENDOZA J   25.00'), withDeps)
+    assert.equal(results[0].matchedClientId, 'f1')
+    assert.equal(results[0].status, 'matched')
+  })
+})
+
+describe('tokens ignora iniciales sueltas', () => {
+  test('"LUIS MENDOZA J" ≈ "Luis F. Mendoza Jimenez" (≥0.9)', () => {
+    assert.ok(nameSimilarity('LUIS MENDOZA J', 'Luis F. Mendoza Jimenez') >= 0.9)
+  })
 })

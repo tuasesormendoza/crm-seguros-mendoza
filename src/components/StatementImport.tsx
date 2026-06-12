@@ -4,12 +4,17 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { parseStatement, matchRows, type MatchResult } from '@/lib/statementImport'
 
-interface ReconClient { id: string; fullName: string; expected: number; received: boolean }
-interface ReconInsurer { insurer: string; clients: ReconClient[] }
+interface ClientRow {
+  id: string
+  fullName: string
+  insurer: string
+  acaCommission: number
+  dependentNames?: string[]
+}
 
 interface Props {
   period: string                       // "YYYY-MM" que se está conciliando
-  insurers: ReconInsurer[]             // clientes esperados por aseguradora (de la conciliación)
+  clients: ClientRow[]                 // TODOS los clientes activos (con su aseguradora)
   onApplied: () => void                // refrescar datos tras conciliar
   onPeriodChange: (period: string) => void  // cambiar el mes a conciliar
 }
@@ -19,7 +24,7 @@ type Row = MatchResult & { ignore: boolean }
 
 type RawRow = { name: string; amount: number }
 
-export default function StatementImport({ period, insurers, onApplied, onPeriodChange }: Props) {
+export default function StatementImport({ period, clients, onApplied, onPeriodChange }: Props) {
   const [insurer, setInsurer] = useState('')
   const [text, setText] = useState('')
   const [rows, setRows] = useState<Row[] | null>(null)
@@ -31,9 +36,23 @@ export default function StatementImport({ period, insurers, onApplied, onPeriodC
   const [pendingRows, setPendingRows] = useState<RawRow[] | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Aseguradoras disponibles (distintas, con su conteo de clientes)
+  const insurerOptions = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const c of clients) {
+      if (!c.insurer) continue
+      counts.set(c.insurer, (counts.get(c.insurer) ?? 0) + 1)
+    }
+    return [...counts.entries()].map(([insurer, count]) => ({ insurer, count })).sort((a, b) => a.insurer.localeCompare(b.insurer))
+  }, [clients])
+
+  // Candidatos = TODOS los clientes de la aseguradora seleccionada (no solo los
+  // "esperados" del mes), con sus dependientes como alias para emparejar.
   const candidates = useMemo(
-    () => insurers.find(i => i.insurer === insurer)?.clients ?? [],
-    [insurers, insurer]
+    () => clients
+      .filter(c => c.insurer === insurer)
+      .map(c => ({ id: c.id, fullName: c.fullName, expected: c.acaCommission, aliases: c.dependentNames ?? [] })),
+    [clients, insurer]
   )
 
   const periodLabel = useMemo(() => {
@@ -43,7 +62,7 @@ export default function StatementImport({ period, insurers, onApplied, onPeriodC
 
   function runMatch(raw: RawRow[]) {
     const parsed = raw.map(r => ({ rawLine: r.name, name: r.name, amount: r.amount }))
-    const results = matchRows(parsed, candidates.map(c => ({ id: c.id, fullName: c.fullName, expected: c.expected })))
+    const results = matchRows(parsed, candidates)
     setRows(results.map(r => ({ ...r, ignore: false })))
   }
 
@@ -81,7 +100,7 @@ export default function StatementImport({ period, insurers, onApplied, onPeriodC
 
       const detectedInsurer: string | null = data.insurer
       const matchedInsurer = detectedInsurer
-        ? insurers.find(i => i.insurer.toLowerCase() === detectedInsurer.toLowerCase())?.insurer ?? ''
+        ? insurerOptions.find(i => i.insurer.toLowerCase() === detectedInsurer.toLowerCase())?.insurer ?? ''
         : ''
       if (matchedInsurer) setInsurer(matchedInsurer)
       if (data.period && /^\d{4}-\d{2}$/.test(data.period)) onPeriodChange(data.period)
@@ -234,12 +253,12 @@ export default function StatementImport({ period, insurers, onApplied, onPeriodC
             <label className="block text-xs font-medium text-gray-600 mb-1">Aseguradora</label>
             <select value={insurer} onChange={e => { setInsurer(e.target.value); setRows(null) }} className={INPUT + ' w-full'}>
               <option value="">Seleccionar...</option>
-              {insurers.map(i => (
-                <option key={i.insurer} value={i.insurer}>{i.insurer} ({i.clients.length} esperados)</option>
+              {insurerOptions.map(i => (
+                <option key={i.insurer} value={i.insurer}>{i.insurer} ({i.count} clientes)</option>
               ))}
             </select>
             {insurer && candidates.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">Esta aseguradora no tiene clientes esperados para {periodLabel}.</p>
+              <p className="text-xs text-amber-600 mt-1">No tienes clientes activos con esta aseguradora.</p>
             )}
           </div>
           <div>

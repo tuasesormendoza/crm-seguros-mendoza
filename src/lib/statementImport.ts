@@ -13,7 +13,15 @@
 
 export type ParsedRow = { rawLine: string; name: string; amount: number }
 
-export type Candidate = { id: string; fullName: string; expected: number }
+export type Candidate = {
+  id: string
+  fullName: string
+  expected: number
+  // Nombres alternativos que también resuelven a este cliente — ej. los nombres
+  // de sus dependientes (el mercado a veces los pone en una línea aparte del
+  // estado de cuenta aunque pertenezcan al mismo grupo familiar).
+  aliases?: string[]
+}
 
 export type MatchStatus = 'matched' | 'review' | 'unmatched'
 
@@ -67,10 +75,19 @@ export function normalizeName(s: string): string {
     .trim()
 }
 
+// Tokeniza un nombre, descartando iniciales sueltas (1 letra) como "J" o "F",
+// que los estados de cuenta agregan/cortan y solo estorban a la comparación.
+// Si al quitarlas no queda nada, se usan todas (caso raro de puras iniciales).
+function tokens(s: string): string[] {
+  const all = normalizeName(s).split(' ').filter(Boolean)
+  const multi = all.filter(t => t.length >= 2)
+  return multi.length ? multi : all
+}
+
 // Similitud por conjunto de palabras (tolerante al orden). 1 = idénticos.
 export function nameSimilarity(a: string, b: string): number {
-  const ta = new Set(normalizeName(a).split(' ').filter(Boolean))
-  const tb = new Set(normalizeName(b).split(' ').filter(Boolean))
+  const ta = new Set(tokens(a))
+  const tb = new Set(tokens(b))
   if (ta.size === 0 || tb.size === 0) return 0
   let inter = 0
   for (const t of ta) if (tb.has(t)) inter++
@@ -92,7 +109,10 @@ export function matchRows(parsed: ParsedRow[], candidates: Candidate[]): MatchRe
     let best: Candidate | null = null
     let bestScore = 0
     for (const c of candidates) {
-      const score = nameSimilarity(row.name, c.fullName)
+      // Mejor coincidencia entre el nombre del cliente y sus alias (dependientes).
+      const names = [c.fullName, ...(c.aliases ?? [])]
+      let score = 0
+      for (const n of names) score = Math.max(score, nameSimilarity(row.name, n))
       if (score > bestScore) { bestScore = score; best = c }
     }
     let status: MatchStatus = 'unmatched'
