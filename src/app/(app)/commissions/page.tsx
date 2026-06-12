@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Fragment } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
@@ -44,6 +44,12 @@ interface WnSummary {
   clients: WnClientRow[]
 }
 
+interface PaymentClientItem {
+  clientId: string | null
+  name: string
+  amount: number
+}
+
 interface PaymentItem {
   id: string
   insurer: string
@@ -51,6 +57,7 @@ interface PaymentItem {
   expected: number
   receivedDate: string
   notes: string | null
+  clients: PaymentClientItem[]
 }
 
 interface PaymentsSummary {
@@ -141,14 +148,8 @@ export default function CommissionsPage() {
   // ── Pagos de comisión recibidos ──────────────────────────────────────────
   const currentPeriod = new Date().toISOString().slice(0, 7) // "YYYY-MM"
   const [showPayments, setShowPayments] = useState(false)
-  const [payInsurer, setPayInsurer] = useState('')
-  const [payPeriod, setPayPeriod] = useState(currentPeriod)
-  const [payAmount, setPayAmount] = useState('')
-  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [payNotes, setPayNotes] = useState('')
-  const [savingPayment, setSavingPayment] = useState(false)
-  const [payError, setPayError] = useState('')
   const [deletingPayment, setDeletingPayment] = useState<string | null>(null)
+  const [expandedPayment, setExpandedPayment] = useState<string | null>(null)
 
   // ── Conciliación de comisiones ───────────────────────────────────────────
   const [reconPeriod, setReconPeriod] = useState(currentPeriod)
@@ -207,36 +208,6 @@ export default function CommissionsPage() {
       body: JSON.stringify(rates),
     })
     setSavingRates(false)
-    load()
-  }
-
-  const handleAddPayment = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setPayError('')
-    if (!payInsurer || !payPeriod || !payAmount || !payDate) {
-      setPayError('Completa aseguradora, período, monto y fecha.')
-      return
-    }
-    setSavingPayment(true)
-    const res = await fetch('/api/commission-payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        insurer: payInsurer,
-        period: payPeriod,
-        amount: parseFloat(payAmount),
-        receivedDate: payDate,
-        notes: payNotes || undefined,
-      }),
-    })
-    setSavingPayment(false)
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      setPayError(body.error || 'No se pudo guardar el pago.')
-      return
-    }
-    setPayAmount('')
-    setPayNotes('')
     load()
   }
 
@@ -751,77 +722,12 @@ export default function CommissionsPage() {
         {showPayments && (
           <div className="mt-4 space-y-4">
             <p className="text-xs text-gray-500">
-              Registra aquí cada pago de comisión que efectivamente recibas (por aseguradora y mes que cubre), para comparar lo cobrado contra lo proyectado y llevar un control real de tus ingresos.
+              Cada pago se crea automáticamente al importar un estado de cuenta (pestaña 📥 Importar). Haz clic en un pago para ver el detalle por cliente.
             </p>
-
-            {/* Form */}
-            <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Aseguradora</label>
-                <select
-                  value={payInsurer}
-                  onChange={e => setPayInsurer(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
-                >
-                  <option value="">Seleccionar...</option>
-                  {rates.map(r => <option key={r.insurer} value={r.insurer}>{r.insurer}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Mes que cubre</label>
-                <input
-                  type="month"
-                  value={payPeriod}
-                  onChange={e => setPayPeriod(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Monto recibido</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">$</span>
-                  <input
-                    type="number" min="0" step="0.01" placeholder="0.00"
-                    value={payAmount}
-                    onChange={e => setPayAmount(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha recibido</label>
-                <input
-                  type="date"
-                  value={payDate}
-                  onChange={e => setPayDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notas (opcional)</label>
-                <div className="flex gap-2 flex-1">
-                  <input
-                    type="text" placeholder="Ej. depósito directo"
-                    value={payNotes}
-                    onChange={e => setPayNotes(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white"
-                  />
-                  <button
-                    type="submit"
-                    disabled={savingPayment}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 whitespace-nowrap"
-                    style={{ background: '#305a72' }}
-                  >
-                    {savingPayment ? '...' : '+ Agregar'}
-                  </button>
-                </div>
-              </div>
-              {payError && <p className="md:col-span-5 text-xs text-red-600">{payError}</p>}
-            </form>
 
             {/* Payments by period */}
             {summary.payments.byPeriod.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">Aún no has registrado ningún pago.</p>
+              <p className="text-sm text-gray-400 text-center py-4">Aún no has importado ningún estado de cuenta.</p>
             ) : (
               <div className="space-y-4">
                 {summary.payments.byPeriod.map(periodGroup => {
@@ -842,15 +748,22 @@ export default function CommissionsPage() {
                             <th className={TH} style={{ color: '#507b88' }}>Proyectado actual</th>
                             <th className={TH} style={{ color: '#507b88' }}>Diferencia</th>
                             <th className={TH} style={{ color: '#507b88' }}>Fecha</th>
-                            <th className={TH} style={{ color: '#507b88' }}>Notas</th>
+                            <th className={TH} style={{ color: '#507b88' }}>Clientes</th>
                             <th className={TH}></th>
                           </tr>
                         </thead>
                         <tbody>
                           {periodGroup.items.map(item => {
                             const diff = item.amount - item.expected
+                            const hasDetail = item.clients && item.clients.length > 0
+                            const isOpen = expandedPayment === item.id
                             return (
-                              <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
+                              <Fragment key={item.id}>
+                              <tr
+                                className="border-b border-gray-50 hover:bg-gray-50"
+                                style={hasDetail ? { cursor: 'pointer' } : {}}
+                                onClick={() => hasDetail && setExpandedPayment(isOpen ? null : item.id)}
+                              >
                                 <td className={TD + ' font-medium'}>{item.insurer}</td>
                                 <td className={TD + ' font-semibold'} style={{ color: '#166534' }}>{formatCurrency(item.amount)}</td>
                                 <td className={TD} style={{ color: '#94a3b8' }}>{formatCurrency(item.expected)}</td>
@@ -860,12 +773,14 @@ export default function CommissionsPage() {
                                 <td className={TD + ' text-xs whitespace-nowrap'} style={{ color: '#94a3b8' }}>
                                   {new Date(item.receivedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
                                 </td>
-                                <td className={TD + ' text-xs'} style={{ color: '#94a3b8' }}>{item.notes || '—'}</td>
+                                <td className={TD + ' text-xs'} style={{ color: hasDetail ? '#305a72' : '#cbd5e1' }}>
+                                  {hasDetail ? `${isOpen ? '▾' : '▸'} ${item.clients.length} cliente(s)` : '—'}
+                                </td>
                                 <td className={TD}>
                                   <button
                                     type="button"
                                     disabled={deletingPayment === item.id}
-                                    onClick={() => handleDeletePayment(item.id)}
+                                    onClick={e => { e.stopPropagation(); handleDeletePayment(item.id) }}
                                     className="text-xs px-2 py-1 rounded border whitespace-nowrap"
                                     style={{ borderColor: '#fca5a5', color: '#dc2626', opacity: deletingPayment === item.id ? 0.5 : 1 }}
                                   >
@@ -873,6 +788,26 @@ export default function CommissionsPage() {
                                   </button>
                                 </td>
                               </tr>
+                              {isOpen && hasDetail && (
+                                <tr style={{ background: '#f8fafc' }}>
+                                  <td colSpan={7} className="px-4 py-3">
+                                    <div className="text-xs font-semibold mb-2" style={{ color: '#507b88' }}>Detalle del pago por cliente</div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1">
+                                      {item.clients.map((cli, ci) => (
+                                        <div key={ci} className="flex items-center justify-between text-sm py-0.5 border-b border-gray-100">
+                                          {cli.clientId ? (
+                                            <a href={`/clients/${cli.clientId}`} className="hover:underline" style={{ color: '#10253f' }}>{cli.name}</a>
+                                          ) : (
+                                            <span style={{ color: '#10253f' }}>{cli.name}</span>
+                                          )}
+                                          <span className="font-semibold" style={{ color: '#166534' }}>{formatCurrency(cli.amount)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                              </Fragment>
                             )
                           })}
                         </tbody>

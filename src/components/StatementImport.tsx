@@ -181,13 +181,20 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientIds: matchedIds, period, received: true }),
       })
-      // 2. Registra el pago total recibido de esta aseguradora para el periodo
+      // 2. Registra el pago total recibido de esta aseguradora para el periodo,
+      // con el detalle por cliente (qué cliente y cuánto pagó cada uno).
+      const items = toApply.map(r => ({
+        clientId: r.matchedClientId,
+        name: r.matchedClientName ?? r.name,
+        amount: r.amount,
+      }))
       await fetch('/api/commission-payments', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           insurer, period, amount: Math.round(totalAmount * 100) / 100,
           receivedDate: new Date().toISOString().slice(0, 10),
           notes: 'Importado de estado de cuenta',
+          items,
         }),
       })
       setRows(null); setText(''); setInsurer('')

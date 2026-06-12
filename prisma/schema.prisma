@@ -233,6 +233,10 @@ model CommissionPayment {
   amount       Float
   receivedDate DateTime
   notes        String?
+  // Detalle por cliente cuando el pago se importó de un estado de cuenta:
+  // JSON [{ clientId, name, amount }]. Permite expandir cada pago y ver qué
+  // clientes incluyó y cuánto pagó cada uno.
+  items        String?
   createdAt    DateTime @default(now())
 
   @@index([insurer, period])

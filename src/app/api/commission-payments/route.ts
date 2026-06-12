@@ -20,12 +20,13 @@ export async function POST(request: NextRequest) {
   const auth = await requireRole(COMMISSIONS_ROLES)
   if (auth instanceof NextResponse) return auth
   const body = await request.json()
-  const { insurer, period, amount, receivedDate, notes } = body as {
+  const { insurer, period, amount, receivedDate, notes, items } = body as {
     insurer?: string
     period?: string
     amount?: number | string
     receivedDate?: string
     notes?: string
+    items?: { clientId?: string; name?: string; amount?: number }[]
   }
 
   if (!insurer || !period || !receivedDate || amount === undefined || amount === null) {
@@ -36,6 +37,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Período inválido, debe tener formato YYYY-MM' }, { status: 400 })
   }
 
+  // Detalle por cliente (cuando viene de un estado de cuenta importado)
+  const cleanItems = Array.isArray(items)
+    ? items
+        .filter(it => it && it.name && typeof it.amount === 'number')
+        .map(it => ({ clientId: it.clientId ?? null, name: it.name, amount: it.amount }))
+    : null
+
   const payment = await prisma.commissionPayment.create({
     data: {
       agencyId: auth.agencyId,
@@ -44,6 +52,7 @@ export async function POST(request: NextRequest) {
       amount: typeof amount === 'string' ? parseFloat(amount) : amount,
       receivedDate: new Date(receivedDate),
       notes: notes || null,
+      items: cleanItems && cleanItems.length ? JSON.stringify(cleanItems) : null,
     },
   })
 

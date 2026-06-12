@@ -89,8 +89,12 @@ export function extractStatementRows(items: PdfItem[]): StatementExtract {
       nameX = insured.x
       amtX = payment.x
       companyX = cells.find(c => /^company$/i.test(c.str.trim()))?.x ?? null
-      dateX = cells.find(c => /effective\s*date/i.test(c.str.trim()))?.x
-        ?? cells.find(c => /^effective$/i.test(c.str.trim()))?.x
+      // El PERIODO se toma de la columna "Coverage Month" (el mes que están
+      // pagando), NO de "Effective Date" (cuándo se activó la póliza, que no
+      // cambia entre el estado de cuenta de enero y el de febrero). Si no existe
+      // Coverage Month, se cae a Effective Date como respaldo.
+      dateX = cells.find(c => /coverage/i.test(c.str.trim()))?.x
+        ?? cells.find(c => /effective/i.test(c.str.trim()))?.x
         ?? null
       headerIdx = i
       break
@@ -103,8 +107,10 @@ export function extractStatementRows(items: PdfItem[]): StatementExtract {
 
   const out: { name: string; amount: number }[] = []
   let insurer: string | null = null
-  let period: string | null = null
   let totalPayment: number | null = null
+  // Conteo de "Coverage Month" entre todas las filas → el periodo del estado de
+  // cuenta es el mes que más se repite (robusto si alguna fila trae otra fecha).
+  const periodCounts = new Map<string, number>()
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i]
@@ -128,20 +134,28 @@ export function extractStatementRows(items: PdfItem[]): StatementExtract {
     if (amount !== null && /[a-zA-Z]/.test(nameFrag)) {
       // Nuevo registro
       out.push({ name: nameFrag, amount })
-      // Detectar aseguradora (columna Company) y periodo (columna fecha) en la 1ra fila de datos
+      // Aseguradora (columna Company) — basta con la primera
       if (insurer === null && companyX !== null) {
         const comp = textNear(cells, companyX, 20, 40)
         if (comp) insurer = comp
       }
-      if (period === null && dateX !== null) {
-        const dateTxt = textNear(cells, dateX, 25, 55)
-        period = toPeriod(dateTxt)
+      // Coverage Month de esta fila (tolerancia ajustada para no tomar columnas vecinas)
+      if (dateX !== null) {
+        const pr = toPeriod(textNear(cells, dateX, 15, 30))
+        if (pr) periodCounts.set(pr, (periodCounts.get(pr) ?? 0) + 1)
       }
     } else if (amount === null && /[a-zA-Z]/.test(nameFrag) && out.length > 0) {
       // Continuación del nombre de la fila anterior (nombre partido en 2 líneas)
       const last = out[out.length - 1]
       last.name = `${last.name} ${nameFrag}`.replace(/\s+/g, ' ').trim()
     }
+  }
+
+  // Periodo dominante (mes que más clientes están pagando en este estado de cuenta)
+  let period: string | null = null
+  let bestCount = 0
+  for (const [p, count] of periodCounts) {
+    if (count > bestCount) { bestCount = count; period = p }
   }
 
   return { rows: out, insurer, period, totalPayment }

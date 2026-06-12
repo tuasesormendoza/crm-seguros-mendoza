@@ -258,11 +258,16 @@ export async function GET(request: NextRequest) {
   const expectedByInsurer: Record<string, number> = {}
   for (const r of Object.values(insurerMap)) expectedByInsurer[r.insurer] = r.monthly
 
-  type PaymentItem = { id: string; insurer: string; amount: number; expected: number; receivedDate: string; notes: string | null }
+  type PaymentClientItem = { clientId: string | null; name: string; amount: number }
+  type PaymentItem = { id: string; insurer: string; amount: number; expected: number; receivedDate: string; notes: string | null; clients: PaymentClientItem[] }
   const periodMap: Record<string, { period: string; total: number; items: PaymentItem[] }> = {}
   for (const p of payments) {
     if (!periodMap[p.period]) periodMap[p.period] = { period: p.period, total: 0, items: [] }
     periodMap[p.period].total += p.amount
+    let clientItems: PaymentClientItem[] = []
+    if (p.items) {
+      try { const parsed = JSON.parse(p.items); if (Array.isArray(parsed)) clientItems = parsed } catch { /* ignore */ }
+    }
     periodMap[p.period].items.push({
       id: p.id,
       insurer: p.insurer,
@@ -270,6 +275,7 @@ export async function GET(request: NextRequest) {
       expected: expectedByInsurer[p.insurer] ?? 0,
       receivedDate: p.receivedDate.toISOString(),
       notes: p.notes,
+      clients: clientItems,
     })
   }
 
