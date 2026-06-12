@@ -8,6 +8,7 @@ import {
   buildStints,
   stintCovers,
   getStintFirstPaymentDate,
+  normalizeMonthDate,
   monthsBetween,
   addMonths,
   type Stint,
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
   const historyByClient: Record<string, { insurer: string; startDate: Date; endDate: Date | null }[]> = {}
   for (const h of insurerHistoryRows) {
     if (!historyByClient[h.clientId]) historyByClient[h.clientId] = []
-    historyByClient[h.clientId].push({ insurer: h.insurer, startDate: new Date(h.startDate), endDate: h.endDate ? new Date(h.endDate) : null })
+    historyByClient[h.clientId].push({ insurer: h.insurer, startDate: normalizeMonthDate(new Date(h.startDate)), endDate: h.endDate ? normalizeMonthDate(new Date(h.endDate)) : null })
   }
   const stintsByClient: Record<string, Stint[]> = {}
   for (const c of clients) {

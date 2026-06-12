@@ -13,6 +13,7 @@ import {
   buildStints,
   stintCovers,
   getStintFirstPaymentDate,
+  normalizeMonthDate,
   monthsBetween,
   wnCommission,
 } from './commissions.ts'
@@ -104,6 +105,44 @@ describe('stintCovers + atribución por mes (caso Mary Vivas)', () => {
   })
   test('noviembre 2025 (antes de Oscar) no lo cubre ningún tramo', () => {
     assert.equal(insurerForMonth('2025-11'), null)
+  })
+})
+
+describe('normalizeMonthDate + atribución con fechas UTC de Postgres (caso real Mary/Khaira)', () => {
+  // Postgres/Prisma devuelven las fechas de InsurerHistory como medianoche
+  // UTC (ej. "2026-02-01T00:00:00.000Z"). En zonas horarias detrás de UTC,
+  // sin normalizar esto se interpretaba como "2026-01-31", corriendo todos
+  // los tramos un mes y atribuyendo mal la comisión.
+  test('Khaira: Oscar ene–may (endDate UTC = 2026-05-01), Ambetter desde junio', () => {
+    const history = [{
+      insurer: 'Oscar',
+      startDate: normalizeMonthDate(new Date('2026-01-01T00:00:00.000Z')),
+      endDate: normalizeMonthDate(new Date('2026-05-01T00:00:00.000Z')),
+    }]
+    const stints = buildStints('Ambetter', new Date('2025-11-09T00:00:00.000Z'), history)
+    const insurerForMonth = (ym: string) => {
+      const [y, m] = ym.split('-').map(Number)
+      const s = stints.find(st => stintCovers(st, new Date(y, m - 1, 1)))
+      return s ? s.insurer : null
+    }
+    assert.equal(insurerForMonth('2026-05'), 'Oscar')
+    assert.equal(insurerForMonth('2026-06'), 'Ambetter')
+  })
+
+  test('Mary: Oscar ene–feb (endDate UTC = 2026-02-01), Ambetter desde marzo', () => {
+    const history = [{
+      insurer: 'Oscar',
+      startDate: normalizeMonthDate(new Date('2026-01-01T00:00:00.000Z')),
+      endDate: normalizeMonthDate(new Date('2026-02-01T00:00:00.000Z')),
+    }]
+    const stints = buildStints('Ambetter', new Date('2025-11-11T00:00:00.000Z'), history)
+    const insurerForMonth = (ym: string) => {
+      const [y, m] = ym.split('-').map(Number)
+      const s = stints.find(st => stintCovers(st, new Date(y, m - 1, 1)))
+      return s ? s.insurer : null
+    }
+    assert.equal(insurerForMonth('2026-02'), 'Oscar')
+    assert.equal(insurerForMonth('2026-03'), 'Ambetter')
   })
 })
 

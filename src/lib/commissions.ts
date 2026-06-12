@@ -20,6 +20,19 @@ export const DEFAULT_RATES: Record<string, number> = {
   'Health First': 18, 'Florida Blue': 18,
 }
 
+// Las fechas de InsurerHistory se guardan como medianoche UTC del día 1 del
+// mes (ej. "2026-02-01T00:00:00.000Z"). En zonas horarias detrás de UTC
+// (EE.UU.), `new Date(...)` representa ese instante como las 19:00 (o 20:00)
+// del día anterior, y los getters locales (getMonth/getFullYear) devuelven el
+// mes ANTERIOR al que realmente se guardó. Esto rompe `buildStints`/
+// `stintCovers` (un tramo "termina" un mes antes de lo registrado). Esta
+// función reconstruye la fecha como medianoche LOCAL del mismo año/mes/día
+// que tenía en UTC, para que el resto de la lógica (que opera con getters
+// locales) la interprete correctamente.
+export function normalizeMonthDate(date: Date): Date {
+  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+}
+
 export function getActivationDate(contractDate: Date | null): Date | null {
   if (!contractDate) return null
   const d = new Date(contractDate)
