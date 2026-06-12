@@ -10,6 +10,7 @@ interface ClientRow {
   insurer: string
   acaCommission: number
   dependentNames?: string[]
+  insurers?: string[]  // actual + historial de aseguradoras
 }
 
 interface Props {
@@ -36,22 +37,34 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
   const [pendingRows, setPendingRows] = useState<RawRow[] | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Aseguradoras que ha tenido un cliente (actual + historial). Así un cliente
+  // que se cambió de aseguradora aparece en el pool de AMBAS.
+  const insurersOf = (c: ClientRow) => (c.insurers && c.insurers.length ? c.insurers : [c.insurer]).filter(Boolean)
+
   // Aseguradoras disponibles (distintas, con su conteo de clientes)
   const insurerOptions = useMemo(() => {
     const counts = new Map<string, number>()
     for (const c of clients) {
-      if (!c.insurer) continue
-      counts.set(c.insurer, (counts.get(c.insurer) ?? 0) + 1)
+      for (const ins of new Set(insurersOf(c))) counts.set(ins, (counts.get(ins) ?? 0) + 1)
     }
     return [...counts.entries()].map(([insurer, count]) => ({ insurer, count })).sort((a, b) => a.insurer.localeCompare(b.insurer))
   }, [clients])
 
-  // Candidatos = TODOS los clientes de la aseguradora seleccionada (no solo los
-  // "esperados" del mes), con sus dependientes como alias para emparejar.
+  // Para emparejar y para el menú manual usamos TODOS los clientes (no solo los
+  // de la aseguradora): así un cliente que se cambió de aseguradora — aunque su
+  // cambio no esté registrado — igual se reconoce por su nombre. Cada cliente
+  // lleva sus dependientes como alias.
   const candidates = useMemo(
     () => clients
-      .filter(c => c.insurer === insurer)
-      .map(c => ({ id: c.id, fullName: c.fullName, expected: c.acaCommission, aliases: c.dependentNames ?? [] })),
+      .map(c => ({ id: c.id, fullName: c.fullName, expected: c.acaCommission, aliases: c.dependentNames ?? [] }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName)),
+    [clients]
+  )
+
+  // Pool de la aseguradora seleccionada (actual + historial) — solo para mostrar
+  // qué clientes de ESA aseguradora no aparecieron en el estado de cuenta.
+  const insurerPool = useMemo(
+    () => clients.filter(c => insurersOf(c).includes(insurer)).map(c => c.id),
     [clients, insurer]
   )
 
@@ -149,13 +162,16 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
   const matchedIds = useMemo(() => [...new Set(toApply.map(r => r.matchedClientId!))], [toApply])
   const totalAmount = useMemo(() => toApply.reduce((s, r) => s + r.amount, 0), [toApply])
 
-  // Clientes esperados que NO aparecieron en el estado de cuenta (posibles faltantes)
+  // Clientes de la aseguradora seleccionada que NO aparecieron en el estado de
+  // cuenta (posibles faltantes de pago).
   const missing = useMemo(() => {
     const matchedSet = new Set(matchedIds)
-    return candidates.filter(c => !matchedSet.has(c.id))
-  }, [candidates, matchedIds])
+    const poolSet = new Set(insurerPool)
+    return candidates.filter(c => poolSet.has(c.id) && !matchedSet.has(c.id))
+  }, [candidates, insurerPool, matchedIds])
 
   async function apply() {
+    if (!insurer) { setError('Selecciona la aseguradora para registrar el pago.'); return }
     if (matchedIds.length === 0) { setError('No hay clientes emparejados para conciliar.'); return }
     setApplying(true)
     setError('')
@@ -226,7 +242,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
           )}
           {pendingRows && candidates.length === 0 && (
             <p className="text-xs mt-2" style={{ color: '#92400e' }}>
-              Ajusta el mes o la aseguradora abajo para ver los clientes esperados y emparejar.
+              Aún no tienes clientes cargados para emparejar.
             </p>
           )}
         </div>
@@ -257,8 +273,8 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                 <option key={i.insurer} value={i.insurer}>{i.insurer} ({i.count} clientes)</option>
               ))}
             </select>
-            {insurer && candidates.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">No tienes clientes activos con esta aseguradora.</p>
+            {insurer && insurerPool.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">No tienes clientes registrados con esta aseguradora (igual puedes emparejar manualmente por nombre).</p>
             )}
           </div>
           <div>

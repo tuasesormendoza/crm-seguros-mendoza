@@ -125,3 +125,15 @@ describe('tokens ignora iniciales sueltas', () => {
     assert.ok(nameSimilarity('LUIS MENDOZA J', 'Luis F. Mendoza Jimenez') >= 0.9)
   })
 })
+
+describe('apellido cortado empareja por prefijo', () => {
+  test('"MARY VIVAS PAR" ≈ "Mary Vivas Parra" (≥0.9)', () => {
+    assert.ok(nameSimilarity('MARY VIVAS PAR', 'Mary Vivas Parra') >= 0.9)
+  })
+  test('"ALEXANDER CHAC" ≈ "Alexander Chacin" (≥0.9)', () => {
+    assert.ok(nameSimilarity('ALEXANDER CHAC', 'Alexander Chacin') >= 0.9)
+  })
+  test('no sobre-empareja apellidos distintos', () => {
+    assert.ok(nameSimilarity('Oscar Hernandez', 'Oscar Gomez') < 0.6)
+  })
+})

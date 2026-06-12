@@ -102,6 +102,7 @@ interface ClientRow {
   commissionStatus: 'active' | 'pending' | 'unknown'
   daysUntilPayment: number | null
   dependentNames?: string[]
+  insurers?: string[]
 }
 
 interface CommissionData {

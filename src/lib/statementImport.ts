@@ -84,19 +84,31 @@ function tokens(s: string): string[] {
   return multi.length ? multi : all
 }
 
-// Similitud por conjunto de palabras (tolerante al orden). 1 = idénticos.
+// ¿La palabra `t` coincide con alguna del conjunto? Exacta, o por prefijo de
+// ≥3 letras (los estados de cuenta cortan apellidos: "Par" ≈ "Parra").
+function tokenMatches(t: string, set: Set<string>): boolean {
+  if (set.has(t)) return true
+  if (t.length >= 3) {
+    for (const u of set) {
+      if (u.length >= 3 && (u.startsWith(t) || t.startsWith(u))) return true
+    }
+  }
+  return false
+}
+
+// Similitud por conjunto de palabras (tolerante al orden, mayúsculas, acentos,
+// iniciales y apellidos cortados). 1 = idénticos.
 export function nameSimilarity(a: string, b: string): number {
   const ta = new Set(tokens(a))
   const tb = new Set(tokens(b))
   if (ta.size === 0 || tb.size === 0) return 0
-  let inter = 0
-  for (const t of ta) if (tb.has(t)) inter++
-  const minSize = Math.min(ta.size, tb.size)
-  const base = inter / Math.max(ta.size, tb.size)
-  // Si el conjunto MÁS PEQUEÑO (con ≥2 palabras) está totalmente contenido en el
-  // otro, es muy probablemente la misma persona aunque el estado de cuenta traiga
-  // palabras extra o el nombre cortado (ej. "MARY VIVAS PAR" ⊇ "Mary Vivas").
-  if (inter === minSize && minSize >= 2) return Math.max(base, 0.9)
+  const [small, large] = ta.size <= tb.size ? [ta, tb] : [tb, ta]
+  let matched = 0
+  for (const t of small) if (tokenMatches(t, large)) matched++
+  const base = matched / large.size
+  // Si TODAS las palabras del nombre más corto (≥2) coinciden, es muy
+  // probablemente la misma persona aunque el otro traiga palabras extra.
+  if (matched === small.size && small.size >= 2) return Math.max(base, 0.9)
   return base
 }
 

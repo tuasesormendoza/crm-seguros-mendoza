@@ -136,6 +136,10 @@ export async function GET(request: NextRequest) {
       // Nombres de dependientes — usados como alias al importar estados de cuenta
       // (el mercado a veces lista a un dependiente en una línea aparte).
       dependentNames: (c.dependents ?? []).map(d => d.name).filter((n): n is string => !!n),
+      // TODAS las aseguradoras que ha tenido el cliente (actual + historial), para
+      // que al importar el estado de cuenta de una aseguradora también aparezcan
+      // los clientes que se cambiaron de aseguradora a mitad de póliza.
+      insurers: stints.length ? [...new Set(stints.map(s => s.insurer))] : [insurer],
     }
   })
 
