@@ -252,6 +252,10 @@ model CommissionCheck {
   clientId  String
   period    String   // "YYYY-MM"
   received  Boolean  @default(false)
+  // Cuando un cliente esperado NO está en el pago, el motivo del faltante:
+  // 'broker' (error del broker, hay que reclamar) | 'cancelled' (el cliente
+  // canceló su póliza). Permite darle seguimiento mes a mes.
+  gapReason String?
   updatedAt DateTime @updatedAt
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 

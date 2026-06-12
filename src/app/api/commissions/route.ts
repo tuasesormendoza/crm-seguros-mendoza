@@ -294,6 +294,9 @@ export async function GET(request: NextRequest) {
   const periodStart = new Date(pYear, pMon - 1, 1)
   const periodEnd = new Date(pYear, pMon, 0, 23, 59, 59)
   const checkedSet = new Set(checks.filter(c => c.received).map(c => c.clientId))
+  // Motivo del faltante por cliente (cuando se registró que NO está en el pago).
+  const gapReasonByClient = new Map<string, string>()
+  for (const c of checks) { if (!c.received && c.gapReason) gapReasonByClient.set(c.clientId, c.gapReason) }
 
   const paymentsForPeriodByInsurer: Record<string, number> = {}
   for (const p of payments) {
@@ -301,7 +304,7 @@ export async function GET(request: NextRequest) {
     paymentsForPeriodByInsurer[p.insurer] = (paymentsForPeriodByInsurer[p.insurer] ?? 0) + p.amount
   }
 
-  type ReconciliationClient = { id: string; fullName: string; lives: number; pmpm: number; expected: number; received: boolean }
+  type ReconciliationClient = { id: string; fullName: string; lives: number; pmpm: number; expected: number; received: boolean; gapReason: string | null }
   type ReconciliationInsurer = {
     insurer: string
     expectedTotal: number
@@ -337,7 +340,7 @@ export async function GET(request: NextRequest) {
     const row = reconciliationMap[stintInsurer]
     row.expectedTotal += expected
     if (received) row.confirmedTotal += expected
-    row.clients.push({ id: c.id, fullName: c.fullName, lives: c.lives, pmpm: stintPmpm, expected, received })
+    row.clients.push({ id: c.id, fullName: c.fullName, lives: c.lives, pmpm: stintPmpm, expected, received, gapReason: gapReasonByClient.get(c.id) ?? null })
   }
 
   for (const r of Object.values(reconciliationMap)) {

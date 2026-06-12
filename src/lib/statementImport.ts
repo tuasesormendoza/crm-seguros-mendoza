@@ -75,22 +75,25 @@ export function normalizeName(s: string): string {
     .trim()
 }
 
-// Tokeniza un nombre, descartando iniciales sueltas (1 letra) como "J" o "F",
-// que los estados de cuenta agregan/cortan y solo estorban a la comparación.
-// Si al quitarlas no queda nada, se usan todas (caso raro de puras iniciales).
+// Conectores de apellidos en español que no aportan a la comparación.
+const STOPWORDS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e', 'da', 'do'])
+
+// Tokeniza un nombre, descartando iniciales sueltas (1 letra) como "J" o "F" y
+// conectores ("de", "la"...) que los estados de cuenta agregan/cortan y solo
+// estorban. Si al quitarlas no queda nada, se usan todas (caso raro).
 function tokens(s: string): string[] {
   const all = normalizeName(s).split(' ').filter(Boolean)
-  const multi = all.filter(t => t.length >= 2)
-  return multi.length ? multi : all
+  const useful = all.filter(t => t.length >= 2 && !STOPWORDS.has(t))
+  return useful.length ? useful : all
 }
 
 // ¿La palabra `t` coincide con alguna del conjunto? Exacta, o por prefijo de
-// ≥3 letras (los estados de cuenta cortan apellidos: "Par" ≈ "Parra").
+// ≥2 letras (los estados de cuenta cortan apellidos: "Par"≈"Parra", "Al"≈"Almarza").
 function tokenMatches(t: string, set: Set<string>): boolean {
   if (set.has(t)) return true
-  if (t.length >= 3) {
+  if (t.length >= 2) {
     for (const u of set) {
-      if (u.length >= 3 && (u.startsWith(t) || t.startsWith(u))) return true
+      if (u.length >= 2 && (u.startsWith(t) || t.startsWith(u))) return true
     }
   }
   return false

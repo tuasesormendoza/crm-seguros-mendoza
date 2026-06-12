@@ -133,6 +133,12 @@ describe('apellido cortado empareja por prefijo', () => {
   test('"ALEXANDER CHAC" ≈ "Alexander Chacin" (≥0.9)', () => {
     assert.ok(nameSimilarity('ALEXANDER CHAC', 'Alexander Chacin') >= 0.9)
   })
+  test('"EDDY MONTES AL" ≈ "Eddy L Montes Almarza" (prefijo de 2, ≥0.9)', () => {
+    assert.ok(nameSimilarity('EDDY MONTES AL', 'Eddy L Montes Almarza') >= 0.9)
+  })
+  test('ignora conectores "de"/"la" en apellidos', () => {
+    assert.ok(nameSimilarity('JUAN DE LA CRUZ', 'Juan Cruz') >= 0.9)
+  })
   test('no sobre-empareja apellidos distintos', () => {
     assert.ok(nameSimilarity('Oscar Hernandez', 'Oscar Gomez') < 0.6)
   })

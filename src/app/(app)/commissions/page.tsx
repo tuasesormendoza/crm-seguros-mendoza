@@ -72,6 +72,7 @@ interface ReconciliationClient {
   pmpm: number
   expected: number
   received: boolean
+  gapReason: string | null
 }
 
 interface ReconciliationInsurer {
@@ -681,6 +682,12 @@ export default function CommissionsPage() {
                                 <span className="text-xs font-semibold" style={{ color: '#991b1b' }}>⚠️ Falta</span>
                               )}
                             </label>
+                            {!c.received && c.gapReason === 'broker' && (
+                              <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#fee2e2', color: '#991b1b' }}>🔴 Reclamar al broker</span>
+                            )}
+                            {!c.received && c.gapReason === 'cancelled' && (
+                              <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#f1f5f9', color: '#64748b' }}>⚪ Canceló</span>
+                            )}
                           </td>
                         </tr>
                       ))}

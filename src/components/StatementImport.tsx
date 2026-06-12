@@ -35,6 +35,8 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
   const [uploading, setUploading] = useState(false)
   const [pdfInfo, setPdfInfo] = useState<string | null>(null)
   const [pendingRows, setPendingRows] = useState<RawRow[] | null>(null)
+  // Motivo del faltante por cliente: clientId → 'broker' | 'cancelled'
+  const [missingReasons, setMissingReasons] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Aseguradoras que ha tenido un cliente (actual + historial). Así un cliente
@@ -195,10 +197,14 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
     setApplying(true)
     setError('')
     try {
-      // 1. Marca como recibido a los clientes emparejados, en este periodo
+      // 1. Marca recibido a los emparejados, y registra los faltantes con su
+      // motivo (reclamar al broker / canceló) para darles seguimiento.
+      const gaps = missing
+        .filter(c => missingReasons[c.id])
+        .map(c => ({ clientId: c.id, gapReason: missingReasons[c.id] }))
       await fetch('/api/commission-checks/bulk', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientIds: matchedIds, period, received: true }),
+        body: JSON.stringify({ clientIds: matchedIds, period, received: true, gaps }),
       })
       // 2. Registra el pago total recibido de esta aseguradora para el periodo,
       // con el detalle por cliente (qué cliente y cuánto pagó cada uno).
@@ -216,7 +222,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
           items,
         }),
       })
-      setRows(null); setText(''); setInsurer('')
+      setRows(null); setText(''); setInsurer(''); setMissingReasons({})
       onApplied()
     } catch {
       setError('Ocurrió un error al conciliar. Intenta de nuevo.')
@@ -400,14 +406,26 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                     🔴 {missing.length} cliente(s) que esperabas de {insurer || 'esta aseguradora'} NO están en este pago
                   </p>
                   <p className="text-[11px] mb-2" style={{ color: '#b91c1c' }}>
-                    Revisa cada uno: puede ser un <strong>error del broker</strong> (reclámalo) o que el <strong>cliente canceló</strong> su póliza.
+                    Marca el motivo de cada uno para darle seguimiento: <strong>reclamar al broker</strong> (posible error) o que el <strong>cliente canceló</strong>.
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="space-y-1.5">
                     {missing.map(c => (
-                      <a key={c.id} href={`/clients/${c.id}`} target="_blank" rel="noopener noreferrer"
-                        className="text-xs px-2 py-1 rounded-full hover:underline" style={{ background: '#fff', border: '1px solid #fecaca', color: '#991b1b' }}>
-                        {c.fullName} ↗
-                      </a>
+                      <div key={c.id} className="flex items-center justify-between gap-2 flex-wrap">
+                        <a href={`/clients/${c.id}`} target="_blank" rel="noopener noreferrer"
+                          className="text-xs font-medium hover:underline" style={{ color: '#991b1b' }}>
+                          {c.fullName} ↗
+                        </a>
+                        <select
+                          value={missingReasons[c.id] ?? ''}
+                          onChange={e => setMissingReasons(prev => ({ ...prev, [c.id]: e.target.value }))}
+                          className="text-xs border rounded-lg px-2 py-1 bg-white"
+                          style={{ borderColor: '#fecaca', color: '#991b1b' }}
+                        >
+                          <option value="">Motivo...</option>
+                          <option value="broker">🔴 Reclamar al broker</option>
+                          <option value="cancelled">⚪ El cliente canceló</option>
+                        </select>
+                      </div>
                     ))}
                   </div>
                 </div>
