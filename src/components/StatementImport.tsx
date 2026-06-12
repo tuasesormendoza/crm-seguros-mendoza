@@ -162,8 +162,27 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
   const matchedIds = useMemo(() => [...new Set(toApply.map(r => r.matchedClientId!))], [toApply])
   const totalAmount = useMemo(() => toApply.reduce((s, r) => s + r.amount, 0), [toApply])
 
+  // Resumen POR CLIENTE: agrupa las líneas del estado de cuenta por cliente
+  // (un cliente puede venir en varias líneas, ej. un dependiente aparte) y suma
+  // lo recibido para compararlo contra lo esperado. Así NO se "cuadra" nada: si
+  // a un cliente le pagaron de menos, se ve claro.
+  const byClient = useMemo(() => {
+    const map = new Map<string, { name: string; received: number; expected: number }>()
+    for (const r of toApply) {
+      const id = r.matchedClientId!
+      const e = map.get(id) ?? { name: r.matchedClientName ?? r.name, received: 0, expected: r.expected ?? 0 }
+      e.received += r.amount
+      map.set(id, e)
+    }
+    return [...map.entries()].map(([clientId, v]) => ({ clientId, ...v }))
+  }, [toApply])
+
+  const expectedTotal = useMemo(() => byClient.reduce((s, c) => s + (c.expected || 0), 0), [byClient])
+  // Clientes a los que se les pagó MENOS de lo esperado (posible error del broker).
+  const underpaid = useMemo(() => byClient.filter(c => c.expected > 0 && c.received < c.expected - 0.01), [byClient])
+
   // Clientes de la aseguradora seleccionada que NO aparecieron en el estado de
-  // cuenta (posibles faltantes de pago).
+  // cuenta (faltantes: error del broker o cliente que canceló).
   const missing = useMemo(() => {
     const matchedSet = new Set(matchedIds)
     const poolSet = new Set(insurerPool)
@@ -309,11 +328,19 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
             <h3 className="font-semibold text-base" style={{ color: '#10253f' }}>Revisión del emparejamiento</h3>
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <span className="px-2 py-1 rounded-full font-semibold" style={{ background: '#dcfce7', color: '#166534' }}>
-                {toApply.length} a conciliar
+                {byClient.length} cliente(s) en el pago
               </span>
               <span className="px-2 py-1 rounded-full font-semibold" style={{ background: '#f3e8ff', color: '#6b21a8' }}>
-                Total: {formatCurrency(totalAmount)}
+                Recibido: {formatCurrency(totalAmount)}
               </span>
+              <span className="px-2 py-1 rounded-full font-semibold" style={{ background: '#dbeafe', color: '#1e40af' }}>
+                Esperado: {formatCurrency(expectedTotal)}
+              </span>
+              {Math.abs(totalAmount - expectedTotal) > 0.01 && (
+                <span className="px-2 py-1 rounded-full font-semibold" style={{ background: '#fee2e2', color: '#991b1b' }}>
+                  Diferencia: {totalAmount - expectedTotal > 0 ? '+' : ''}{formatCurrency(totalAmount - expectedTotal)}
+                </span>
+              )}
             </div>
           </div>
 
@@ -324,7 +351,6 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                   <th className={TH} style={{ color: '#507b88' }}>Del estado de cuenta</th>
                   <th className={TH} style={{ color: '#507b88' }}>Monto</th>
                   <th className={TH} style={{ color: '#507b88' }}>Cliente emparejado</th>
-                  <th className={TH} style={{ color: '#507b88' }}>Esperado</th>
                   <th className={TH} style={{ color: '#507b88' }}>Estado</th>
                   <th className={TH} style={{ color: '#507b88' }}></th>
                 </tr>
@@ -332,7 +358,6 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
               <tbody>
                 {rows.map((r, idx) => {
                   const badge = STATUS_BADGE[r.status]
-                  const diff = r.expected != null ? Math.round((r.amount - r.expected) * 100) / 100 : null
                   return (
                     <tr key={idx} className="border-b border-gray-50" style={r.ignore ? { opacity: 0.4 } : {}}>
                       <td className={TD}>{r.name}</td>
@@ -346,18 +371,6 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                           <option value="">— Sin emparejar —</option>
                           {candidates.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                         </select>
-                      </td>
-                      <td className={TD}>
-                        {r.expected != null ? (
-                          <span>
-                            {formatCurrency(r.expected)}
-                            {diff !== null && diff !== 0 && (
-                              <span className="ml-1 text-xs font-semibold" style={{ color: diff > 0 ? '#166534' : '#991b1b' }}>
-                                ({diff > 0 ? '+' : ''}{formatCurrency(diff)})
-                              </span>
-                            )}
-                          </span>
-                        ) : <span className="text-gray-300">—</span>}
                       </td>
                       <td className={TD}>
                         <span className="text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap" style={{ background: badge.bg, color: badge.color }}>
@@ -376,15 +389,53 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
             </table>
           </div>
 
-          {missing.length > 0 && (
-            <div className="mt-4 p-3 rounded-lg" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
-              <p className="text-xs font-semibold" style={{ color: '#9a3412' }}>
-                ⚠️ {missing.length} cliente(s) esperado(s) NO aparecen en este estado de cuenta:
-              </p>
-              <p className="text-xs mt-1" style={{ color: '#9a3412' }}>
-                {missing.map(c => c.fullName).join(', ')}
-              </p>
+          {/* Panel de DISCREPANCIAS — el objetivo no es "cuadrar", sino mostrar
+              claramente lo que NO coincide para que lo revises (error del broker
+              o cancelación del cliente). */}
+          {(missing.length > 0 || underpaid.length > 0) ? (
+            <div className="mt-4 space-y-3">
+              {missing.length > 0 && (
+                <div className="p-3 rounded-lg" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <p className="text-xs font-bold mb-1" style={{ color: '#991b1b' }}>
+                    🔴 {missing.length} cliente(s) que esperabas de {insurer || 'esta aseguradora'} NO están en este pago
+                  </p>
+                  <p className="text-[11px] mb-2" style={{ color: '#b91c1c' }}>
+                    Revisa cada uno: puede ser un <strong>error del broker</strong> (reclámalo) o que el <strong>cliente canceló</strong> su póliza.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missing.map(c => (
+                      <a key={c.id} href={`/clients/${c.id}`} target="_blank" rel="noopener noreferrer"
+                        className="text-xs px-2 py-1 rounded-full hover:underline" style={{ background: '#fff', border: '1px solid #fecaca', color: '#991b1b' }}>
+                        {c.fullName} ↗
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {underpaid.length > 0 && (
+                <div className="p-3 rounded-lg" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
+                  <p className="text-xs font-bold mb-2" style={{ color: '#9a3412' }}>
+                    🟠 {underpaid.length} cliente(s) con pago MENOR a lo esperado (posible pago incompleto del broker)
+                  </p>
+                  <div className="space-y-1">
+                    {underpaid.map(c => (
+                      <div key={c.clientId} className="flex items-center justify-between text-xs" style={{ color: '#9a3412' }}>
+                        <span>{c.name}</span>
+                        <span>recibió <strong>{formatCurrency(c.received)}</strong> de <strong>{formatCurrency(c.expected)}</strong> <span style={{ color: '#991b1b' }}>(faltan {formatCurrency(c.expected - c.received)})</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+          ) : (
+            byClient.length > 0 && (
+              <div className="mt-4 p-3 rounded-lg" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <p className="text-xs font-semibold" style={{ color: '#166534' }}>
+                  ✅ Todo cuadra: cada cliente esperado de {insurer} aparece en el pago con el monto correcto.
+                </p>
+              </div>
+            )
           )}
 
           <div className="flex items-center justify-end gap-3 mt-4">
