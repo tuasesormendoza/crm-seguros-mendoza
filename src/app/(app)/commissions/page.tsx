@@ -103,6 +103,7 @@ interface ClientRow {
   wnMonthly: number
   totalMonthly: number
   acaCommission: number
+  expectedForPeriod: number
   totalCommission: number
   contractDate: string | null
   activationDate: string | null
