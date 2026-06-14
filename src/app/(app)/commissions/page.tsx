@@ -756,7 +756,7 @@ export default function CommissionsPage() {
                           <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                             <th className={TH} style={{ color: '#507b88' }}>Aseguradora</th>
                             <th className={TH} style={{ color: '#507b88' }}>Recibido</th>
-                            <th className={TH} style={{ color: '#507b88' }}>Proyectado actual</th>
+                            <th className={TH} style={{ color: '#507b88' }}>Proyectado del mes</th>
                             <th className={TH} style={{ color: '#507b88' }}>Diferencia</th>
                             <th className={TH} style={{ color: '#507b88' }}>Fecha</th>
                             <th className={TH} style={{ color: '#507b88' }}>Clientes</th>

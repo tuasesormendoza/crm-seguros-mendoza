@@ -267,10 +267,27 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Pagos de comisión recibidos (registro manual) ───────────────────────────
-  // Compara lo efectivamente cobrado contra lo proyectado (PMPM × vidas actual)
-  // por aseguradora, agrupado por período (mes que cubre el pago).
-  const expectedByInsurer: Record<string, number> = {}
-  for (const r of Object.values(insurerMap)) expectedByInsurer[r.insurer] = r.monthly
+  // Compara lo efectivamente cobrado contra lo proyectado por aseguradora,
+  // agrupado por período (mes que cubre el pago).
+  //
+  // El "proyectado" de cada pago se calcula usando el tramo (stint) del
+  // Historial de Aseguradoras vigente para EL MES QUE CUBRE ESE PAGO — no la
+  // aseguradora actual del cliente. Así, si un cliente luego cambió de
+  // aseguradora, el pago histórico sigue comparándose contra lo que
+  // correspondía cobrar de la aseguradora que lo cubría en ese momento.
+  function expectedTotalsForPeriod(pStart: Date): Record<string, number> {
+    const totals: Record<string, number> = {}
+    for (const c of clientRows) {
+      const stints = stintsByClient[c.id] || []
+      const stint = stints.find(s => stintCovers(s, pStart))
+      if (!stint) continue
+      const stintPmpm = ratesMap[stint.insurer] ?? 18
+      totals[stint.insurer] = (totals[stint.insurer] ?? 0) + stintPmpm * c.lives
+    }
+    return totals
+  }
+
+  const expectedTotalsByPeriod: Record<string, Record<string, number>> = {}
 
   type PaymentClientItem = { clientId: string | null; name: string; amount: number }
   type PaymentItem = { id: string; insurer: string; amount: number; expected: number; receivedDate: string; notes: string | null; clients: PaymentClientItem[] }
@@ -282,11 +299,16 @@ export async function GET(request: NextRequest) {
     if (p.items) {
       try { const parsed = JSON.parse(p.items); if (Array.isArray(parsed)) clientItems = parsed } catch { /* ignore */ }
     }
+    if (!expectedTotalsByPeriod[p.period]) {
+      const [py, pm] = p.period.split('-').map(Number)
+      const pStart = new Date(py, pm - 1, 1)
+      expectedTotalsByPeriod[p.period] = expectedTotalsForPeriod(pStart)
+    }
     periodMap[p.period].items.push({
       id: p.id,
       insurer: p.insurer,
       amount: p.amount,
-      expected: expectedByInsurer[p.insurer] ?? 0,
+      expected: expectedTotalsByPeriod[p.period][p.insurer] ?? 0,
       receivedDate: p.receivedDate.toISOString(),
       notes: p.notes,
       clients: clientItems,
