@@ -9,6 +9,7 @@ interface ClientRow {
   fullName: string
   insurer: string
   acaCommission: number
+  expectedForPeriod?: number
   dependentNames?: string[]
   insurers?: string[]  // actual + historial de aseguradoras
 }
@@ -57,7 +58,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
   // lleva sus dependientes como alias.
   const candidates = useMemo(
     () => clients
-      .map(c => ({ id: c.id, fullName: c.fullName, expected: c.acaCommission, aliases: c.dependentNames ?? [] }))
+      .map(c => ({ id: c.id, fullName: c.fullName, expected: c.expectedForPeriod ?? c.acaCommission, aliases: c.dependentNames ?? [] }))
       .sort((a, b) => a.fullName.localeCompare(b.fullName)),
     [clients]
   )

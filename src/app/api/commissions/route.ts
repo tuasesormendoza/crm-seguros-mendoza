@@ -22,6 +22,9 @@ export async function GET(request: NextRequest) {
   const today = new Date()
   const { searchParams } = new URL(request.url)
   const period = searchParams.get('period') || today.toISOString().slice(0, 7) // "YYYY-MM"
+  const [pYear, pMon] = period.split('-').map(Number)
+  const periodStart = new Date(pYear, pMon - 1, 1)
+  const periodEnd = new Date(pYear, pMon, 0, 23, 59, 59)
 
   const [clients, wnClientsRaw, storedRates, payments, checks, insurerHistoryRows] = await Promise.all([
     prisma.client.findMany({
@@ -83,6 +86,15 @@ export async function GET(request: NextRequest) {
     // ACA commission
     const acaCommission = pmpm * lives
 
+    // Comisión esperada para el PERÍODO que se está conciliando — usa la
+    // aseguradora que aplicaba ESE mes (tramo/stint), no necesariamente la
+    // actual del cliente. Así, al conciliar un estado de cuenta de Oscar de un
+    // mes en que el cliente todavía estaba con Oscar (aunque hoy ya esté en
+    // Ambetter), "Esperado" usa el pmpm de Oscar y no el de Ambetter.
+    const periodStint = (stintsByClient[c.id] || []).find(s => stintCovers(s, periodStart))
+    const periodPmpm = periodStint ? (ratesMap[periodStint.insurer] ?? 18) : pmpm
+    const expectedForPeriod = periodPmpm * lives
+
     // Ancillary (Washington National / WN) monthly premium — shown for reference
     // only here; its commission is computed & tracked separately (see wnSummary)
     // because WN pays a one-time 30%-of-annualized commission on a different
@@ -124,6 +136,7 @@ export async function GET(request: NextRequest) {
       wnMonthly,
       totalMonthly: (c.acaPrice ?? 0) + wnMonthly,
       acaCommission,
+      expectedForPeriod,
       // NOTE: Washington National (WN) ancillary commissions are tracked
       // entirely separately (see wnSummary) and intentionally EXCLUDED from
       // "totalCommission" — WN pays a one-time 30%-of-annualized-premium
@@ -291,9 +304,6 @@ export async function GET(request: NextRequest) {
   // las marcas manuales de "recibido" (CommissionCheck) y los pagos globales
   // registrados por aseguradora (CommissionPayment) para detectar a quién le
   // falta el pago.
-  const [pYear, pMon] = period.split('-').map(Number)
-  const periodStart = new Date(pYear, pMon - 1, 1)
-  const periodEnd = new Date(pYear, pMon, 0, 23, 59, 59)
   const checkedSet = new Set(checks.filter(c => c.received).map(c => c.clientId))
   // Motivo del faltante por cliente (cuando se registró que NO está en el pago).
   const gapReasonByClient = new Map<string, string>()
