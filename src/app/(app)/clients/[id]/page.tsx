@@ -709,6 +709,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   if (!client) return <div className="flex items-center justify-center h-64"><div className="text-gray-400">Cargando...</div></div>
 
+  const hasDental = !!(client.dentalInsurer || client.dentalDeductible || client.dentalMaxBenefit || client.dentalMonthly)
+
   if (editing) return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -1036,7 +1038,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </Section>
 
           {/* Dental Insurance */}
-          {(client.dentalInsurer || client.dentalDeductible || client.dentalMaxBenefit || client.dentalMonthly) && (
+          {hasDental && (
             <Section title="🦷 Póliza Dental">
               <dl className="space-y-3">
                 <InfoItem label="Aseguradora Dental" value={client.dentalInsurer} />
@@ -1046,7 +1048,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               </dl>
             </Section>
           )}
-          {!(client.dentalInsurer || client.dentalDeductible || client.dentalMaxBenefit || client.dentalMonthly) && (
+          {!hasDental && (
             <div className="bg-white rounded-xl border border-dashed border-gray-200 p-4 text-center">
               <p className="text-sm text-gray-400">🦷 Sin póliza dental registrada</p>
               <p className="text-xs text-gray-300 mt-0.5">Agrega la información en Editar → Póliza Dental</p>
@@ -1136,8 +1138,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            <form onSubmit={handleAddInsurerChange} className="grid grid-cols-1 md:grid-cols-4 gap-2 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-              <div>
+            <form onSubmit={handleAddInsurerChange} className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div className="sm:col-span-3">
                 <label className="block text-xs font-medium text-gray-600 mb-1">Aseguradora anterior</label>
                 <select
                   value={newInsurerChange.insurer}
@@ -1176,7 +1178,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   {savingInsurerHistory ? '...' : '+ Agregar'}
                 </button>
               </div>
-              {insurerHistoryError && <p className="md:col-span-4 text-xs text-red-600">{insurerHistoryError}</p>}
+              {insurerHistoryError && <p className="sm:col-span-3 text-xs text-red-600">{insurerHistoryError}</p>}
             </form>
           </div>
         </div>

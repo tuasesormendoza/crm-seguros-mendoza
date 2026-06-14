@@ -224,11 +224,6 @@ export default function Dashboard() {
                 style={{ background: 'rgba(255,255,255,.25)' }}>{todayItems}</span>
             )}
           </Link>
-          <a href="/api/backup" download
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
-            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid rgba(var(--brand-500-rgb), .25)', color: '#334155', backdropFilter: 'blur(8px)' }}>
-            💾 Backup
-          </a>
         </div>
       </div>
 

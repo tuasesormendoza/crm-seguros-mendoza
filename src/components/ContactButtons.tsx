@@ -81,7 +81,7 @@ const ContactButtons = memo(function ContactButtons({ clientName, clientPhone, s
       <a
         href={telUrl}
         className={btnBase}
-        style={{ background: '#10253f', color: '#ffffff' }}
+        style={{ background: '#429EBD', color: '#ffffff' }}
         title={`Llamar a ${clientName}`}
       >
         <span>📞</span>

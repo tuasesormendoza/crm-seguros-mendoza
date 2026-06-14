@@ -1111,6 +1111,17 @@ export default function SettingsPage() {
         </form>
       </div>
 
+      {/* ── Backup ────────────────────────────────────────────── */}
+      <div className={SECTION}>
+        <h2 className={TITLE} style={{ color: '#10253f' }}>💾 Respaldo de Datos</h2>
+        <p className="text-xs text-gray-500 mb-4">Descarga una copia de seguridad completa de la base de datos.</p>
+        <a href="/api/backup" download
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
+          style={{ background: '#305a72' }}>
+          💾 Descargar Backup
+        </a>
+      </div>
+
       {/* ── Usuarios ──────────────────────────────────────────── */}
       <UserManagement />
 
@@ -1122,7 +1133,7 @@ export default function SettingsPage() {
             { label: 'Versión', value: '1.0.0' },
             { label: 'Base de datos', value: 'SQLite (local)' },
             { label: 'Framework', value: 'Next.js 16' },
-            { label: 'Backup', value: 'Manual (dashboard)' },
+            { label: 'Backup', value: 'Manual (Configuración)' },
           ].map(item => (
             <div key={item.label}>
               <div className="text-xs text-gray-400 uppercase tracking-wide">{item.label}</div>
