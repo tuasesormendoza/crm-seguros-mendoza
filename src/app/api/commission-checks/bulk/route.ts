@@ -5,7 +5,12 @@ import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
 // Marca en bloque, para un período, el estado de conciliación de varios clientes:
 //   - `clientIds` (+ `received`): marca esos clientes como recibido/no recibido.
 //   - `gaps` [{ clientId, gapReason }]: registra clientes que NO están en el pago
-//     con su motivo ('broker' = reclamar | 'cancelled' = el cliente canceló).
+//     con su motivo:
+//       'broker'         = el broker lo pasó por alto (reclamar)
+//       'unpaid_premium' = el cliente no ha pagado su prima (el broker tampoco paga)
+//       'cancelled'      = el cliente canceló y se fue con otro agente
+//       'switched'       = el cliente cambió de aseguradora
+//       'not_due'        = todavía no corresponde el pago de ese cliente
 // Se usa por el botón "Marcar todos" de la conciliación y por el importador de PDF.
 export async function POST(request: NextRequest) {
   const auth = await requireRole(COMMISSIONS_ROLES)
@@ -55,7 +60,7 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(gaps)) {
     for (const g of gaps) {
       if (!ownSet.has(g.clientId)) continue
-      const reason = ['broker', 'cancelled', 'switched'].includes(g.gapReason ?? '') ? g.gapReason : null
+      const reason = ['broker', 'unpaid_premium', 'cancelled', 'switched', 'not_due'].includes(g.gapReason ?? '') ? g.gapReason : null
       ops.push(prisma.commissionCheck.upsert({
         where: { clientId_period: { clientId: g.clientId, period } },
         update: { received: false, gapReason: reason },

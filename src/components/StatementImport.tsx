@@ -35,7 +35,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
   const [uploading, setUploading] = useState(false)
   const [pdfInfo, setPdfInfo] = useState<string | null>(null)
   const [pendingRows, setPendingRows] = useState<RawRow[] | null>(null)
-  // Motivo del faltante por cliente: clientId → 'broker' | 'cancelled'
+  // Motivo del faltante por cliente: clientId → 'broker' | 'unpaid_premium' | 'cancelled' | 'switched' | 'not_due'
   const [missingReasons, setMissingReasons] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -390,7 +390,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                     🔴 {missing.length} cliente(s) que esperabas de {insurer || 'esta aseguradora'} NO están en este pago
                   </p>
                   <p className="text-[11px] mb-2" style={{ color: '#b91c1c' }}>
-                    Marca el motivo de cada uno para darle seguimiento: <strong>reclamar al broker</strong> (posible error) o que el <strong>cliente canceló</strong>.
+                    Marca el motivo de cada uno para darle seguimiento.
                   </p>
                   <div className="space-y-1.5">
                     {missing.map(c => (
@@ -406,9 +406,11 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                           style={{ borderColor: '#fecaca', color: '#991b1b' }}
                         >
                           <option value="">Motivo...</option>
-                          <option value="broker">🔴 Reclamar al broker</option>
-                          <option value="cancelled">⚪ El cliente canceló</option>
-                          <option value="switched">🔵 Está con otra aseguradora</option>
+                          <option value="broker">🔴 El broker lo pasó por alto</option>
+                          <option value="unpaid_premium">🟠 El cliente no ha pagado su prima</option>
+                          <option value="cancelled">⚪ Canceló y se fue con otro agente</option>
+                          <option value="switched">🔵 Cambió de aseguradora</option>
+                          <option value="not_due">🕓 Todavía no corresponde el pago</option>
                         </select>
                       </div>
                     ))}

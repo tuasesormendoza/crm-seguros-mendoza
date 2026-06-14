@@ -686,11 +686,17 @@ export default function CommissionsPage() {
                             {!c.received && c.gapReason === 'broker' && (
                               <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#fee2e2', color: '#991b1b' }}>🔴 Reclamar al broker</span>
                             )}
+                            {!c.received && c.gapReason === 'unpaid_premium' && (
+                              <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#ffedd5', color: '#9a3412' }}>🟠 Cliente no ha pagado prima</span>
+                            )}
                             {!c.received && c.gapReason === 'cancelled' && (
                               <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#f1f5f9', color: '#64748b' }}>⚪ Canceló</span>
                             )}
                             {!c.received && c.gapReason === 'switched' && (
                               <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#dbeafe', color: '#1e40af' }}>🔵 Otra aseguradora</span>
+                            )}
+                            {!c.received && c.gapReason === 'not_due' && (
+                              <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: '#f0f7fb', color: '#305a72' }}>🕓 Aún no corresponde</span>
                             )}
                           </td>
                         </tr>
