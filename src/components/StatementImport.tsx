@@ -91,6 +91,21 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingRows, candidates])
 
+  // Si los candidatos cambian (ej. el PDF detectó el período del estado de
+  // cuenta y se recargó la conciliación de ESE mes), refresca el "esperado"
+  // de las filas ya emparejadas — si no, quedan con el monto del período que
+  // estaba seleccionado en el momento del emparejamiento inicial.
+  useEffect(() => {
+    setRows(prev => {
+      if (!prev) return prev
+      return prev.map(r => {
+        if (!r.matchedClientId) return r
+        const cand = candidates.find(c => c.id === r.matchedClientId)
+        return cand ? { ...r, expected: cand.expected } : r
+      })
+    })
+  }, [candidates])
+
   async function handlePdf(file: File) {
     setError(''); setRows(null); setPdfInfo(null); setUploading(true)
     try {
