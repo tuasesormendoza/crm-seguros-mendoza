@@ -151,6 +151,7 @@ export default function CommissionsPage() {
   const currentPeriod = new Date().toISOString().slice(0, 7) // "YYYY-MM"
   const [showPayments, setShowPayments] = useState(false)
   const [deletingPayment, setDeletingPayment] = useState<string | null>(null)
+  const [savingPaymentDate, setSavingPaymentDate] = useState<string | null>(null)
   const [expandedPayment, setExpandedPayment] = useState<string | null>(null)
 
   // ── Conciliación de comisiones ───────────────────────────────────────────
@@ -217,6 +218,17 @@ export default function CommissionsPage() {
     setDeletingPayment(id)
     await fetch(`/api/commission-payments/${id}`, { method: 'DELETE' })
     setDeletingPayment(null)
+    load()
+  }
+
+  const handleUpdatePaymentDate = async (id: string, receivedDate: string) => {
+    setSavingPaymentDate(id)
+    await fetch(`/api/commission-payments/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receivedDate }),
+    })
+    setSavingPaymentDate(null)
     load()
   }
 
@@ -787,8 +799,16 @@ export default function CommissionsPage() {
                                 <td className={TD} style={{ color: diff === 0 ? '#94a3b8' : diff > 0 ? '#166534' : '#dc2626' }}>
                                   {diff > 0 ? '+' : ''}{formatCurrency(diff)}
                                 </td>
-                                <td className={TD + ' text-xs whitespace-nowrap'} style={{ color: '#94a3b8' }}>
-                                  {new Date(item.receivedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                                <td className={TD + ' text-xs whitespace-nowrap'} onClick={e => e.stopPropagation()}>
+                                  <input
+                                    type="date"
+                                    value={item.receivedDate.slice(0, 10)}
+                                    disabled={savingPaymentDate === item.id}
+                                    onChange={e => e.target.value && handleUpdatePaymentDate(item.id, e.target.value)}
+                                    className="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white disabled:opacity-50"
+                                    style={{ color: '#507b88' }}
+                                    title="Fecha en que se recibió el pago"
+                                  />
                                 </td>
                                 <td className={TD + ' text-xs'} style={{ color: hasDetail ? '#305a72' : '#cbd5e1' }}>
                                   {hasDetail ? `${isOpen ? '▾' : '▸'} ${item.clients.length} cliente(s)` : '—'}
