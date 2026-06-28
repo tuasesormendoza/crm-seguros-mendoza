@@ -7,6 +7,7 @@ import { formatDate, formatDateTime, formatCurrency, getAge } from '@/lib/utils'
 import ClientForm from '@/components/ClientForm'
 import DocumentsSection from '@/components/DocumentsSection'
 import ContactButtons from '@/components/ContactButtons'
+import CancellationModal from '@/components/CancellationModal'
 
 const PREDEFINED_TAGS = [
   { label: 'VIP', color: '#fbbf24' },
@@ -572,6 +573,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [savingInsurerHistory, setSavingInsurerHistory] = useState(false)
   const [insurerHistoryError, setInsurerHistoryError] = useState('')
   const [newInsurerChange, setNewInsurerChange] = useState({ insurer: '', startPeriod: '', endPeriod: '' })
+  const [showCancellationModal, setShowCancellationModal] = useState(false)
   const router = useRouter()
 
   const loadClient = useCallback((id: string) => {
@@ -598,6 +600,31 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     if (!confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.')) return
     await fetch(`/api/clients/${clientId}`, { method: 'DELETE' })
     router.push('/clients')
+  }
+
+  const handleCancellationConfirm = async ({ cancellationDate, addToProspects }: { cancellationDate: string; addToProspects: boolean }) => {
+    if (!clientId || !client) return
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'Cancelado', cancellationDate }),
+    })
+    if (res.ok) setClient(await res.json())
+    if (addToProspects) {
+      await fetch('/api/prospects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: client.fullName,
+          phone: client.phone || undefined,
+          email: client.email || undefined,
+          stage: 'Cerrado - Perdido',
+          lossReason: 'COMPETENCIA',
+          notes: `Cliente cancelado el ${cancellationDate}. Fue con otro agente.`,
+        }),
+      })
+    }
+    setShowCancellationModal(false)
   }
 
   const handleSave = async (data: Record<string, unknown>) => {
@@ -748,6 +775,27 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <AppointmentModal onClose={() => setShowApptModal(false)} onSave={handleAddAppointment} />
       )}
 
+      {showCancellationModal && client && (
+        <CancellationModal
+          clientId={clientId!}
+          clientName={client.fullName}
+          wnHasPolicy={parseWn(client.wnPolicies).length > 0}
+          wnSecondPaymentReceived={client.wnSecondPaymentReceived === true}
+          onConfirm={handleCancellationConfirm}
+          onSkip={async ({ cancellationDate }) => {
+            if (!clientId) return
+            const res = await fetch(`/api/clients/${clientId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'Cancelado', cancellationDate }),
+            })
+            if (res.ok) setClient(await res.json() as Client)
+            setShowCancellationModal(false)
+          }}
+          onClose={() => setShowCancellationModal(false)}
+        />
+      )}
+
       {/* Cancellation banner */}
       {client.status === 'Cancelado' && (() => {
         const c = client!
@@ -846,6 +894,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
             🖨️ Imprimir
           </button>
+          {client.status !== 'Cancelado' && (
+            <button
+              onClick={() => setShowCancellationModal(true)}
+              className="px-4 py-2 rounded-lg text-sm font-medium border"
+              style={{ borderColor: '#fecaca', color: '#991b1b', background: '#fff' }}
+            >
+              Fue con otro agente
+            </button>
+          )}
           <button onClick={handleDelete} className="text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-50 text-sm">
             Eliminar
           </button>

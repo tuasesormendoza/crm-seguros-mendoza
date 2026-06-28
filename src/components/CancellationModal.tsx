@@ -8,7 +8,7 @@ interface Props {
   wnHasPolicy: boolean
   wnSecondPaymentReceived: boolean
   onConfirm: (data: { cancellationDate: string; addToProspects: boolean }) => Promise<void>
-  onSkip: () => void   // registra el motivo sin actualizar el perfil del cliente
+  onSkip: (data: { cancellationDate: string }) => void  // actualiza el cliente sin agregar a prospectos
   onClose: () => void  // cancela completamente (no se registra nada)
 }
 
@@ -89,7 +89,7 @@ export default function CancellationModal({
             Cancelar
           </button>
           <button
-            onClick={onSkip}
+            onClick={() => onSkip({ cancellationDate })}
             className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-500 hover:bg-gray-50"
           >
             Solo registrar motivo

@@ -298,7 +298,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
           wnSecondPaymentReceived={cancellationModal.wnSecondPaymentReceived}
           onConfirm={handleCancellationConfirm}
           onSkip={() => {
-            setMissingReasons(prev => ({ ...prev, [cancellationModal.clientId]: 'cancelled' }))
+            setMissingReasons(prev => ({ ...prev, [cancellationModal!.clientId]: 'cancelled' }))
             setCancellationModal(null)
           }}
           onClose={() => setCancellationModal(null)}
