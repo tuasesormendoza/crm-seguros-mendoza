@@ -108,6 +108,7 @@ const LIST_SELECT = {
   id: true, fullName: true, email: true, phone: true, state: true,
   insurer: true, planCategory: true, coverageType: true, totalMonthly: true,
   status: true, renewalDate: true, affiliatesCount: true, tags: true, wnPolicies: true,
+  cancellationDate: true,
 } as const
 
 const SORT_FIELDS = ['fullName', 'state', 'insurer', 'totalMonthly', 'renewalDate', 'status']

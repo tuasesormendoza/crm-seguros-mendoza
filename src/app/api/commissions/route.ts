@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         id: true, fullName: true, insurer: true,
         affiliatesCount: true, applicantInPolicy: true,
         acaPrice: true, wnPolicies: true, totalMonthly: true,
-        contractDate: true,
+        contractDate: true, wnContractDate: true, wnSecondPaymentReceived: true,
         dependents: { select: { name: true } },
       },
     }),
@@ -154,6 +154,8 @@ export async function GET(request: NextRequest) {
       // que al importar el estado de cuenta de una aseguradora también aparezcan
       // los clientes que se cambiaron de aseguradora a mitad de póliza.
       insurers: stints.length ? [...new Set(stints.map(s => s.insurer))] : [insurer],
+      wnContractDate: c.wnContractDate?.toISOString() ?? null,
+      wnSecondPaymentReceived: c.wnSecondPaymentReceived === true,
     }
   })
 

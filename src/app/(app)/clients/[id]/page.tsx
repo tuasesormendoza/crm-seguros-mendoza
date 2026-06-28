@@ -75,7 +75,7 @@ interface Client {
   planXray?: string | null; planCTScan?: string | null; planLab?: string | null
   planReferral?: string | null
   acaPrice?: number | null; wnPolicies?: string | null
-  wnContractDate?: string | null; cancellationDate?: string | null
+  wnContractDate?: string | null; cancellationDate?: string | null; wnSecondPaymentReceived?: boolean | null
   totalMonthly?: number | null; annualIncome?: number | null
   status?: string | null; activationDate?: string | null; renewalDate?: string | null; policyExpirationDate?: string | null
   preferredDoctors?: string | null; specificMedications?: string | null
@@ -747,6 +747,62 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       {showApptModal && (
         <AppointmentModal onClose={() => setShowApptModal(false)} onSave={handleAddAppointment} />
       )}
+
+      {/* Cancellation banner */}
+      {client.status === 'Cancelado' && (() => {
+        const c = client!
+        const start = c.activationDate || c.contractDate
+        const end = c.cancellationDate
+        const months = start && end
+          ? Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24 * 30.44)))
+          : null
+        const wnPoliciesData = parseWn(c.wnPolicies)
+        const wnClawbackRisk = wnPoliciesData.length > 0 && !c.wnSecondPaymentReceived
+
+        async function addToProspects() {
+          await fetch('/api/prospects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fullName: c.fullName,
+              phone: c.phone || undefined,
+              email: c.email || undefined,
+              stage: 'Cerrado - Perdido',
+              lossReason: 'COMPETENCIA',
+              notes: `Cliente cancelado${end ? ` el ${formatDate(end)}` : ''}. Fue con otro agente.`,
+            }),
+          })
+          alert(`${c.fullName} fue agregado al pipeline de prospectos como "Cerrado – Perdido".`)
+        }
+
+        return (
+          <div className="rounded-xl p-4 space-y-2" style={{ background: '#fef2f2', border: '1.5px solid #fecaca' }}>
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-sm font-bold" style={{ color: '#991b1b' }}>
+                  Cliente cancelado — fue con otro agente
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#b91c1c' }}>
+                  {end ? `Fecha de cancelación: ${formatDate(end)}` : 'Fecha de cancelación no registrada'}
+                  {months !== null ? ` · ${months} mes${months === 1 ? '' : 'es'} activo` : ''}
+                </p>
+              </div>
+              <button
+                onClick={addToProspects}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white shrink-0"
+                style={{ background: '#305a72' }}
+              >
+                + Agregar a prospectos
+              </button>
+            </div>
+            {wnClawbackRisk && (
+              <p className="text-xs font-semibold" style={{ color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '6px', padding: '6px 10px' }}>
+                ⚠️ Riesgo de clawback WN: tiene póliza Washington National y el segundo pago aún no está confirmado.
+              </p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">

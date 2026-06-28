@@ -16,7 +16,12 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const errors = validateProspect(body)
   if (Object.keys(errors).length > 0) return validationError(errors)
-  const { fullName, phone, email, state, source, notes, referredByClientId, referredByName } = body
+  const { fullName, phone, email, state, source, notes, referredByClientId, referredByName, stage, lossReason } = body
+  const VALID_STAGES = [
+    'Nuevo Lead (Por Contactar)', 'Contactado – En Conversación',
+    'En Espera de Decisión / Docs', 'Cerrado - Ganado', 'Cerrado - Perdido',
+  ]
+  const VALID_LOSS_REASONS = ['GHOSTING', 'FALTA_DOCUMENTACION', 'PRECIO_INGRESOS', 'COMPETENCIA']
   const prospect = await prisma.prospect.create({
     data: {
       agencyId: auth.agencyId,
@@ -28,6 +33,8 @@ export async function POST(request: NextRequest) {
       notes: notes || null,
       referredByClientId: referredByClientId || null,
       referredByName: referredByName || null,
+      stage: VALID_STAGES.includes(stage) ? stage : undefined,
+      lossReason: VALID_LOSS_REASONS.includes(lossReason) ? lossReason : null,
     },
   })
   return NextResponse.json(prospect, { status: 201 })

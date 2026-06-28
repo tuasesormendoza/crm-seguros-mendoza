@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { matchRows, type MatchResult } from '@/lib/statementImport'
+import CancellationModal from './CancellationModal'
 
 interface ClientRow {
   id: string
@@ -12,6 +13,9 @@ interface ClientRow {
   expectedForPeriod?: number
   dependentNames?: string[]
   insurers?: string[]  // actual + historial de aseguradoras
+  wnPolicies?: string | null
+  wnContractDate?: string | null
+  wnSecondPaymentReceived?: boolean
 }
 
 interface Props {
@@ -37,6 +41,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
   const [pendingRows, setPendingRows] = useState<RawRow[] | null>(null)
   // Motivo del faltante por cliente: clientId → 'broker' | 'unpaid_premium' | 'cancelled' | 'switched' | 'not_due'
   const [missingReasons, setMissingReasons] = useState<Record<string, string>>({})
+  const [cancellationModal, setCancellationModal] = useState<{ clientId: string; clientName: string; wnHasPolicy: boolean; wnSecondPaymentReceived: boolean } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Aseguradoras que ha tenido un cliente (actual + historial). Así un cliente
@@ -193,6 +198,45 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
     return candidates.filter(c => poolSet.has(c.id) && !matchedSet.has(c.id))
   }, [candidates, insurerPool, matchedIds])
 
+  function handleReasonChange(clientId: string, value: string) {
+    if (value === 'cancelled') {
+      const c = clients.find(cl => cl.id === clientId)
+      const wnHasPolicy = !!(c?.wnPolicies && c.wnPolicies.includes('"type"'))
+      setCancellationModal({
+        clientId,
+        clientName: c?.fullName ?? '',
+        wnHasPolicy,
+        wnSecondPaymentReceived: c?.wnSecondPaymentReceived ?? false,
+      })
+    } else {
+      setMissingReasons(prev => ({ ...prev, [clientId]: value }))
+    }
+  }
+
+  async function handleCancellationConfirm({ cancellationDate, addToProspects }: { cancellationDate: string; addToProspects: boolean }) {
+    if (!cancellationModal) return
+    const { clientId, clientName } = cancellationModal
+    await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'Cancelado', cancellationDate }),
+    })
+    if (addToProspects) {
+      await fetch('/api/prospects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: clientName,
+          stage: 'Cerrado - Perdido',
+          lossReason: 'COMPETENCIA',
+          notes: `Cliente cancelado el ${cancellationDate}. Fue con otro agente.`,
+        }),
+      })
+    }
+    setMissingReasons(prev => ({ ...prev, [clientId]: 'cancelled' }))
+    setCancellationModal(null)
+  }
+
   async function apply() {
     if (!insurer) { setError('Selecciona la aseguradora para registrar el pago.'); return }
     if (matchedIds.length === 0) { setError('No hay clientes emparejados para conciliar.'); return }
@@ -246,6 +290,20 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
 
   return (
     <div className="space-y-6">
+      {cancellationModal && (
+        <CancellationModal
+          clientId={cancellationModal.clientId}
+          clientName={cancellationModal.clientName}
+          wnHasPolicy={cancellationModal.wnHasPolicy}
+          wnSecondPaymentReceived={cancellationModal.wnSecondPaymentReceived}
+          onConfirm={handleCancellationConfirm}
+          onSkip={() => {
+            setMissingReasons(prev => ({ ...prev, [cancellationModal.clientId]: 'cancelled' }))
+            setCancellationModal(null)
+          }}
+          onClose={() => setCancellationModal(null)}
+        />
+      )}
       <div className={CARD}>
         <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>📥 Importar estado de cuenta</h2>
         <p className="text-xs text-gray-500 mt-1">
@@ -401,7 +459,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
                         </a>
                         <select
                           value={missingReasons[c.id] ?? ''}
-                          onChange={e => setMissingReasons(prev => ({ ...prev, [c.id]: e.target.value }))}
+                          onChange={e => handleReasonChange(c.id, e.target.value)}
                           className="text-xs border rounded-lg px-2 py-1 bg-white"
                           style={{ borderColor: '#fecaca', color: '#991b1b' }}
                         >

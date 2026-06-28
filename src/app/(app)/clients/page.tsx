@@ -50,6 +50,7 @@ interface Client {
   affiliatesCount: number | null
   tags: string | null
   wnPolicies: string | null
+  cancellationDate: string | null
 }
 
 type SortKey = 'fullName' | 'state' | 'insurer' | 'totalMonthly' | 'renewalDate' | 'status'
@@ -109,6 +110,22 @@ export default function ClientsPage() {
   const [wnFilter, setWnFilter] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('fullName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [recentlyCancelled, setRecentlyCancelled] = useState<Client[]>([])
+
+  // Clientes cancelados este mes — se carga una vez al montar (no paginado).
+  useEffect(() => {
+    const start = new Date()
+    start.setDate(1); start.setHours(0, 0, 0, 0)
+    fetch('/api/clients?status=Cancelado')
+      .then(r => r.json())
+      .then((data: Client[]) => {
+        if (!Array.isArray(data)) return
+        setRecentlyCancelled(data.filter(c =>
+          c.cancellationDate && new Date(c.cancellationDate) >= start
+        ))
+      })
+      .catch(() => {})
+  }, [])
 
   // Toda la búsqueda/filtrado/orden/paginación ocurre en el SERVIDOR (rápido y
   // sin traer todos los clientes al navegador).
@@ -169,6 +186,41 @@ export default function ClientsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Clientes perdidos este mes */}
+      {recentlyCancelled.length > 0 && (
+        <div className="rounded-xl p-4" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <p className="text-sm font-bold" style={{ color: '#991b1b' }}>
+              🔴 {recentlyCancelled.length} cliente{recentlyCancelled.length > 1 ? 's' : ''} perdido{recentlyCancelled.length > 1 ? 's' : ''} este mes
+            </p>
+            <button
+              onClick={() => setStatusFilter('Cancelado')}
+              className="text-xs underline"
+              style={{ color: '#991b1b' }}
+            >
+              Ver todos los cancelados →
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {recentlyCancelled.map(c => (
+              <a
+                key={c.id}
+                href={`/clients/${c.id}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
+                style={{ background: '#fee2e2', color: '#991b1b' }}
+              >
+                <span>{c.fullName}</span>
+                {c.cancellationDate && (
+                  <span className="opacity-60">
+                    · {new Date(c.cancellationDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px 20px', boxShadow: '0 1px 2px rgba(0,0,0,.05)' }}>

@@ -112,6 +112,8 @@ interface ClientRow {
   daysUntilPayment: number | null
   dependentNames?: string[]
   insurers?: string[]
+  wnContractDate?: string | null
+  wnSecondPaymentReceived?: boolean
 }
 
 interface CommissionData {
