@@ -97,6 +97,7 @@ interface Client {
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   'Activo':            { bg: '#dcfce7', text: '#166534' },
   'Cancelado':         { bg: '#fee2e2', text: '#991b1b' },
+  'Con otro agente':   { bg: '#fee2e2', text: '#991b1b' },
   'Pendiente de Pago': { bg: '#fef9c3', text: '#854d0e' },
   'Renovado':          { bg: '#dbeafe', text: '#1e40af' },
   'En Proceso':        { bg: '#f3e8ff', text: '#6b21a8' },
@@ -602,6 +603,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     router.push('/clients')
   }
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === 'Con otro agente') {
+      setShowCancellationModal(true)
+      return
+    }
+    if (!clientId) return
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
+    if (res.ok) setClient(await res.json() as Client)
+  }
+
   const handleCancellationConfirm = async ({ cancellationDate, addToProspects }: { cancellationDate: string; addToProspects: boolean }) => {
     if (!clientId || !client) return
     const res = await fetch(`/api/clients/${clientId}`, {
@@ -858,9 +873,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <Link href="/clients" className="text-gray-400 hover:text-gray-600 text-sm">← Clientes</Link>
           <span className="text-gray-300">/</span>
           <h1 className="text-xl font-bold" style={{ color: '#10253f' }}>{client.fullName}</h1>
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: statusStyle.bg, color: statusStyle.text }}>
-            {client.status}
-          </span>
+          <select
+            value={client.status || ''}
+            onChange={e => handleStatusChange(e.target.value)}
+            className="px-2.5 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer"
+            style={{ background: statusStyle.bg, color: statusStyle.text, outline: 'none' }}
+          >
+            <option value="Activo">Activo</option>
+            <option value="Cancelado">Cancelado</option>
+            <option value="Pendiente de Pago">Pendiente de Pago</option>
+            <option value="Renovado">Renovado</option>
+            <option value="En Proceso">En Proceso</option>
+            <option value="Con otro agente">Con otro agente →</option>
+          </select>
           {clientTags.map(tag => (
             <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-semibold text-white" style={{ background: getTagColor(tag) }}>
               {tag}
@@ -894,15 +919,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
             🖨️ Imprimir
           </button>
-          {client.status !== 'Cancelado' && (
-            <button
-              onClick={() => setShowCancellationModal(true)}
-              className="px-4 py-2 rounded-lg text-sm font-medium border"
-              style={{ borderColor: '#fecaca', color: '#991b1b', background: '#fff' }}
-            >
-              Fue con otro agente
-            </button>
-          )}
           <button onClick={handleDelete} className="text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-50 text-sm">
             Eliminar
           </button>
