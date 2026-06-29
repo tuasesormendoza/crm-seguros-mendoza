@@ -42,13 +42,22 @@ export async function POST(request: NextRequest) {
   await writeFile(path.join(publicDir, fileName), buffer)
 
   const logoUrl = `/${fileName}?v=${Date.now()}`
+  // Store as base64 data URL so email clients can embed it inline
+  // without depending on the server being reachable from the recipient's email client
+  const logoBase64 = `data:${file.type};base64,${buffer.toString('base64')}`
 
-  // Save to settings (por agencia)
-  await prisma.settings.upsert({
-    where: { agencyId_key: { agencyId: auth.agencyId, key: 'logoUrl' } },
-    update: { value: logoUrl },
-    create: { agencyId: auth.agencyId, key: 'logoUrl', value: logoUrl },
-  })
+  await Promise.all([
+    prisma.settings.upsert({
+      where: { agencyId_key: { agencyId: auth.agencyId, key: 'logoUrl' } },
+      update: { value: logoUrl },
+      create: { agencyId: auth.agencyId, key: 'logoUrl', value: logoUrl },
+    }),
+    prisma.settings.upsert({
+      where: { agencyId_key: { agencyId: auth.agencyId, key: 'logoBase64' } },
+      update: { value: logoBase64 },
+      create: { agencyId: auth.agencyId, key: 'logoBase64', value: logoBase64 },
+    }),
+  ])
 
   return NextResponse.json({ success: true, logoUrl })
 }
@@ -62,6 +71,6 @@ export async function DELETE() {
   for (const e of ['png','jpg','jpeg','webp','svg']) {
     await unlink(path.join(process.cwd(), 'public', `brand-logo.${e}`)).catch(() => null)
   }
-  await prisma.settings.deleteMany({ where: { agencyId: auth.agencyId, key: 'logoUrl' } })
+  await prisma.settings.deleteMany({ where: { agencyId: auth.agencyId, key: { in: ['logoUrl', 'logoBase64'] } } })
   return NextResponse.json({ success: true })
 }

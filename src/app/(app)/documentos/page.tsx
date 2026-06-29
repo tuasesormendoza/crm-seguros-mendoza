@@ -84,11 +84,11 @@ function generateDoc(templateId: string, client: Client, agent: Record<string, s
   const agentPhone = agent.agentPhone || ''
   const agentEmail = agent.agentEmail || ''
 
-  const rawLogoUrl = agent.logoUrl && !agent.logoUrl.startsWith('undefined') ? agent.logoUrl : null
-  // Email clients can't resolve relative URLs — prepend the app origin to make it absolute
-  const logoUrl = rawLogoUrl
-    ? (rawLogoUrl.startsWith('http') ? rawLogoUrl : `${appUrl || ''}${rawLogoUrl.split('?')[0]}`)
-    : null
+  // For emails, always use the base64 data URL (guaranteed to display in any email client
+  // regardless of server environment). Fall back to raw URL only for preview display.
+  const logoUrl = agent.logoBase64
+    ? agent.logoBase64
+    : (agent.logoUrl && !agent.logoUrl.startsWith('undefined') ? agent.logoUrl : null)
   const agentNPN = agent.agentLicense || ''
   const header = `<div style="border-bottom:2px solid #10253f;padding-bottom:14px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1046,6 +1046,18 @@ export default function DocumentosPage() {
     const data = await res.json()
     setEmailSending(false)
     setEmailResult(data)
+
+    // Log activity in client profile when email is sent successfully
+    if (data.success) {
+      fetch(`/api/clients/${selectedClient.id}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'email',
+          content: `📧 Email enviado: "${emailSubject}" → ${emailTo}`,
+        }),
+      }).catch(() => {})
+    }
   }
 
   return (
