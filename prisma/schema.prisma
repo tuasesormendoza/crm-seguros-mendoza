@@ -380,6 +380,22 @@ model User {
 // Limitador de intentos de login persistente (reemplaza el rate-limit en memoria,
 // que es inútil en serverless porque se reinicia en cada cold-start). Registra
 // intentos fallidos por identificador (IP/email) con ventana y bloqueo temporal.
+model SurveyResponse {
+  id               String   @id @default(cuid())
+  clientId         String
+  agencyId         String?
+  ratingAtention   Int?
+  ratingClarity    Int?
+  ratingSpeed      Int?
+  ratingDedication Int?
+  recommends       String?
+  comments         String?
+  submittedAt      DateTime @default(now())
+
+  @@index([clientId])
+  @@index([agencyId])
+}
+
 model LoginAttempt {
   id          String   @id @default(cuid())
   identifier  String   @unique // IP o email normalizado

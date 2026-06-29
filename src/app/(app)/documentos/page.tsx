@@ -78,7 +78,7 @@ function getExpirationDate(contractDate: string | null): string {
   } catch { return '—' }
 }
 
-function generateDoc(templateId: string, client: Client, agent: Record<string, string>, sendDate?: string): { html: string; text: string; whatsapp: string } {
+function generateDoc(templateId: string, client: Client, agent: Record<string, string>, sendDate?: string, appUrl?: string): { html: string; text: string; whatsapp: string } {
   const today = sendDate || new Date().toLocaleDateString('es-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const agentName = agent.agentName || 'Agente'
   const agentPhone = agent.agentPhone || ''
@@ -599,32 +599,7 @@ Si desea adelantarse, puede contactarme:
     const agentWA = agent.agentWhatsApp || ''
     const waLink = agentWA ? `https://wa.me/${agentWA}` : ''
 
-    const ratingCategories = [
-      { label: 'Atención y trato personal', sub: 'Cómo se sintió atendido/a en cada interacción' },
-      { label: 'Claridad en la explicación', sub: 'Qué tan bien le expliqué los planes y coberturas' },
-      { label: 'Rapidez de respuesta', sub: 'Qué tan rápido respondí sus preguntas y solicitudes' },
-      { label: 'Dedicación y compromiso', sub: 'El esfuerzo que puse para servirle bien' },
-    ]
-
-    const starRow = (label: string, sub: string) => `
-      <tr>
-        <td style="padding:12px 10px;vertical-align:top;width:55%">
-          <div style="font-size:13px;font-weight:600;color:#10253f">${label}</div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:2px">${sub}</div>
-        </td>
-        <td style="padding:12px 10px;vertical-align:middle;text-align:right">
-          <div style="display:flex;gap:4px;justify-content:flex-end">
-            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
-            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
-            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
-            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
-            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:9px;color:#cbd5e1;margin-top:1px;padding:0 2px">
-            <span>Deficiente</span><span>Excelente</span>
-          </div>
-        </td>
-      </tr>`
+    const surveyUrl = `${appUrl || ''}/encuesta/${client.id}`
 
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:auto;padding:0;color:#1e293b;line-height:1.75">
 
@@ -670,42 +645,20 @@ Si desea adelantarse, puede contactarme:
           Su opinión honesta es un regalo invaluable que me permite crecer y servir mejor a quienes vengan.
         </p>
 
-        <!-- Survey box -->
-        <div style="background:#f0f7fb;border:1.5px solid #b8d4e8;border-radius:12px;padding:22px;margin:20px 0">
-          <h3 style="color:#10253f;margin:0 0 4px;font-size:14px;text-transform:uppercase;letter-spacing:.05em">
-            Por favor, califique mi servicio del 1 al 5
-          </h3>
-          <p style="color:#64748b;font-size:11px;margin:0 0 14px">Haga clic en las estrellas para calificar cada área</p>
-          <table style="width:100%;border-collapse:collapse;border-top:1px solid #dbeafe">
-            ${ratingCategories.map(c => starRow(c.label, c.sub)).join('')}
-          </table>
-        </div>
-
-        <!-- Recommend -->
-        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:18px;margin:16px 0">
-          <p style="margin:0 0 12px;color:#10253f;font-size:14px;font-weight:700">
-            ¿Recomendaría mis servicios a un familiar o amigo que necesite seguro de salud?
+        <!-- Survey CTA -->
+        <div style="background:#f0f7fb;border:1.5px solid #b8d4e8;border-radius:12px;padding:24px;margin:20px 0;text-align:center">
+          <p style="color:#10253f;font-size:14px;font-weight:700;margin:0 0 6px">
+            ⭐ Encuesta de satisfacción
           </p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff">
-              <input type="radio" name="recomienda" value="si"> Sí, con gusto
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff">
-              <input type="radio" name="recomienda" value="no"> No por ahora
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff">
-              <input type="radio" name="recomienda" value="quizas"> Quizás en el futuro
-            </label>
-          </div>
-        </div>
-
-        <!-- Open comment -->
-        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:18px;margin:16px 0">
-          <p style="margin:0 0 10px;color:#10253f;font-size:14px;font-weight:700">
-            ¿Hay algo específico en lo que pude haber mejorado?
+          <p style="color:#64748b;font-size:13px;margin:0 0 18px;line-height:1.6">
+            Solo toma un minuto. Califique mi servicio del 1 al 5, indique si me recomendaría
+            y deje cualquier comentario que desee compartir.
           </p>
-          <textarea placeholder="Su comentario es completamente confidencial y solo será usado para mejorar mi servicio..." rows="3"
-            style="width:100%;box-sizing:border-box;resize:none;font-size:13px;font-family:Arial,sans-serif;color:#1e293b;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;background:#fff"></textarea>
+          <a href="${surveyUrl}"
+            style="display:inline-block;background:linear-gradient(135deg,#10253f,#0891b2);color:#ffffff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">
+            Completar encuesta →
+          </a>
+          <p style="color:#94a3b8;font-size:11px;margin:14px 0 0">Sus respuestas son confidenciales.</p>
         </div>
 
         <!-- Closing -->
@@ -742,19 +695,9 @@ Ha sido un privilegio acompañarle como su agente de seguros de salud. Gracias d
 
 Entiendo que ha decidido continuar con otro agente, y lo respeto completamente. Su bienestar siempre será lo más importante.
 
-Antes de despedirme, le agradecería mucho si pudiera compartir conmigo su experiencia. Su opinión me ayuda a mejorar:
+Antes de despedirme, le agradecería mucho si pudiera compartir conmigo su experiencia. Solo toma un minuto:
 
-ENCUESTA DE SATISFACCIÓN (del 1 al 5):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Atención y trato personal:        ___ / 5
-• Claridad en la explicación:       ___ / 5
-• Rapidez de respuesta:             ___ / 5
-• Dedicación y compromiso:          ___ / 5
-
-¿Recomendaría mis servicios? [ ] Sí  [ ] No  [ ] Quizás en el futuro
-
-¿Algo en lo que pude mejorar?
-_______________________________________________
+👉 ${surveyUrl}
 
 Recuerde que mis puertas siempre estarán abiertas para usted.
 
@@ -768,18 +711,11 @@ Quería tomarme un momento para agradecerle de todo corazón por haber confiado 
 
 Entiendo que ha decidido continuar con otro agente, y lo respeto completamente. Su bienestar siempre será lo primero.
 
-Me gustaría pedirle un pequeño favor — su opinión sobre mi servicio:
+Me gustaría pedirle un pequeño favor — ¿podría compartirme su opinión sobre mi servicio? Solo toma un minuto:
 
-⭐ *Atención y trato:* ___ / 5
-⭐ *Claridad al explicar:* ___ / 5
-⭐ *Rapidez de respuesta:* ___ / 5
-⭐ *Dedicación:* ___ / 5
+👉 ${surveyUrl}
 
-👍 *¿Me recomendaría?* Sí / No / Quizás
-
-💬 *¿Algo en lo que pude mejorar?*
-
-_Su respuesta honesta es un regalo invaluable._
+_Su respuesta honesta es un regalo invaluable que me ayuda a mejorar._
 
 Recuerde que mis puertas siempre estarán abiertas para usted. ¡Fue un gusto acompañarle!
 
@@ -838,7 +774,8 @@ export default function DocumentosPage() {
   }, [])
 
   const filtered = search.length >= 2 ? clients.filter(c => c.fullName.toLowerCase().includes(search.toLowerCase())).slice(0, 10) : []
-  const doc = selectedClient ? generateDoc(templateId, selectedClient, agent, sendDate || undefined) : null
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const doc = selectedClient ? generateDoc(templateId, selectedClient, agent, sendDate || undefined, appUrl) : null
   const template = TEMPLATES.find(t => t.id === templateId)!
 
   async function copyText() {
