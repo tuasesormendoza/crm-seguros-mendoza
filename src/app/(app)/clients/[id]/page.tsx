@@ -58,6 +58,17 @@ const INSURER_HISTORY_OPTIONS = [
   'Alliant', 'AvMed', 'Health Spring', 'Health First', 'Florida Blue',
 ]
 
+interface SurveyResponse {
+  id: string
+  ratingAtention: number | null
+  ratingClarity: number | null
+  ratingSpeed: number | null
+  ratingDedication: number | null
+  recommends: string | null
+  comments: string | null
+  submittedAt: string
+}
+
 interface Client {
   id: string
   fullName: string; ssn?: string | null; birthDate?: string | null
@@ -573,6 +584,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [savingInsurerHistory, setSavingInsurerHistory] = useState(false)
   const [insurerHistoryError, setInsurerHistoryError] = useState('')
   const [newInsurerChange, setNewInsurerChange] = useState({ insurer: '', startPeriod: '', endPeriod: '' })
+  const [surveyResponses, setSurveyResponses] = useState<SurveyResponse[]>([])
   const router = useRouter()
 
   const loadClient = useCallback((id: string) => {
@@ -592,7 +604,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }, [])
 
   useEffect(() => {
-    params.then(p => { setClientId(p.id); loadClient(p.id); loadActivities(p.id); loadPolicyHistory(p.id); loadInsurerHistory(p.id) })
+    params.then(p => {
+      setClientId(p.id)
+      loadClient(p.id)
+      loadActivities(p.id)
+      loadPolicyHistory(p.id)
+      loadInsurerHistory(p.id)
+      fetch(`/api/clients/${p.id}/survey`).then(r => r.json()).then(setSurveyResponses).catch(() => {})
+    })
   }, [params, loadClient, loadActivities, loadPolicyHistory, loadInsurerHistory])
 
   const handleDelete = async () => {
@@ -1355,6 +1374,71 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </div>
             <GoogleReviewTimeline current={client.googleReview} />
           </div>
+
+          {/* Survey responses */}
+          {surveyResponses.length > 0 && (() => {
+            const s = surveyResponses[0]
+            const cats: { label: string; val: number | null }[] = [
+              { label: 'Atención y trato',      val: s.ratingAtention },
+              { label: 'Claridad al explicar',  val: s.ratingClarity },
+              { label: 'Rapidez de respuesta',  val: s.ratingSpeed },
+              { label: 'Dedicación',            val: s.ratingDedication },
+            ]
+            const filled = cats.filter(c => c.val !== null)
+            const avg = filled.length ? filled.reduce((acc, c) => acc + (c.val ?? 0), 0) / filled.length : null
+            const recLabel: Record<string, string> = { si: '✅ Sí, me recomendaría', no: '❌ No por ahora', quizas: '🤔 Quizás en el futuro' }
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>
+                    ⭐ Encuesta de satisfacción
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {avg !== null && (
+                      <span className="text-sm font-bold px-2.5 py-1 rounded-full" style={{ background: avg >= 4 ? '#d1fae5' : avg >= 3 ? '#fef3c7' : '#fee2e2', color: avg >= 4 ? '#065f46' : avg >= 3 ? '#92400e' : '#991b1b' }}>
+                        {avg.toFixed(1)} / 5
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400">
+                      {new Date(s.submittedAt).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {cats.map(c => (
+                    <div key={c.label} className="rounded-lg p-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <div className="text-xs text-gray-500 mb-1">{c.label}</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(n => (
+                            <span key={n} style={{ fontSize: 16, color: c.val !== null && n <= c.val ? '#f59e0b' : '#e2e8f0' }}>★</span>
+                          ))}
+                        </div>
+                        <span className="text-xs font-semibold text-gray-600">{c.val !== null ? `${c.val}/5` : '—'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {s.recommends && (
+                  <div className="mb-3 text-sm font-medium" style={{ color: '#475569' }}>
+                    {recLabel[s.recommends] ?? s.recommends}
+                  </div>
+                )}
+
+                {s.comments && (
+                  <div className="rounded-lg p-3 text-sm italic" style={{ background: '#f0f7fb', border: '1px solid #b8d4e8', color: '#334155' }}>
+                    "{s.comments}"
+                  </div>
+                )}
+
+                {surveyResponses.length > 1 && (
+                  <p className="text-xs text-gray-400 mt-3">{surveyResponses.length} respuestas recibidas — mostrando la más reciente</p>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Documents */}
           {clientId && (
