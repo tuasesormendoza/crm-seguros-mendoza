@@ -7,7 +7,6 @@ import { formatDate, formatDateTime, formatCurrency, getAge } from '@/lib/utils'
 import ClientForm from '@/components/ClientForm'
 import DocumentsSection from '@/components/DocumentsSection'
 import ContactButtons from '@/components/ContactButtons'
-import CancellationModal from '@/components/CancellationModal'
 
 const PREDEFINED_TAGS = [
   { label: 'VIP', color: '#fbbf24' },
@@ -574,7 +573,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [savingInsurerHistory, setSavingInsurerHistory] = useState(false)
   const [insurerHistoryError, setInsurerHistoryError] = useState('')
   const [newInsurerChange, setNewInsurerChange] = useState({ insurer: '', startPeriod: '', endPeriod: '' })
-  const [showCancellationModal, setShowCancellationModal] = useState(false)
   const router = useRouter()
 
   const loadClient = useCallback((id: string) => {
@@ -601,45 +599,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     if (!confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.')) return
     await fetch(`/api/clients/${clientId}`, { method: 'DELETE' })
     router.push('/clients')
-  }
-
-  const handleStatusChange = async (newStatus: string) => {
-    if (newStatus === 'Con otro agente') {
-      setShowCancellationModal(true)
-      return
-    }
-    if (!clientId) return
-    const res = await fetch(`/api/clients/${clientId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    })
-    if (res.ok) setClient(await res.json() as Client)
-  }
-
-  const handleCancellationConfirm = async ({ cancellationDate, addToProspects }: { cancellationDate: string; addToProspects: boolean }) => {
-    if (!clientId || !client) return
-    const res = await fetch(`/api/clients/${clientId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'Con otro agente', cancellationDate }),
-    })
-    if (res.ok) setClient(await res.json())
-    if (addToProspects) {
-      await fetch('/api/prospects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: client.fullName,
-          phone: client.phone || undefined,
-          email: client.email || undefined,
-          stage: 'Cerrado - Perdido',
-          lossReason: 'COMPETENCIA',
-          notes: `Cliente cancelado el ${cancellationDate}. Fue con otro agente.`,
-        }),
-      })
-    }
-    setShowCancellationModal(false)
   }
 
   const handleSave = async (data: Record<string, unknown>) => {
@@ -790,26 +749,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <AppointmentModal onClose={() => setShowApptModal(false)} onSave={handleAddAppointment} />
       )}
 
-      {showCancellationModal && client && (
-        <CancellationModal
-          clientId={clientId!}
-          clientName={client.fullName}
-          wnHasPolicy={parseWn(client.wnPolicies).length > 0}
-          wnSecondPaymentReceived={client.wnSecondPaymentReceived === true}
-          onConfirm={handleCancellationConfirm}
-          onSkip={async ({ cancellationDate }) => {
-            if (!clientId) return
-            const res = await fetch(`/api/clients/${clientId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: 'Con otro agente', cancellationDate }),
-            })
-            if (res.ok) setClient(await res.json() as Client)
-            setShowCancellationModal(false)
-          }}
-          onClose={() => setShowCancellationModal(false)}
-        />
-      )}
 
       {/* Cancellation banner */}
       {(client.status === 'Cancelado' || client.status === 'Con otro agente') && (() => {
@@ -873,19 +812,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <Link href="/clients" className="text-gray-400 hover:text-gray-600 text-sm">← Clientes</Link>
           <span className="text-gray-300">/</span>
           <h1 className="text-xl font-bold" style={{ color: '#10253f' }}>{client.fullName}</h1>
-          <select
-            value={client.status || ''}
-            onChange={e => handleStatusChange(e.target.value)}
-            className="px-2.5 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer"
-            style={{ background: statusStyle.bg, color: statusStyle.text, outline: 'none' }}
-          >
-            <option value="Activo">Activo</option>
-            <option value="Cancelado">Cancelado</option>
-            <option value="Pendiente de Pago">Pendiente de Pago</option>
-            <option value="Renovado">Renovado</option>
-            <option value="En Proceso">En Proceso</option>
-            <option value="Con otro agente">Con otro agente →</option>
-          </select>
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: statusStyle.bg, color: statusStyle.text }}>
+            {client.status}
+          </span>
           {clientTags.map(tag => (
             <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-semibold text-white" style={{ background: getTagColor(tag) }}>
               {tag}

@@ -782,13 +782,13 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
           <DateInput label="Fecha Contratación" value={form.contractDate} onChange={v => setField('contractDate', v)} />
           <Field label="Año Póliza" value={form.policyYear} onChange={v => setField('policyYear', v)} />
           <SelectField label="Estatus" value={form.status} onChange={v => setField('status', v)}
-            options={['Activo', 'Cancelado', 'Pendiente de Pago', 'Renovado', 'En Proceso']} />
+            options={['Activo', 'Cancelado', 'Con otro agente', 'Pendiente de Pago', 'Renovado', 'En Proceso']} />
           <SelectField label="¿Pagó Primera Prima?" value={form.firstPaymentPaid} onChange={v => setField('firstPaymentPaid', v)}
             options={['Sí', 'No', 'Pendiente']} />
           {form.firstPaymentPaid === 'Sí' && (
             <DateInput label="Fecha Primer Pago" value={form.firstPaymentDate} onChange={v => setField('firstPaymentDate', v)} />
           )}
-          {form.status === 'Cancelado' && (
+          {(form.status === 'Cancelado' || form.status === 'Con otro agente') && (
             <DateInput label="Fecha de Cancelación" value={form.cancellationDate} onChange={v => setField('cancellationDate', v)} />
           )}
           <SelectField label="Tipo de Cobertura" value={form.coverageType} onChange={v => setField('coverageType', v)}
