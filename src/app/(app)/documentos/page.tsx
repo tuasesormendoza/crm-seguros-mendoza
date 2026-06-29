@@ -8,6 +8,7 @@ const TEMPLATES = [
   { id: 'renewal_reminder', name: 'Carta de Renovación AEP', icon: '🗓️', desc: 'Enviar las primeras 2 semanas de noviembre — avisa que pronto te comunicarás para actualizar su plan' },
   { id: 'first_payment', name: 'Recordatorio Primer Pago', icon: '💳', desc: 'Recordatorio de pago de primera prima' },
   { id: 'wn_intro', name: 'Presentación Washington National', icon: '🛡️', desc: 'Introducción a los beneficios de Washington National' },
+  { id: 'farewell', name: 'Carta de Despedida', icon: '🤝', desc: 'Para clientes que continuaron con otro agente — agradecimiento y encuesta de satisfacción' },
 ]
 
 interface Client {
@@ -591,6 +592,201 @@ Si desea adelantarse, puede contactarme:
     </div>`
     const text = `Estimado/a ${client.fullName},\n\nLe recordamos que su primera prima de $${client.totalMonthly?.toFixed(2) || '0.00'} para el plan ${client.planName || '—'} (${client.insurer || '—'}) está pendiente.\n\nPara activar su cobertura, realice el pago lo antes posible.\n\n${agentName}${agentPhone ? `\n${agentPhone}` : ''}`
     const whatsapp = `💳 *Recordatorio de Primer Pago*\n\nHola ${client.fullName.split(' ')[0]},\n\nPara activar tu cobertura necesitamos confirmar tu primer pago:\n\n🏥 *Plan:* ${client.planName || '—'} (${client.insurer || '—'})\n💰 *Monto:* $${client.totalMonthly?.toFixed(2) || '0.00'}\n\nSi ya lo pagaste, avísame para actualizarlo. ¡Gracias! - ${agentName}`
+    return { html, text, whatsapp }
+  }
+
+  if (templateId === 'farewell') {
+    const agentWA = agent.agentWhatsApp || ''
+    const waLink = agentWA ? `https://wa.me/${agentWA}` : ''
+
+    const ratingCategories = [
+      { label: 'Atención y trato personal', sub: 'Cómo se sintió atendido/a en cada interacción' },
+      { label: 'Claridad en la explicación', sub: 'Qué tan bien le expliqué los planes y coberturas' },
+      { label: 'Rapidez de respuesta', sub: 'Qué tan rápido respondí sus preguntas y solicitudes' },
+      { label: 'Dedicación y compromiso', sub: 'El esfuerzo que puse para servirle bien' },
+    ]
+
+    const starRow = (label: string, sub: string) => `
+      <tr>
+        <td style="padding:12px 10px;vertical-align:top;width:55%">
+          <div style="font-size:13px;font-weight:600;color:#10253f">${label}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px">${sub}</div>
+        </td>
+        <td style="padding:12px 10px;vertical-align:middle;text-align:right">
+          <div style="display:flex;gap:4px;justify-content:flex-end">
+            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
+            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
+            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
+            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
+            <span style="font-size:26px;cursor:pointer;color:#cbd5e1">★</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#cbd5e1;margin-top:1px;padding:0 2px">
+            <span>Deficiente</span><span>Excelente</span>
+          </div>
+        </td>
+      </tr>`
+
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:auto;padding:0;color:#1e293b;line-height:1.75">
+
+      <!-- Gradient header — igual que carta de bienvenida -->
+      <div style="background:linear-gradient(135deg,#10253f 0%,#1e4a6e 60%,#0891b2 100%);padding:32px 36px 28px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" alt="Logo" style="max-height:50px;max-width:180px;object-fit:contain;display:block;margin-bottom:6px">` : ''}
+            <div style="color:#ffffff;font-size:16px;font-weight:700">${agentName}</div>
+            <div style="color:rgba(255,255,255,.65);font-size:11px">Agente Autorizado de Seguros de Salud${agentNPN ? ` · NPN: ${agentNPN}` : ''}</div>
+          </div>
+          <div style="text-align:right;color:rgba(255,255,255,.6);font-size:12px">${today}</div>
+        </div>
+      </div>
+
+      <!-- Banner -->
+      <div style="background:#305a72;padding:10px 36px;text-align:center">
+        <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700">
+          GRACIAS POR HABER CONFIADO EN NOSOTROS · SIEMPRE BIENVENIDO/A DE REGRESO
+        </p>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:36px;background:#ffffff">
+
+        <p style="font-size:16px;margin-bottom:8px">Estimado/a <strong style="color:#10253f">${client.fullName}</strong>,</p>
+
+        <p style="font-size:14px;margin-bottom:14px">
+          Ha sido un verdadero privilegio haberle acompañado como su agente de seguros de salud.
+          Gracias de corazón por la confianza que depositó en mí y en mi agencia durante este tiempo —
+          fue un honor poder servirle y velar por su bienestar.
+        </p>
+
+        <p style="font-size:14px;margin-bottom:14px">
+          Entiendo perfectamente que ha decidido continuar su camino con otro agente, y lo respeto
+          completamente. Lo más importante para mí siempre será que usted y su familia estén bien
+          protegidos, sin importar con quién sea.
+        </p>
+
+        <p style="font-size:14px;margin-bottom:20px">
+          Antes de despedirme, me gustaría pedirle un último favor con mucho respeto:
+          <strong style="color:#10253f">¿podría compartir conmigo cómo fue su experiencia trabajando conmigo?</strong>
+          Su opinión honesta es un regalo invaluable que me permite crecer y servir mejor a quienes vengan.
+        </p>
+
+        <!-- Survey box -->
+        <div style="background:#f0f7fb;border:1.5px solid #b8d4e8;border-radius:12px;padding:22px;margin:20px 0">
+          <h3 style="color:#10253f;margin:0 0 4px;font-size:14px;text-transform:uppercase;letter-spacing:.05em">
+            Por favor, califique mi servicio del 1 al 5
+          </h3>
+          <p style="color:#64748b;font-size:11px;margin:0 0 14px">Haga clic en las estrellas para calificar cada área</p>
+          <table style="width:100%;border-collapse:collapse;border-top:1px solid #dbeafe">
+            ${ratingCategories.map(c => starRow(c.label, c.sub)).join('')}
+          </table>
+        </div>
+
+        <!-- Recommend -->
+        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:18px;margin:16px 0">
+          <p style="margin:0 0 12px;color:#10253f;font-size:14px;font-weight:700">
+            ¿Recomendaría mis servicios a un familiar o amigo que necesite seguro de salud?
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff">
+              <input type="radio" name="recomienda" value="si"> Sí, con gusto
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff">
+              <input type="radio" name="recomienda" value="no"> No por ahora
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff">
+              <input type="radio" name="recomienda" value="quizas"> Quizás en el futuro
+            </label>
+          </div>
+        </div>
+
+        <!-- Open comment -->
+        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:18px;margin:16px 0">
+          <p style="margin:0 0 10px;color:#10253f;font-size:14px;font-weight:700">
+            ¿Hay algo específico en lo que pude haber mejorado?
+          </p>
+          <textarea placeholder="Su comentario es completamente confidencial y solo será usado para mejorar mi servicio..." rows="3"
+            style="width:100%;box-sizing:border-box;resize:none;font-size:13px;font-family:Arial,sans-serif;color:#1e293b;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;background:#fff"></textarea>
+        </div>
+
+        <!-- Closing -->
+        <p style="font-size:14px;margin-top:20px;color:#475569">
+          Recuerde que si en algún momento necesita orientación sobre seguros, desea regresar, o simplemente
+          tiene alguna duda, mis puertas siempre estarán abiertas para usted con el mismo cariño de siempre.
+          Fue un verdadero gusto conocerle y acompañarle.
+        </p>
+
+        <!-- Signature -->
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid #e2e8f0">
+          <p style="margin:0 0 2px;font-size:13px;color:#64748b">Cordialmente y con todo el afecto,</p>
+          <p style="margin:6px 0 2px;font-size:16px;font-weight:bold;color:#10253f">${agentName}</p>
+          <p style="margin:0;font-size:12px;color:#94a3b8">Agente Autorizado de Seguros de Salud${agentNPN ? ` · NPN: ${agentNPN}` : ''}</p>
+          ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
+          ${waLink ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink}" style="color:#25d366;font-weight:700">💬 WhatsApp</a>${agentPhone ? ` · ${agentPhone}` : ''}</p>` : ''}
+          ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
+          <p style="margin:4px 0;font-size:13px">🌐 <a href="https://www.tuasesormendoza.com" style="color:#2a6496">www.tuasesormendoza.com</a></p>
+        </div>
+
+      </div><!-- end body -->
+
+      <!-- Footer oscuro — igual que bienvenida -->
+      <div style="background:#10253f;padding:14px 36px;text-align:center">
+        <p style="color:rgba(255,255,255,.45);font-size:11px;margin:0">
+          CRM Agentes de Seguros · ${today} · Documento de carácter confidencial.
+        </p>
+      </div>
+    </div>`
+
+    const text = `Estimado/a ${client.fullName},
+
+Ha sido un privilegio acompañarle como su agente de seguros de salud. Gracias de corazón por la confianza que depositó en mí durante este tiempo.
+
+Entiendo que ha decidido continuar con otro agente, y lo respeto completamente. Su bienestar siempre será lo más importante.
+
+Antes de despedirme, le agradecería mucho si pudiera compartir conmigo su experiencia. Su opinión me ayuda a mejorar:
+
+ENCUESTA DE SATISFACCIÓN (del 1 al 5):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Atención y trato personal:        ___ / 5
+• Claridad en la explicación:       ___ / 5
+• Rapidez de respuesta:             ___ / 5
+• Dedicación y compromiso:          ___ / 5
+
+¿Recomendaría mis servicios? [ ] Sí  [ ] No  [ ] Quizás en el futuro
+
+¿Algo en lo que pude mejorar?
+_______________________________________________
+
+Recuerde que mis puertas siempre estarán abiertas para usted.
+
+Cordialmente y con todo el afecto,
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}
+🌐 www.tuasesormendoza.com`
+
+    const whatsapp = `🤝 *Un mensaje con todo el cariño, ${client.fullName.split(' ')[0]}*
+
+Quería tomarme un momento para agradecerle de todo corazón por haber confiado en mí como su agente de seguros.
+
+Entiendo que ha decidido continuar con otro agente, y lo respeto completamente. Su bienestar siempre será lo primero.
+
+Me gustaría pedirle un pequeño favor — su opinión sobre mi servicio:
+
+⭐ *Atención y trato:* ___ / 5
+⭐ *Claridad al explicar:* ___ / 5
+⭐ *Rapidez de respuesta:* ___ / 5
+⭐ *Dedicación:* ___ / 5
+
+👍 *¿Me recomendaría?* Sí / No / Quizás
+
+💬 *¿Algo en lo que pude mejorar?*
+
+_Su respuesta honesta es un regalo invaluable._
+
+Recuerde que mis puertas siempre estarán abiertas para usted. ¡Fue un gusto acompañarle!
+
+Con cariño,
+*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}
+🌐 www.tuasesormendoza.com`
+
     return { html, text, whatsapp }
   }
 
