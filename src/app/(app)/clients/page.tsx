@@ -21,15 +21,17 @@ const TAG_COLORS: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  'Activo':           '#059669',
-  'Cancelado':        '#dc2626',
-  'Pendiente de Pago':'#d97706',
-  'Renovado':         '#2563eb',
-  'En Proceso':       '#7c3aed',
+  'Activo':            '#059669',
+  'Cancelado':         '#dc2626',
+  'Con otro agente':   '#dc2626',
+  'Pendiente de Pago': '#d97706',
+  'Renovado':          '#2563eb',
+  'En Proceso':        '#7c3aed',
 }
 const STATUS_BG: Record<string, string> = {
-  'Activo':           '#d1fae5',
-  'Cancelado':        '#fee2e2',
+  'Activo':            '#d1fae5',
+  'Cancelado':         '#fee2e2',
+  'Con otro agente':   '#fee2e2',
   'Pendiente de Pago':'#fef3c7',
   'Renovado':         '#dbeafe',
   'En Proceso':       '#ede9fe',
@@ -116,15 +118,15 @@ export default function ClientsPage() {
   useEffect(() => {
     const start = new Date()
     start.setDate(1); start.setHours(0, 0, 0, 0)
-    fetch('/api/clients?status=Cancelado')
-      .then(r => r.json())
-      .then((data: Client[]) => {
-        if (!Array.isArray(data)) return
-        setRecentlyCancelled(data.filter(c =>
-          c.cancellationDate && new Date(c.cancellationDate) >= start
-        ))
-      })
-      .catch(() => {})
+    Promise.all([
+      fetch('/api/clients?status=Cancelado').then(r => r.json()),
+      fetch('/api/clients?status=Con%20otro%20agente').then(r => r.json()),
+    ]).then(([cancelled, other]: [Client[], Client[]]) => {
+      const all = [...(Array.isArray(cancelled) ? cancelled : []), ...(Array.isArray(other) ? other : [])]
+      setRecentlyCancelled(all.filter(c =>
+        c.cancellationDate && new Date(c.cancellationDate) >= start
+      ))
+    }).catch(() => {})
   }, [])
 
   // Toda la búsqueda/filtrado/orden/paginación ocurre en el SERVIDOR (rápido y
@@ -234,7 +236,7 @@ export default function ClientsPage() {
           />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={INPUT_STYLE}>
             <option value="">Todos los estatus</option>
-            {['Activo','Cancelado','Pendiente de Pago','Renovado','En Proceso'].map(s => <option key={s}>{s}</option>)}
+            {['Activo','Cancelado','Con otro agente','Pendiente de Pago','Renovado','En Proceso'].map(s => <option key={s}>{s}</option>)}
           </select>
           <select value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} style={INPUT_STYLE}>
             <option value="">Todas las aseguradoras</option>

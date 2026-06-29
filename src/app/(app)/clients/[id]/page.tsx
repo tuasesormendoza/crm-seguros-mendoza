@@ -622,7 +622,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const res = await fetch(`/api/clients/${clientId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'Cancelado', cancellationDate }),
+      body: JSON.stringify({ status: 'Con otro agente', cancellationDate }),
     })
     if (res.ok) setClient(await res.json())
     if (addToProspects) {
@@ -802,7 +802,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             const res = await fetch(`/api/clients/${clientId}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: 'Cancelado', cancellationDate }),
+              body: JSON.stringify({ status: 'Con otro agente', cancellationDate }),
             })
             if (res.ok) setClient(await res.json() as Client)
             setShowCancellationModal(false)
@@ -812,7 +812,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* Cancellation banner */}
-      {client.status === 'Cancelado' && (() => {
+      {(client.status === 'Cancelado' || client.status === 'Con otro agente') && (() => {
         const c = client!
         const start = c.activationDate || c.contractDate
         const end = c.cancellationDate

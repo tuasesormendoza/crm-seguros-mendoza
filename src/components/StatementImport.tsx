@@ -219,7 +219,7 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
     await fetch(`/api/clients/${clientId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'Cancelado', cancellationDate }),
+      body: JSON.stringify({ status: 'Con otro agente', cancellationDate }),
     })
     if (addToProspects) {
       await fetch('/api/prospects', {
