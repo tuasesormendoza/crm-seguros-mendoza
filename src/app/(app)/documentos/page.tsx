@@ -727,27 +727,252 @@ Con cariño,
   }
 
   // wn_intro
-  const html = `<div style="font-family:Georgia,serif;max-width:680px;margin:auto;padding:32px;color:#1e293b;line-height:1.7">
-    ${header}
-    <p style="text-align:right;color:#64748b;font-size:13px">${today}</p>
-    <p>Estimado/a <strong>${client.fullName}</strong>,</p>
-    <p>Quiero presentarle los beneficios adicionales de <strong>Washington National</strong>, una cobertura complementaria que protege sus ingresos cuando más lo necesita.</p>
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:20px;margin:20px 0">
-      <h3 style="color:#10253f;margin-top:0">¿Qué cubre Washington National?</h3>
-      <ul style="margin:0;padding-left:20px;color:#334155">
-        <li style="margin-bottom:8px"><strong>Accidente:</strong> Pago directo a usted por emergencias, fracturas, hospitalización</li>
-        <li style="margin-bottom:8px"><strong>Enfermedad crítica:</strong> Beneficio en efectivo por diagnóstico de cáncer, infarto, ACV</li>
-        <li style="margin-bottom:8px"><strong>Hospitalización:</strong> Compensación diaria durante estancias hospitalarias</li>
-        <li style="margin-bottom:8px"><strong>Incapacidad:</strong> Reemplazo de ingresos si no puede trabajar por enfermedad o accidente</li>
-      </ul>
+  const agentWA_wn = agent.agentWhatsApp || ''
+  const waLink_wn = agentWA_wn ? `https://wa.me/${agentWA_wn}` : ''
+  const firstName_wn = client.fullName.split(' ')[0]
+
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:auto;padding:0;color:#1e293b;line-height:1.75">
+
+    <!-- Gradient header — igual que bienvenida -->
+    <div style="background:linear-gradient(135deg,#10253f 0%,#1e4a6e 60%,#0891b2 100%);padding:32px 36px 28px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          ${logoUrl ? `<img src="${logoUrl}" alt="Logo" style="max-height:50px;max-width:180px;object-fit:contain;display:block;margin-bottom:6px">` : ''}
+          <div style="color:#ffffff;font-size:16px;font-weight:700">${agentName}</div>
+          <div style="color:rgba(255,255,255,.65);font-size:11px">Agente Autorizado de Seguros de Salud${agentNPN ? ` · NPN: ${agentNPN}` : ''}</div>
+        </div>
+        <div style="text-align:right;color:rgba(255,255,255,.6);font-size:12px">${today}</div>
+      </div>
     </div>
-    <p>Este complemento <strong>no reemplaza</strong> su seguro de salud ACA — lo potencia. El dinero se paga <em>directamente a usted</em>, sin necesitar facturas ni aprobación de médicos.</p>
-    <p>¿Le gustaría conocer las opciones disponibles para su perfil? Con gusto le preparo una cotización sin compromiso.</p>
-    <p><strong>${agentName}</strong>${agentPhone ? `<br>${agentPhone}` : ''}${agentEmail ? `<br>${agentEmail}` : ''}</p>
-    ${footer}
+
+    <!-- Alert banner -->
+    <div style="background:#dc2626;padding:12px 36px;text-align:center">
+      <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700;letter-spacing:.02em">
+        ⚠️ SU SEGURO MÉDICO TIENE HUECOS — ESTO ES LO QUE NO CUBRE
+      </p>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:36px;background:#ffffff">
+
+      <p style="font-size:16px;margin-bottom:8px">Estimado/a <strong style="color:#10253f">${client.fullName}</strong>,</p>
+
+      <!-- Opening hook: narrative scenario -->
+      <p style="font-size:14px;color:#334155;margin-bottom:14px">
+        Imagine esto: mañana, yendo al trabajo, sufre un accidente de auto. La ambulancia, la sala de emergencias, los estudios de imagen, los días sin trabajar… Su seguro de salud cubre una parte — pero le deja con miles de dólares de deducibles, copagos y gastos que nadie más va a pagar.
+      </p>
+      <p style="font-size:14px;color:#334155;margin-bottom:20px">
+        <strong style="color:#10253f">Eso es exactamente para lo que existe Washington National.</strong> No es un reemplazo de su plan médico — es el colchón financiero que lo protege cuando el plan médico llega a su límite.
+      </p>
+
+      <!-- Stats box — agitation -->
+      <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:20px 24px;margin:0 0 20px">
+        <p style="color:#991b1b;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px">La realidad que su seguro no le dice</p>
+        <div style="display:flex;flex-wrap:wrap;gap:16px">
+          <div style="flex:1;min-width:160px;text-align:center;background:#fff;border-radius:10px;padding:14px 10px">
+            <div style="font-size:26px;font-weight:900;color:#dc2626">1 de 7</div>
+            <div style="font-size:12px;color:#64748b;margin-top:4px">americanos busca atención médica por accidentes cada año</div>
+          </div>
+          <div style="flex:1;min-width:160px;text-align:center;background:#fff;border-radius:10px;padding:14px 10px">
+            <div style="font-size:26px;font-weight:900;color:#dc2626">$1,091</div>
+            <div style="font-size:12px;color:#64748b;margin-top:4px">costo promedio de una sola visita a emergencias, sin contar hospitalización</div>
+          </div>
+          <div style="flex:1;min-width:160px;text-align:center;background:#fff;border-radius:10px;padding:14px 10px">
+            <div style="font-size:26px;font-weight:900;color:#dc2626">$100,000</div>
+            <div style="font-size:12px;color:#64748b;margin-top:4px">en efectivo que puede recibir ante un diagnóstico de enfermedad crítica</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key differentiator -->
+      <div style="background:linear-gradient(135deg,#10253f,#1e4a6e);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center">
+        <p style="color:#ffffff;font-size:15px;font-weight:700;margin:0 0 6px">💡 La diferencia que lo cambia todo</p>
+        <p style="color:rgba(255,255,255,.85);font-size:13px;margin:0;line-height:1.7">
+          Con Washington National, el dinero <strong style="color:#38bdf8">va directo a su bolsillo</strong> — no al hospital, no al médico, no a la farmacia. <br>
+          Úselo para lo que necesite: renta, comida, deudas, o lo que su familia requiera mientras se recupera.
+        </p>
+      </div>
+
+      <!-- The 3 pillars -->
+      <h2 style="color:#10253f;font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin:0 0 16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">
+        Los 3 escudos que protegen su economía familiar
+      </h2>
+
+      <!-- Pillar 1: Accident -->
+      <div style="border:1.5px solid #bfdbfe;border-radius:12px;overflow:hidden;margin-bottom:16px">
+        <div style="background:#1e40af;padding:12px 20px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">🚑</span>
+          <div>
+            <div style="color:#ffffff;font-size:14px;font-weight:800">Seguro de Accidentes</div>
+            <div style="color:rgba(255,255,255,.7);font-size:11px">Cobertura cuando más inesperado es el golpe</div>
+          </div>
+        </div>
+        <div style="padding:16px 20px;background:#f0f7ff">
+          <p style="color:#1e3a8a;font-size:13px;margin:0 0 12px;font-style:italic">
+            "Caídas, accidentes de auto, fracturas… ocurren sin avisar, generalmente en el peor momento."
+          </p>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <tr><td style="padding:5px 0;color:#64748b;width:50%">✅ Visitas a emergencias</td><td style="padding:5px 0;color:#64748b">✅ Fracturas y dislocaciones</td></tr>
+            <tr><td style="padding:5px 0;color:#64748b">✅ Hospitalización e ICU</td><td style="padding:5px 0;color:#64748b">✅ Transporte y alojamiento familiar</td></tr>
+            <tr><td style="padding:5px 0;color:#64748b">✅ Incapacidad temporal</td><td style="padding:5px 0;color:#64748b">✅ Muerte accidental</td></tr>
+          </table>
+          <div style="margin-top:12px;padding:10px 14px;background:#dbeafe;border-radius:8px">
+            <p style="margin:0;font-size:12px;color:#1e40af;font-weight:600">
+              💰 El pago va directo a usted — no importa qué más tenga contratado. Sin papeleo de reclamaciones médicas.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pillar 2: Hospital Indemnity -->
+      <div style="border:1.5px solid #a7f3d0;border-radius:12px;overflow:hidden;margin-bottom:16px">
+        <div style="background:#065f46;padding:12px 20px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">🏥</span>
+          <div>
+            <div style="color:#ffffff;font-size:14px;font-weight:800">Hospitalización (Hospital Indemnity)</div>
+            <div style="color:rgba(255,255,255,.7);font-size:11px">Dinero en efectivo por cada día que esté internado</div>
+          </div>
+        </div>
+        <div style="padding:16px 20px;background:#f0fdf4">
+          <p style="color:#064e3b;font-size:13px;margin:0 0 12px;font-style:italic">
+            "El plan médico cubre la cama — pero ¿quién paga la renta, los víveres y los gastos del hogar mientras usted está internado?"
+          </p>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <tr><td style="padding:5px 0;color:#64748b;width:50%">✅ Beneficio diario por internamiento</td><td style="padding:5px 0;color:#64748b">✅ Admisiones a UCI</td></tr>
+            <tr><td style="padding:5px 0;color:#64748b">✅ Cirugías y procedimientos</td><td style="padding:5px 0;color:#64748b">✅ Convalecencia post-hospitalaria</td></tr>
+          </table>
+          <div style="margin-top:12px;padding:10px 14px;background:#d1fae5;border-radius:8px">
+            <p style="margin:0;font-size:12px;color:#065f46;font-weight:600">
+              💰 Se paga POR DÍA de hospitalización — sin importar cuánto cubra su otro seguro. Un complemento real, no un duplicado.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pillar 3: Critical Illness -->
+      <div style="border:1.5px solid #ddd6fe;border-radius:12px;overflow:hidden;margin-bottom:24px">
+        <div style="background:#4c1d95;padding:12px 20px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">❤️‍🩹</span>
+          <div>
+            <div style="color:#ffffff;font-size:14px;font-weight:800">Enfermedad Crítica (Critical Illness)</div>
+            <div style="color:rgba(255,255,255,.7);font-size:11px">Un solo diagnóstico puede cambiar todo — prepárese antes</div>
+          </div>
+        </div>
+        <div style="padding:16px 20px;background:#faf5ff">
+          <p style="color:#3b0764;font-size:13px;margin:0 0 12px;font-style:italic">
+            "El 80% de pacientes con enfermedades graves reporta dificultades financieras severas. El tratamiento salva la vida — pero también puede destruir las finanzas."
+          </p>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <tr><td style="padding:5px 0;color:#64748b;width:50%">✅ Cáncer</td><td style="padding:5px 0;color:#64748b">✅ Infarto al corazón</td></tr>
+            <tr><td style="padding:5px 0;color:#64748b">✅ Derrame cerebral (ACV)</td><td style="padding:5px 0;color:#64748b">✅ Diabetes avanzada</td></tr>
+            <tr><td style="padding:5px 0;color:#64748b">✅ Alzheimer</td><td style="padding:5px 0;color:#64748b">✅ Falla renal terminal</td></tr>
+          </table>
+          <div style="margin-top:12px;padding:10px 14px;background:#ede9fe;border-radius:8px">
+            <p style="margin:0;font-size:12px;color:#4c1d95;font-weight:600">
+              💰 Hasta $100,000 en efectivo de una sola vez al recibir el diagnóstico — para tratamientos, viajes, pérdida de ingresos, o lo que su familia necesite.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- What it is NOT -->
+      <div style="background:#f0f7fb;border:1.5px solid #b8d4e8;border-radius:12px;padding:18px 22px;margin-bottom:24px">
+        <p style="color:#10253f;font-size:14px;font-weight:700;margin:0 0 10px">¿Y cuánto cuesta esta tranquilidad?</p>
+        <p style="color:#334155;font-size:13px;margin:0 0 10px;line-height:1.7">
+          Los planes de Washington National se adaptan a su presupuesto — hay opciones desde unos pocos dólares al mes. Y lo mejor: <strong>pueden ser contratados junto a cualquier plan de salud</strong>, incluyendo su póliza ACA actual. No hay conflicto, no hay exclusiones por tener otro seguro.
+        </p>
+        <p style="color:#334155;font-size:13px;margin:0">
+          Mi trabajo es encontrar la combinación exacta que se ajuste a su situación, familia y presupuesto. <strong style="color:#10253f">Sin compromiso, sin presión — solo información clara.</strong>
+        </p>
+      </div>
+
+      <!-- CTA -->
+      <div style="background:linear-gradient(135deg,#10253f,#0891b2);border-radius:14px;padding:24px;text-align:center;margin-bottom:28px">
+        <p style="color:#ffffff;font-size:16px;font-weight:800;margin:0 0 8px">
+          ¿Le gustaría conocer cuánto costaría proteger a su familia hoy?
+        </p>
+        <p style="color:rgba(255,255,255,.8);font-size:13px;margin:0 0 18px">
+          Le preparo una cotización personalizada completamente gratis — sin obligación de compra.
+        </p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          ${agentPhone ? `<a href="tel:${agentPhone.replace(/\D/g,'')}" style="display:inline-block;background:#ffffff;color:#10253f;padding:10px 22px;border-radius:9px;text-decoration:none;font-weight:800;font-size:13px">📞 Llamar ahora: ${agentPhone}</a>` : ''}
+          ${waLink_wn ? `<a href="${waLink_wn}" style="display:inline-block;background:#25d366;color:#ffffff;padding:10px 22px;border-radius:9px;text-decoration:none;font-weight:800;font-size:13px">💬 WhatsApp</a>` : ''}
+        </div>
+      </div>
+
+      <!-- Signature -->
+      <div style="padding-top:20px;border-top:1px solid #e2e8f0">
+        <p style="margin:0 0 2px;font-size:13px;color:#64748b">Cordialmente,</p>
+        <p style="margin:6px 0 2px;font-size:17px;font-weight:800;color:#10253f">${agentName}</p>
+        <p style="margin:0;font-size:12px;color:#94a3b8">Agente Autorizado de Seguros de Salud${agentNPN ? ` · NPN: ${agentNPN}` : ''}</p>
+        ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
+        ${waLink_wn ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink_wn}" style="color:#25d366;font-weight:700">💬 WhatsApp</a></p>` : ''}
+        ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
+        <p style="margin:4px 0;font-size:13px">🌐 <a href="https://www.tuasesormendoza.com" style="color:#2a6496">www.tuasesormendoza.com</a></p>
+      </div>
+
+    </div><!-- end body -->
+
+    <!-- Footer -->
+    <div style="background:#10253f;padding:14px 36px;text-align:center">
+      <p style="color:rgba(255,255,255,.45);font-size:11px;margin:0">
+        Washington National Insurance Company · Pólizas de beneficios suplementarios · ${today}
+      </p>
+    </div>
   </div>`
-  const text = `Estimado/a ${client.fullName},\n\nLe presento los beneficios de Washington National:\n\n• Accidentes\n• Enfermedades críticas\n• Hospitalización\n• Incapacidad temporal\n\nEs un complemento a su seguro ACA. El dinero se paga directamente a usted.\n\n¿Le interesa una cotización?\n\n${agentName}${agentPhone ? `\n${agentPhone}` : ''}`
-  const whatsapp = `🛡️ *Washington National — Protección Extra*\n\nHola ${client.fullName.split(' ')[0]},\n\nComplementando tu seguro de salud, quiero presentarte Washington National:\n\n✅ *Accidentes* — pago directo a ti\n✅ *Enfermedades críticas* — cáncer, infarto, ACV\n✅ *Hospitalización diaria*\n✅ *Incapacidad temporal*\n\n💡 El dinero va directo a tu bolsillo, sin necesitar facturas. ¿Hablamos? - ${agentName}`
+
+  const text = `Estimado/a ${client.fullName},
+
+¿Sabía que su seguro de salud tiene huecos que nadie le está cubriendo?
+
+LA REALIDAD:
+• 1 de cada 7 americanos busca atención médica por accidentes cada año
+• Una visita a emergencias cuesta en promedio $1,091 — sin contar hospitalización
+• Un diagnóstico de enfermedad crítica puede generar más de $200,000 en gastos directos e indirectos
+
+Washington National ofrece seguros complementarios que pagan DIRECTAMENTE A USTED — sin pasar por médicos ni hospitales.
+
+🚑 SEGURO DE ACCIDENTES
+Fracturas, emergencias, hospitalización, transporte, incapacidad temporal. Dinero en su bolsillo cuando más lo necesita.
+
+🏥 HOSPITALIZACIÓN (HOSPITAL INDEMNITY)
+Un beneficio en efectivo por cada día que esté internado. Úselo para renta, comida, o lo que su familia necesite.
+
+❤️‍🩹 ENFERMEDAD CRÍTICA
+Hasta $100,000 en efectivo de una sola vez al recibir el diagnóstico de cáncer, infarto, ACV, diabetes avanzada, y más.
+
+La mejor parte: estos planes funcionan JUNTO a su seguro ACA actual. No reemplazan nada — complementan todo.
+
+¿Le interesa una cotización personalizada sin compromiso?
+
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink_wn ? `\n💬 WhatsApp: ${waLink_wn}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}
+🌐 www.tuasesormendoza.com`
+
+  const whatsapp = `🛡️ *${firstName_wn}, ¿sabe que su seguro médico tiene huecos?*
+
+Quiero compartirle algo importante que puede proteger a su familia sin cambiar su plan actual.
+
+*Washington National* paga directamente a USTED — no al médico, no al hospital. El dinero es suyo para usarlo en lo que necesite.
+
+*Los 3 escudos:*
+
+🚑 *Accidentes* — emergencias, fracturas, hospitalización, incapacidad temporal
+🏥 *Hospitalización* — efectivo por cada día internado
+❤️‍🩹 *Enfermedad Crítica* — hasta $100,000 de golpe al diagnosticarse cáncer, infarto, ACV y más
+
+📊 *¿Por qué importa?*
+• 1 de 7 americanos visita urgencias cada año
+• Una emergencia promedio cuesta $1,091 sin incluir hospitalización
+• El 80% de pacientes con enfermedades graves enfrenta dificultades financieras severas
+
+✅ Funciona junto a su seguro ACA actual
+✅ Desde unos pocos dólares al mes
+✅ Cotización gratis, sin compromiso
+
+¿Le gustaría que le prepare una propuesta personalizada para su familia? 🙏
+
+— *${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink_wn ? `\n💬 ${waLink_wn}` : ''}`
+
   return { html, text, whatsapp }
 }
 
