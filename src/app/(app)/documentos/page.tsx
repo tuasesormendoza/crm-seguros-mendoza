@@ -84,7 +84,11 @@ function generateDoc(templateId: string, client: Client, agent: Record<string, s
   const agentPhone = agent.agentPhone || ''
   const agentEmail = agent.agentEmail || ''
 
-  const logoUrl = agent.logoUrl && !agent.logoUrl.startsWith('undefined') ? agent.logoUrl : null
+  const rawLogoUrl = agent.logoUrl && !agent.logoUrl.startsWith('undefined') ? agent.logoUrl : null
+  // Email clients can't resolve relative URLs — prepend the app origin to make it absolute
+  const logoUrl = rawLogoUrl
+    ? (rawLogoUrl.startsWith('http') ? rawLogoUrl : `${appUrl || ''}${rawLogoUrl.split('?')[0]}`)
+    : null
   const agentNPN = agent.agentLicense || ''
   const header = `<div style="border-bottom:2px solid #10253f;padding-bottom:14px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;align-items:center">
