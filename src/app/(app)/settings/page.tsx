@@ -654,7 +654,7 @@ export default function SettingsPage() {
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>👤 Perfil del Agente</h2>
         <p className="text-xs text-gray-500 mb-4">Tu información aparece en reportes y documentos exportados.</p>
-        <form onSubmit={e => { e.preventDefault(); saveSection(['agentName','agentPhone','agentWhatsApp','agentEmail','agentLicense','healthSherpaConsentUrl'], setSavingProfile, setSavedProfile) }}
+        <form onSubmit={e => { e.preventDefault(); saveSection(['agentName','agentPhone','agentWhatsApp','agentEmail','agentLicense','agentAddress','agentStateLicenses','gaAccessPhone','marketplacePhone','healthSherpaConsentUrl'], setSavingProfile, setSavedProfile) }}
           className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -688,6 +688,45 @@ export default function SettingsPage() {
             <div>
               <label className={LABEL}>Número NPN</label>
               <input className={INPUT} value={settings.agentLicense ?? ''} onChange={e => set('agentLicense', e.target.value)} placeholder="Ej. 12345678" />
+            </div>
+            <div>
+              <label className={LABEL}>Dirección</label>
+              <input className={INPUT} value={settings.agentAddress ?? ''} onChange={e => set('agentAddress', e.target.value)} placeholder="Calle, Ciudad, Estado, ZIP" />
+            </div>
+            <div className="md:col-span-2">
+              <label className={LABEL}>
+                Licencias Activas por Estado
+                <span className="ml-2 text-gray-400 font-normal text-xs">Un estado por línea, formato "Estado: Número"</span>
+              </label>
+              <textarea className={INPUT + ' resize-y'} rows={3} value={settings.agentStateLicenses ?? ''}
+                onChange={e => set('agentStateLicenses', e.target.value)}
+                placeholder={'FL: 12345678\nGA: 87654321\nTX: 11223344'} />
+            </div>
+            <div>
+              <label className={LABEL}>Teléfono Georgia Access</label>
+              <div className="flex gap-2">
+                <input className={INPUT} value={settings.gaAccessPhone ?? ''} onChange={e => set('gaAccessPhone', e.target.value.replace(/\D/g,''))} placeholder="8883124237" />
+                {settings.gaAccessPhone && (
+                  <a href={`tel:+1${settings.gaAccessPhone}`}
+                    className="shrink-0 inline-flex items-center gap-1 px-3 rounded-lg text-xs font-semibold text-white"
+                    style={{ background: '#10253f' }}>
+                    📞 Llamar
+                  </a>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>Teléfono Mercado de Salud</label>
+              <div className="flex gap-2">
+                <input className={INPUT} value={settings.marketplacePhone ?? ''} onChange={e => set('marketplacePhone', e.target.value.replace(/\D/g,''))} placeholder="8557886275" />
+                {settings.marketplacePhone && (
+                  <a href={`tel:+1${settings.marketplacePhone}`}
+                    className="shrink-0 inline-flex items-center gap-1 px-3 rounded-lg text-xs font-semibold text-white"
+                    style={{ background: '#10253f' }}>
+                    📞 Llamar
+                  </a>
+                )}
+              </div>
             </div>
             <div className="md:col-span-2">
               <label className={LABEL}>
