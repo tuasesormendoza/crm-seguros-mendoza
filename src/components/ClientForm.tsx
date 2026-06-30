@@ -406,7 +406,7 @@ export interface FormData {
   address: string; aptSuite: string; city: string; zipCode: string; county: string; state: string
   contractDate: string; policyYear: string; coverageType: string; insurer: string
   affiliatesCount: string; planName: string; planCategory: string; planId: string
-  acaPrice: string; wnPolicies: WnPolicy[]; wnContractDate: string; totalMonthly: string
+  acaPrice: string; aptcAmount: string; wnPolicies: WnPolicy[]; wnContractDate: string; totalMonthly: string
   cancellationDate: string
   annualIncome: string; status: string; activationDate: string; renewalDate: string; policyExpirationDate: string
   preferredDoctors: string[]; specificMedications: string[]
@@ -427,7 +427,7 @@ interface InitialData {
   address?: string; aptSuite?: string; city?: string; zipCode?: string; county?: string; state?: string
   contractDate?: string; policyYear?: number | string; coverageType?: string; insurer?: string
   affiliatesCount?: number | string; planName?: string; planCategory?: string; planId?: string
-  acaPrice?: number | string; wnPolicies?: string | WnPolicy[]; wnContractDate?: string | null
+  acaPrice?: number | string; aptcAmount?: number | string; wnPolicies?: string | WnPolicy[]; wnContractDate?: string | null
   cancellationDate?: string | null
   totalMonthly?: number | string; annualIncome?: number | string; status?: string
   activationDate?: string; renewalDate?: string; policyExpirationDate?: string
@@ -520,6 +520,7 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
     planCategory: initialData?.planCategory || '',
     planId: initialData?.planId || '',
     acaPrice: initialData?.acaPrice?.toString() || '0',
+    aptcAmount: initialData?.aptcAmount?.toString() || '',
     wnPolicies: parseWnPolicies(initialData?.wnPolicies),
     wnContractDate: toDateInput(initialData?.wnContractDate),
     cancellationDate: toDateInput(initialData?.cancellationDate),
@@ -843,6 +844,7 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
             options={['Bronze', 'Silver', 'Gold', 'Platinum']} />
           <Field label="ID de Intercambio" value={form.planId} onChange={v => setField('planId', v)} />
           <CurrencyField label="Precio ACA ($)" value={form.acaPrice} onChange={setAcaPrice} />
+          <CurrencyField label="Crédito Fiscal Otorgado ($)" value={form.aptcAmount} onChange={v => setField('aptcAmount', v)} />
           <CurrencyField label="Ingresos Anuales Individual/Familiar ($)" value={form.annualIncome} onChange={v => setField('annualIncome', v)} />
           <DateInput label="📅 Fecha de Activación" value={form.activationDate} onChange={v => setField('activationDate', v)} />
           <DateInput label="Próx. Renovación" value={form.renewalDate} onChange={v => setField('renewalDate', v)} />

@@ -85,7 +85,7 @@ interface Client {
   planHospital?: string | null; planRxGeneric?: string | null
   planXray?: string | null; planCTScan?: string | null; planLab?: string | null
   planReferral?: string | null
-  acaPrice?: number | null; wnPolicies?: string | null
+  acaPrice?: number | null; aptcAmount?: number | null; wnPolicies?: string | null
   wnContractDate?: string | null; cancellationDate?: string | null; wnSecondPaymentReceived?: boolean | null
   totalMonthly?: number | null; annualIncome?: number | null
   status?: string | null; activationDate?: string | null; renewalDate?: string | null; policyExpirationDate?: string | null
@@ -1062,6 +1062,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   {formatCurrency(client.acaPrice)}<span className="text-xs font-normal text-gray-400">/mes</span>
                 </dd>
               </div>
+              {client.aptcAmount != null && (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide" style={{ color: '#507b88' }}>Crédito Fiscal Otorgado</dt>
+                  <dd className="mt-0.5 text-base font-bold" style={{ color: '#0369a1' }}>
+                    {formatCurrency(client.aptcAmount)}<span className="text-xs font-normal text-gray-400">/mes</span>
+                  </dd>
+                </div>
+              )}
               {/* 11 */}
               <InfoItem label="Próx. Renovación" value={formatDate(client.renewalDate)} />
               {/* 12 */}

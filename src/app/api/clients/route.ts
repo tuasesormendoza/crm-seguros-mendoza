@@ -43,6 +43,7 @@ function parseClientData(d: Record<string, unknown>) {
     planLab: d.planLab as string || null,
     planReferral: d.planReferral as string || null,
     acaPrice: d.acaPrice ? parseFloat(d.acaPrice as string) : 0,
+    aptcAmount: d.aptcAmount ? parseFloat(d.aptcAmount as string) : null,
     wnPolicies: Array.isArray(d.wnPolicies) ? JSON.stringify(d.wnPolicies) : (d.wnPolicies as string || null),
     wnContractDate: d.wnContractDate ? new Date(d.wnContractDate as string) : null,
     cancellationDate: d.cancellationDate ? new Date(d.cancellationDate as string) : null,

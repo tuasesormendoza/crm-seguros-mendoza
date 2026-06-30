@@ -63,6 +63,7 @@ model Client {
   planLab              String?   // Labs: "$30 copay"
   planReferral         String?   // Referral required: "Sí" / "No"
   acaPrice             Float?    @default(0)
+  aptcAmount           Float?
   wnPolicies           String?
   // Washington National (WN) commission tracking — WN's contract date often
   // differs from the ACA contractDate (the WN ancillary policy may be added
