@@ -84,11 +84,20 @@ function generateDoc(templateId: string, client: Client, agent: Record<string, s
   const agentPhone = agent.agentPhone || ''
   const agentEmail = agent.agentEmail || ''
 
-  // For emails, always use the base64 data URL (guaranteed to display in any email client
-  // regardless of server environment). Fall back to raw URL only for preview display.
-  const logoUrl = agent.logoBase64
-    ? agent.logoBase64
-    : (agent.logoUrl && !agent.logoUrl.startsWith('undefined') ? agent.logoUrl : null)
+  // Logo for email: must be a real, public HTTPS image URL. Gmail and other
+  // clients BLOCK inline `data:` base64 images, and Netlify won't serve files
+  // written to public/ at runtime — so we point at the public /api/logo/[agencyId]
+  // endpoint, which streams the logo bytes stored in the DB. This renders in
+  // every email client. We only fall back to base64/raw when there's no agencyId
+  // or app origin (e.g. server-side preview without a window).
+  const base = appUrl || ''
+  // The /api/logo endpoint can only stream what's stored in DB (logoBase64).
+  // Prefer it whenever that exists — it's the only source that renders in email.
+  const logoUrl = (agent.logoBase64 && agent.agencyId && base)
+    ? `${base}/api/logo/${agent.agencyId}`
+    : (agent.logoBase64
+        ? agent.logoBase64
+        : (agent.logoUrl && !agent.logoUrl.startsWith('undefined') ? agent.logoUrl : null))
   const agentNPN = agent.agentLicense || ''
   const header = `<div style="border-bottom:2px solid #10253f;padding-bottom:14px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;align-items:center">

@@ -50,6 +50,9 @@ export async function GET() {
   const rows = await prisma.settings.findMany({ where: { agencyId: auth.agencyId } })
   const map: Record<string, string> = { ...DEFAULTS }
   rows.forEach(r => { map[r.key] = r.value })
+  // Expose the tenant id so the client can build the public logo URL
+  // (/api/logo/[agencyId]) used in outgoing email HTML.
+  map.agencyId = auth.agencyId
 
   if (session.role !== 'admin') {
     // Don't leak secret values to non-admins, but preserve a "is it configured?"
