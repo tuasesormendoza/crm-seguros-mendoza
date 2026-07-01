@@ -306,27 +306,29 @@ export default function CommissionsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
-        <button className={tab === 'resumen' ? TAB_ACTIVE : TAB_INACTIVE}
-          style={tab === 'resumen' ? { background: '#10253f' } : {}}
-          onClick={() => setTab('resumen')}>
-          Resumen
-        </button>
-        <button className={tab === 'clientes' ? TAB_ACTIVE : TAB_INACTIVE}
-          style={tab === 'clientes' ? { background: '#10253f' } : {}}
-          onClick={() => setTab('clientes')}>
-          Por Cliente
-        </button>
-        <button className={tab === 'conciliacion' ? TAB_ACTIVE : TAB_INACTIVE}
-          style={tab === 'conciliacion' ? { background: '#10253f' } : {}}
-          onClick={() => setTab('conciliacion')}>
-          Conciliación
-        </button>
-        <button className={tab === 'importar' ? TAB_ACTIVE : TAB_INACTIVE}
-          style={tab === 'importar' ? { background: '#10253f' } : {}}
-          onClick={() => setTab('importar')}>
-          📥 Importar estado de cuenta
-        </button>
+      <div className="overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="flex gap-2 min-w-max">
+          <button className={tab === 'resumen' ? TAB_ACTIVE : TAB_INACTIVE}
+            style={tab === 'resumen' ? { background: '#10253f' } : {}}
+            onClick={() => setTab('resumen')}>
+            📊 Resumen
+          </button>
+          <button className={tab === 'clientes' ? TAB_ACTIVE : TAB_INACTIVE}
+            style={tab === 'clientes' ? { background: '#10253f' } : {}}
+            onClick={() => setTab('clientes')}>
+            👤 Por Cliente
+          </button>
+          <button className={tab === 'conciliacion' ? TAB_ACTIVE : TAB_INACTIVE}
+            style={tab === 'conciliacion' ? { background: '#10253f' } : {}}
+            onClick={() => setTab('conciliacion')}>
+            🔍 Conciliación
+          </button>
+          <button className={tab === 'importar' ? TAB_ACTIVE : TAB_INACTIVE}
+            style={tab === 'importar' ? { background: '#10253f' } : {}}
+            onClick={() => setTab('importar')}>
+            📥 Importar estado de cuenta
+          </button>
+        </div>
       </div>
 
       {tab === 'resumen' && (

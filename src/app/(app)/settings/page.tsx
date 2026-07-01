@@ -5,7 +5,7 @@ import { THEME_DEFAULTS, applyTheme } from '@/lib/utils'
 
 const INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white'
 const LABEL = 'block text-xs font-medium text-gray-600 mb-1'
-const SECTION = 'bg-white rounded-xl border border-gray-200 p-6'
+const SECTION = 'bg-white rounded-xl border border-gray-200 p-4 md:p-6'
 const TITLE = 'font-bold text-base mb-1'
 
 type Settings = Record<string, string>
@@ -100,7 +100,7 @@ function UserManagement() {
   const canAdd = users.length < 3
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
       <div className="flex items-center justify-between mb-1">
         <h2 className="font-bold text-base" style={{ color: '#10253f' }}>👥 Usuarios del Sistema</h2>
         {canAdd && (
@@ -181,7 +181,7 @@ function UserManagement() {
       ) : (
         <div className="space-y-3">
           {users.map(u => (
-            <div key={u.id} className="flex items-center justify-between p-4 rounded-xl border"
+            <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border"
               style={{ borderColor: u.active ? '#e2e8f0' : '#fca5a5', background: u.active ? '#f8fafc' : '#fff5f5' }}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
@@ -189,7 +189,7 @@ function UserManagement() {
                   {u.name.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center flex-wrap gap-2">
                     <span className="text-sm font-semibold" style={{ color: '#10253f' }}>{u.name}</span>
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                       style={{ background: roleMeta(u.role).bg, color: roleMeta(u.role).color }}>
@@ -200,22 +200,22 @@ function UserManagement() {
                   <div className="text-xs text-gray-400 mt-0.5">{u.email}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button onClick={() => openEdit(u)}
-                  className="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors hover:bg-gray-100"
+                  className="flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg border font-medium transition-colors hover:bg-gray-100"
                   style={{ color: '#334155', borderColor: '#e2e8f0' }}>
                   ✏️ Editar
                 </button>
                 <button onClick={() => toggleActive(u)}
-                  className="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
+                  className="flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg border font-medium transition-colors"
                   style={{ color: u.active ? '#d97706' : '#059669', borderColor: u.active ? '#fde68a' : '#a7f3d0', background: u.active ? '#fef9c3' : '#d1fae5' }}>
                   {u.active ? '⏸ Desactivar' : '▶ Activar'}
                 </button>
                 {users.length > 1 && (
                   <button onClick={() => deleteUser(u)}
-                    className="text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-colors hover:bg-red-50"
+                    className="text-xs px-3 py-2 rounded-lg border font-medium transition-colors hover:bg-red-50"
                     style={{ color: '#ef4444', borderColor: '#fca5a5' }}>
-                    🗑️
+                    🗑️ Eliminar
                   </button>
                 )}
               </div>
@@ -278,7 +278,7 @@ function LogoUploader({ currentUrl, onUploaded }: { currentUrl?: string; onUploa
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
       <h2 className="font-bold text-base mb-1" style={{ color: '#10253f' }}>🖼️ Logo de la Agencia</h2>
       <p className="text-xs text-gray-500 mb-4">
         Aparece en la barra lateral y en la pantalla de inicio de sesión.<br />
@@ -638,7 +638,7 @@ export default function SettingsPage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
       <div>
         <h1 className="text-2xl font-bold" style={{ color: '#10253f' }}>Configuración</h1>
         <p className="text-sm text-gray-500 mt-1">Personaliza tu CRM desde aquí sin tocar ningún archivo</p>
