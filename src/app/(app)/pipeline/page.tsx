@@ -488,7 +488,8 @@ export default function PipelinePage() {
       })()}
 
       {/* ── Kanban ── */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      {/* Desktop: horizontal scroll with fixed-width columns. Mobile: stacked vertically. */}
+      <div className="flex flex-col gap-4 md:flex-row md:overflow-x-auto pb-4">
         {STAGES.map(stage => {
           const stageProspects = prospects.filter(p => p.stage === stage)
           const visibleProspects = stage === 'Cerrado - Ganado'
@@ -497,7 +498,7 @@ export default function PipelinePage() {
           const isDragOver = dragOverStage === stage
 
           return (
-            <div key={stage} className="flex-shrink-0 w-72"
+            <div key={stage} className="w-full md:flex-shrink-0 md:w-72"
               onDragOver={(e) => { e.preventDefault(); setDragOverStage(stage) }}
               onDragLeave={() => setDragOverStage(s => s === stage ? null : s)}
               onDrop={(e) => {

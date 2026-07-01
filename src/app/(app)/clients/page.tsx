@@ -252,8 +252,69 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,.08)', overflow: 'hidden' }}>
+      {/* ── Mobile card list (hidden on md+) ─────────────────────────────── */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {loading && <div className="text-center py-10 text-gray-400">⏳ Cargando...</div>}
+        {!loading && clients.length === 0 && (
+          <div className="text-center py-10 text-gray-400">
+            <div className="text-3xl mb-2">🔍</div>
+            <div className="text-sm font-medium">No se encontraron clientes</div>
+            <div className="text-xs mt-1">Prueba ajustando los filtros</div>
+          </div>
+        )}
+        {clients.map(c => {
+          const wnTypes = getWNTypes(c.wnPolicies)
+          const wn = wnTypes.length > 0
+          let tags: string[] = []
+          try { tags = JSON.parse(c.tags || '[]') } catch { tags = [] }
+          return (
+            <Link key={c.id} href={`/clients/${c.id}`}
+              className="block rounded-2xl p-4 active:opacity-80"
+              style={{ background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm truncate" style={{ color: '#0f172a' }}>{c.fullName}</div>
+                  {c.email && <div className="text-xs truncate mt-0.5" style={{ color: '#64748b' }}>{c.email}</div>}
+                </div>
+                {c.status && (
+                  <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
+                    style={{ background: STATUS_BG[c.status] || '#f1f5f9', color: STATUS_COLOR[c.status] || '#475569' }}>
+                    {c.status}
+                  </span>
+                )}
+              </div>
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                <div><span style={{ color: '#94a3b8' }}>Aseguradora</span><br /><span style={{ color: '#0f172a' }}>{c.insurer || '—'} {c.planCategory ? `· ${c.planCategory}` : ''}</span></div>
+                <div><span style={{ color: '#94a3b8' }}>Total/mes</span><br /><span className="font-semibold" style={{ color: '#0f172a' }}>{formatCurrency(c.totalMonthly)}</span></div>
+                <div><span style={{ color: '#94a3b8' }}>Cobertura</span><br /><span style={{ color: '#334155' }}>{c.coverageType || '—'}</span></div>
+                <div><span style={{ color: '#94a3b8' }}>Renovación</span><br /><span style={{ color: '#334155' }}>{formatDate(c.renewalDate) || '—'}</span></div>
+                {c.state && <div><span style={{ color: '#94a3b8' }}>Estado</span><br /><span style={{ color: '#334155' }}>{c.state}</span></div>}
+                {wn && <div><span style={{ color: '#94a3b8' }}>Washington Nat.</span><br /><span className="font-semibold" style={{ color: '#1e40af' }}>✓ WN</span></div>}
+              </div>
+              {/* Tags */}
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {tags.slice(0, 3).map(t => (
+                    <span key={t} className="px-1.5 py-0.5 rounded-full text-xs font-medium text-white"
+                      style={{ background: TAG_COLORS[t] || '#2a6496' }}>{t}</span>
+                  ))}
+                </div>
+              )}
+              {/* Actions */}
+              {c.phone && (
+                <div onClick={e => e.preventDefault()}>
+                  <ContactButtons clientName={c.fullName} clientPhone={c.phone} size="sm" showLabel={false} />
+                </div>
+              )}
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* ── Desktop table (hidden on mobile) ──────────────────────────────── */}
+      <div className="hidden md:block" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,.08)', overflow: 'hidden' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

@@ -248,8 +248,71 @@ function RequestReferralsTab() {
         })}
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* ── Mobile cards (hidden on md+) ────────────────────────────────── */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {filtered.map(c => {
+          const stage = getStage(c)
+          const meta = REQUEST_STAGE_META[stage]
+          const lastSentDays = daysSince(c.referralRequestLastSent)
+          const isSaving = saving === c.id
+          return (
+            <div key={c.id} className="rounded-2xl p-4 bg-white border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div>
+                  <Link href={`/clients/${c.id}`} className="font-semibold text-sm" style={{ color: '#10253f' }}>{c.fullName}</Link>
+                  {c.phone && <div className="text-xs text-gray-500 mt-0.5">{c.phone}</div>}
+                </div>
+                <span className="shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                  style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.borderColor}` }}>
+                  {stage}
+                </span>
+              </div>
+              <div className="text-xs text-gray-400 mb-3">
+                Última acción: {lastSentDays === null ? '—' : lastSentDays === 0 ? 'Hoy' : `Hace ${lastSentDays} día${lastSentDays === 1 ? '' : 's'}`}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {c.phone && stage === 'Por enviar' && (
+                  <button onClick={() => sendInitial(c)} disabled={isSaving}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#25d366' }}>
+                    💬 Solicitar referido
+                  </button>
+                )}
+                {c.phone && (stage === 'Solicitado' || stage === 'Recordatorio enviado') && (
+                  <button onClick={() => sendReminder(c)} disabled={isSaving}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#25d366' }}>
+                    💬 Recordatorio
+                  </button>
+                )}
+                {(stage === 'Solicitado' || stage === 'Recordatorio enviado' || stage === 'Por enviar') && (
+                  <>
+                    <button onClick={() => setFinalStage(c, 'Refirió')} disabled={isSaving}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ border: '1px solid #a7f3d0', color: '#059669' }}>
+                      ✅ Refirió
+                    </button>
+                    <button onClick={() => setFinalStage(c, 'No por ahora')} disabled={isSaving}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ border: '1px solid #fecaca', color: '#dc2626' }}>
+                      🙅 No por ahora
+                    </button>
+                  </>
+                )}
+                {(stage === 'Refirió' || stage === 'No por ahora') && (
+                  <button onClick={() => reset(c)} disabled={isSaving}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ border: '1px solid #cbd5e1', color: '#475569' }}>
+                    ↺ Reiniciar
+                  </button>
+                )}
+                {!c.phone && <span className="text-xs text-gray-400">Sin teléfono</span>}
+              </div>
+            </div>
+          )
+        })}
+        {filtered.length === 0 && (
+          <div className="text-center py-8 text-sm text-gray-400">No hay clientes en este estado.</div>
+        )}
+      </div>
+
+      {/* ── Desktop table (hidden on mobile) ─────────────────────────────── */}
+      <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
