@@ -360,7 +360,46 @@ export default function CommissionsPage() {
           {/* Summary table */}
           <div className={CARD}>
             <h2 className="font-semibold text-base mb-3" style={{ color: '#10253f' }}>Tabla por Aseguradora</h2>
-            <div className="overflow-x-auto">
+            {/* Mobile cards */}
+            <div className="flex flex-col gap-3 md:hidden">
+              {summary.byInsurer.map(row => (
+                <div key={row.insurer} className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm" style={{ color: '#10253f' }}>{row.insurer}</span>
+                    {row.paymentDay && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Paga día {row.paymentDay}</span>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500">Vidas</span>
+                      <span className="font-medium">{row.lives}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500">PMPM</span>
+                      <span className="font-medium">{formatCurrency(row.pmpm)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500">Mensual</span>
+                      <span className="font-semibold" style={{ color: '#166534' }}>{formatCurrency(row.monthly)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500">Anual</span>
+                      <span className="font-semibold" style={{ color: '#1e40af' }}>{formatCurrency(row.annual)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="rounded-xl p-4" style={{ background: '#f0f4f8', border: '2px solid #305a72' }}>
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-sm" style={{ color: '#10253f' }}>Total — {summary.totalLives} vidas</span>
+                  <div className="text-right">
+                    <div className="font-bold text-sm" style={{ color: '#166534' }}>{formatCurrency(summary.totalMonthlyCommission)}/mes</div>
+                    <div className="font-bold text-sm" style={{ color: '#1e40af' }}>{formatCurrency(summary.totalAnnualCommission)}/año</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
@@ -415,7 +454,95 @@ export default function CommissionsPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mb-3">{summary.wn.note}</p>
-              <div className="overflow-x-auto">
+              {/* Mobile WN cards */}
+              <div className="flex flex-col gap-3 md:hidden">
+                {summary.wn.clients.map(c => {
+                  const fmtDateWnM = (iso: string | null) => {
+                    if (!iso) return '—'
+                    const d = /^\d{4}-\d{2}-\d{2}T00:00:00/.test(iso)
+                      ? (() => { const u = new Date(iso); return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()) })()
+                      : new Date(iso)
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+                  }
+                  const savingSecond = wnSaving === `${c.id}-wnSecondPaymentReceived`
+                  const savingClawback = wnSaving === `${c.id}-wnClawbackReturned`
+                  let riskBadge
+                  if (c.riskStatus === 'safe') {
+                    riskBadge = <span className="px-2 py-1 rounded-full text-xs font-bold" style={{ background: '#dcfce7', color: '#166534' }}>✅ Seguro{c.wnClawbackReturned ? ' (devuelto)' : ''}</span>
+                  } else if (c.riskStatus === 'at_risk') {
+                    riskBadge = <span className="px-2 py-1 rounded-full text-xs font-bold" style={{ background: '#fee2e2', color: '#991b1b' }}>⚠️ Riesgo hasta {fmtDateWnM(c.clawbackSafeDate)}</span>
+                  } else {
+                    riskBadge = <span className="px-2 py-1 rounded-full text-xs font-bold" style={{ background: '#f3e8ff', color: '#6b21a8' }}>🔴 Revisar — debe regresar 75%</span>
+                  }
+                  return (
+                    <div key={c.id} className="rounded-xl border p-4" style={{ borderColor: '#e7e5e4', background: '#fafaf9' }}>
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div>
+                          <a href={`/clients/${c.id}`} className="font-semibold text-sm hover:underline" style={{ color: '#57534e' }}>{c.fullName}</a>
+                          <div className="text-xs mt-0.5" style={{ color: c.status === 'Cancelado' ? '#dc2626' : '#78716c' }}>
+                            {c.status}
+                            {c.status === 'Cancelado' && c.cancellationDate && ` · canceló ${fmtDateWnM(c.cancellationDate)}`}
+                          </div>
+                        </div>
+                        {riskBadge}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div>
+                          <div className="text-xs text-gray-500">Prima WN/mes</div>
+                          <div className="font-medium" style={{ color: '#78716c' }}>{formatCurrency(c.wnMonthly)}</div>
+                          <div className="text-[11px] text-gray-400">inicio {fmtDateWnM(c.wnStartDate)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Comisión total</div>
+                          <div className="font-semibold" style={{ color: '#78716c' }}>{formatCurrency(c.totalCommission)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Pago 1 (75%)</div>
+                          <div className="font-medium" style={{ color: '#166534' }}>{formatCurrency(c.firstPayment)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Meses activo</div>
+                          <div className="font-medium" style={{ color: '#78716c' }}>{c.monthsActive ?? '—'}</div>
+                        </div>
+                      </div>
+                      <div className="rounded-lg p-3 mb-2" style={{ background: '#f5f5f4', border: '1px solid #e7e5e4' }}>
+                        <div className="text-xs text-gray-500 mb-1">Pago 2 (25%) — {formatCurrency(c.secondPayment)}</div>
+                        {c.secondPaymentReceived ? (
+                          <div className="text-xs font-semibold" style={{ color: '#166534' }}>✓ Recibido</div>
+                        ) : c.secondPaymentForfeited ? (
+                          <div className="text-xs" style={{ color: '#9ca3af' }}>Perdido — canceló antes del mes 8</div>
+                        ) : (
+                          <div className="text-xs" style={{ color: '#d97706' }}>Esperado {fmtDateWnM(c.secondPaymentDate)}</div>
+                        )}
+                        {!c.secondPaymentForfeited && (
+                          <button
+                            type="button"
+                            disabled={savingSecond}
+                            onClick={() => toggleWnFlag(c.id, 'wnSecondPaymentReceived', c.wnSecondPaymentReceivedManual)}
+                            className="mt-2 w-full text-xs px-2 py-1.5 rounded border"
+                            style={{ borderColor: '#d6d3d1', color: '#78716c', opacity: savingSecond ? 0.5 : 1 }}
+                          >
+                            {savingSecond ? '…' : (c.wnSecondPaymentReceivedManual ? '↩ Desmarcar recibido' : '✓ Marcar recibido')}
+                          </button>
+                        )}
+                      </div>
+                      {c.riskStatus === 'needs_review' && (
+                        <button
+                          type="button"
+                          disabled={savingClawback}
+                          onClick={() => toggleWnFlag(c.id, 'wnClawbackReturned', c.wnClawbackReturned)}
+                          className="w-full text-xs px-2 py-1.5 rounded border"
+                          style={{ borderColor: '#d6d3d1', color: '#78716c', opacity: savingClawback ? 0.5 : 1 }}
+                        >
+                          {savingClawback ? '…' : '✓ Marcar 75% ya devuelto'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {/* Desktop WN table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr style={{ borderBottom: '1px solid #e7e5e4' }}>
@@ -434,7 +561,6 @@ export default function CommissionsPage() {
                     {summary.wn.clients.map(c => {
                       const fmtDateWn = (iso: string | null) => {
                         if (!iso) return '—'
-                        // Avoid UTC-midnight dates shifting back a day in local time zones
                         const d = /^\d{4}-\d{2}-\d{2}T00:00:00/.test(iso)
                           ? (() => { const u = new Date(iso); return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()) })()
                           : new Date(iso)

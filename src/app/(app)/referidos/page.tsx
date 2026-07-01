@@ -20,11 +20,8 @@ function fmt(date: string) {
 
 const RANK_BADGES = ['🥇', '🥈', '🥉']
 
-function ReferrerRow({ referrer, rank }: { referrer: Referrer; rank: number }) {
-  const [expanded, setExpanded] = useState(false)
-
+function buildReferrerActions(referrer: Referrer) {
   const firstName = referrer.clientName.split(' ')[0]
-
   function sendWhatsApp() {
     if (!referrer.clientPhone) return
     const digits = referrer.clientPhone.replace(/\D/g, '')
@@ -32,13 +29,105 @@ function ReferrerRow({ referrer, rank }: { referrer: Referrer; rank: number }) {
     const msg = `Hola ${firstName}, ha sido un gusto acompañarte cuidando lo que más importa: tu salud y la de tu familia. Si conoces a alguien que valore una asesoría honesta y sin compromiso sobre sus seguros, sería un honor ayudarle igual que a ti. ¡Un abrazo! 🙏\n\n— Omar Mendoza, Tu Asesor de Seguros`
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
   }
-
   function sendEmail() {
     if (!referrer.clientEmail) return
     const subject = 'Gracias por tu confianza 🙏'
     const body = `Hola ${firstName},\n\nHa sido un verdadero gusto acompañarte asegurando lo que más importa para ti y tu familia.\n\nSi tienes algún familiar, amigo o compañero de trabajo que valore una asesoría honesta, clara y sin compromiso sobre sus seguros, sería un honor poder ayudarle con la misma dedicación que a ti.\n\n¡Un fuerte abrazo!\n\nOmar Mendoza\nTu Asesor de Seguros`
     window.location.href = `mailto:${referrer.clientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
   }
+  return { sendWhatsApp, sendEmail }
+}
+
+function ProspectsList({ prospects }: { prospects: Prospect[] }) {
+  return (
+    <div className="rounded-lg overflow-hidden mt-2" style={{ border: '1px solid #e2e8f0' }}>
+      {prospects.map(p => (
+        <div key={p.id} className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 last:border-b-0" style={{ background: '#f8fafc' }}>
+          <div>
+            <div className="text-sm font-medium" style={{ color: '#0f172a' }}>{p.fullName}</div>
+            <div className="text-xs text-gray-500">{p.phone || 'Sin teléfono'} · Referido {fmt(p.createdAt)}</div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold"
+            style={p.stage === 'Cerrado - Ganado'
+              ? { background: '#d1fae5', color: '#065f46' }
+              : p.stage === 'Cerrado - Perdido'
+                ? { background: '#fee2e2', color: '#991b1b' }
+                : { background: '#fef3c7', color: '#92400e' }}>
+            {p.stage}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ReferrerCard({ referrer, rank }: { referrer: Referrer; rank: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const { sendWhatsApp, sendEmail } = buildReferrerActions(referrer)
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="flex items-start gap-3">
+        <span className="text-xl mt-0.5">{rank <= 2 ? RANK_BADGES[rank] : <span className="text-xs font-bold text-gray-500">#{rank + 1}</span>}</span>
+        <div className="flex-1 min-w-0">
+          <Link href={`/clients/${referrer.clientId}`} className="text-sm font-semibold hover:underline block" style={{ color: '#10253f' }}>
+            {referrer.clientName}
+          </Link>
+          {referrer.clientPhone && <div className="text-xs text-gray-500">{referrer.clientPhone}</div>}
+        </div>
+      </div>
+      <div className="flex gap-3 mt-3 flex-wrap">
+        <div className="flex flex-col items-center px-3 py-1.5 rounded-lg" style={{ background: '#f1f5f9' }}>
+          <span className="text-xs text-gray-500">Referidos</span>
+          <span className="text-sm font-bold" style={{ color: '#10253f' }}>{referrer.totalReferrals}</span>
+        </div>
+        <div className="flex flex-col items-center px-3 py-1.5 rounded-lg" style={{ background: '#d1fae5' }}>
+          <span className="text-xs" style={{ color: '#065f46' }}>Convertidos</span>
+          <span className="text-sm font-bold" style={{ color: '#065f46' }}>{referrer.converted}</span>
+        </div>
+        <div className="flex flex-col items-center px-3 py-1.5 rounded-lg" style={{ background: '#fef3c7' }}>
+          <span className="text-xs" style={{ color: '#92400e' }}>Pendientes</span>
+          <span className="text-sm font-bold" style={{ color: '#92400e' }}>{referrer.pending}</span>
+        </div>
+        <div className="flex flex-col items-center px-3 py-1.5 rounded-lg" style={{ background: '#f8fafc' }}>
+          <span className="text-xs text-gray-500">Conversión</span>
+          <span className="text-sm font-bold" style={{ color: referrer.conversionRate >= 50 ? '#065f46' : '#92400e' }}>{referrer.conversionRate}%</span>
+        </div>
+      </div>
+      <div className="mt-2">
+        <div className="h-1.5 rounded-full overflow-hidden w-full" style={{ background: '#f1f5f9' }}>
+          <div className="h-full rounded-full" style={{ width: `${referrer.conversionRate}%`, background: referrer.conversionRate >= 50 ? '#10b981' : '#f59e0b' }} />
+        </div>
+      </div>
+      <div className="text-xs text-gray-400 mt-1">Último referido: {fmt(referrer.lastReferralDate)}</div>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {referrer.clientPhone && (
+          <button onClick={sendWhatsApp}
+            className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white text-center"
+            style={{ background: '#25d366' }}>
+            💬 Agradecer
+          </button>
+        )}
+        {referrer.clientEmail && (
+          <button onClick={sendEmail}
+            className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white text-center"
+            style={{ background: '#2a6496' }}>
+            📧 Email
+          </button>
+        )}
+        <button onClick={() => setExpanded(v => !v)}
+          className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold border text-center"
+          style={{ border: '1px solid #cbd5e1', color: '#475569' }}>
+          {expanded ? '▲ Ocultar' : '👁 Prospectos'}
+        </button>
+      </div>
+      {expanded && <ProspectsList prospects={referrer.prospects} />}
+    </div>
+  )
+}
+
+function ReferrerRow({ referrer, rank }: { referrer: Referrer; rank: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const { sendWhatsApp, sendEmail } = buildReferrerActions(referrer)
 
   return (
     <>
@@ -98,24 +187,7 @@ function ReferrerRow({ referrer, rank }: { referrer: Referrer; rank: number }) {
         <tr>
           <td colSpan={8} className="px-4 py-0">
             <div className="pb-3">
-              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #e2e8f0' }}>
-                {referrer.prospects.map(p => (
-                  <div key={p.id} className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 last:border-b-0" style={{ background: '#f8fafc' }}>
-                    <div>
-                      <div className="text-sm font-medium" style={{ color: '#0f172a' }}>{p.fullName}</div>
-                      <div className="text-xs text-gray-500">{p.phone || 'Sin teléfono'} · Referido {fmt(p.createdAt)}</div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold"
-                      style={p.stage === 'Cerrado - Ganado'
-                        ? { background: '#d1fae5', color: '#065f46' }
-                        : p.stage === 'Cerrado - Perdido'
-                          ? { background: '#fee2e2', color: '#991b1b' }
-                          : { background: '#fef3c7', color: '#92400e' }}>
-                      {p.stage}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <ProspectsList prospects={referrer.prospects} />
             </div>
           </td>
         </tr>
@@ -488,30 +560,39 @@ export default function ReferidosPage() {
                 </button>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100">
-                  <h2 className="font-semibold text-sm" style={{ color: '#10253f' }}>Top Referidores</h2>
+              <div>
+                {/* Mobile cards */}
+                <div className="flex flex-col gap-3 md:hidden">
+                  {referrers.map((r, i) => (
+                    <ReferrerCard key={r.clientId} referrer={r} rank={i} />
+                  ))}
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center w-12">#</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Cliente</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Referidos</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Convertidos</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Pendientes</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Tasa conv.</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Último</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {referrers.map((r, i) => (
-                        <ReferrerRow key={r.clientId} referrer={r} rank={i} />
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Desktop table */}
+                <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-100">
+                    <h2 className="font-semibold text-sm" style={{ color: '#10253f' }}>Top Referidores</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center w-12">#</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Cliente</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Referidos</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Convertidos</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">Pendientes</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Tasa conv.</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Último</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 text-left">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {referrers.map((r, i) => (
+                          <ReferrerRow key={r.clientId} referrer={r} rank={i} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
