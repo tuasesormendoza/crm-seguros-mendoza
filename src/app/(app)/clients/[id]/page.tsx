@@ -606,13 +606,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     params.then(p => {
       setClientId(p.id)
-      loadClient(p.id)
-      loadActivities(p.id)
-      loadPolicyHistory(p.id)
-      loadInsurerHistory(p.id)
-      fetch(`/api/clients/${p.id}/survey`).then(r => r.json()).then(setSurveyResponses).catch(() => {})
+      // Single consolidated request — one serverless invocation instead of 5.
+      fetch(`/api/clients/${p.id}/full`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.client) setClient(data.client)
+          if (data?.activities) setActivities(data.activities)
+          if (data?.policyHistory) setPolicyHistory(data.policyHistory)
+          if (data?.insurerHistory) setInsurerHistory(data.insurerHistory)
+          if (data?.surveyResponses) setSurveyResponses(data.surveyResponses)
+        })
+        .catch(() => {})
     })
-  }, [params, loadClient, loadActivities, loadPolicyHistory, loadInsurerHistory])
+  }, [params])
 
   const handleDelete = async () => {
     if (!confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.')) return
