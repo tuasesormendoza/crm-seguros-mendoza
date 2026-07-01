@@ -119,6 +119,25 @@ export async function GET(request: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   const { searchParams } = new URL(request.url)
+
+  // ── "Perdidos este mes" (banner de la página de Clientes) ───────────────────
+  // Antes el cliente pedía TODOS los cancelados + "con otro agente" con todos sus
+  // campos y dependientes, y filtraba el mes en el navegador. Aquí lo resolvemos
+  // en la base de datos con un select mínimo — una sola petición ligera.
+  if (searchParams.get('recentlyLost') === '1') {
+    const start = new Date()
+    start.setDate(1); start.setHours(0, 0, 0, 0)
+    const lost = await prisma.client.findMany({
+      where: {
+        agencyId: auth.agencyId,
+        status: { in: ['Cancelado', 'Con otro agente'] },
+        cancellationDate: { gte: start },
+      },
+      select: { id: true, fullName: true, cancellationDate: true },
+      orderBy: { cancellationDate: 'desc' },
+    })
+    return NextResponse.json(lost)
+  }
   const search = searchParams.get('search') || ''
   const status = searchParams.get('status') || ''
   const insurer = searchParams.get('insurer') || ''

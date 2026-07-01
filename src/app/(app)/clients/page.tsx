@@ -114,19 +114,13 @@ export default function ClientsPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [recentlyCancelled, setRecentlyCancelled] = useState<Client[]>([])
 
-  // Clientes cancelados este mes — se carga una vez al montar (no paginado).
+  // Clientes perdidos este mes — una sola petición ligera (el filtro por mes y
+  // la selección de campos ocurren en el servidor).
   useEffect(() => {
-    const start = new Date()
-    start.setDate(1); start.setHours(0, 0, 0, 0)
-    Promise.all([
-      fetch('/api/clients?status=Cancelado').then(r => r.json()),
-      fetch('/api/clients?status=Con%20otro%20agente').then(r => r.json()),
-    ]).then(([cancelled, other]: [Client[], Client[]]) => {
-      const all = [...(Array.isArray(cancelled) ? cancelled : []), ...(Array.isArray(other) ? other : [])]
-      setRecentlyCancelled(all.filter(c =>
-        c.cancellationDate && new Date(c.cancellationDate) >= start
-      ))
-    }).catch(() => {})
+    fetch('/api/clients?recentlyLost=1')
+      .then(r => r.json())
+      .then((lost: Client[]) => setRecentlyCancelled(Array.isArray(lost) ? lost : []))
+      .catch(() => {})
   }, [])
 
   // Toda la búsqueda/filtrado/orden/paginación ocurre en el SERVIDOR (rápido y
