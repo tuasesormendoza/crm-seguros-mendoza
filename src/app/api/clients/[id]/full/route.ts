@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
       orderBy: { startDate: 'asc' },
     }),
     prisma.surveyResponse.findMany({
-      where: { clientId: id },
+      where: { clientId: id, agencyId },
       orderBy: { submittedAt: 'desc' },
     }),
   ])

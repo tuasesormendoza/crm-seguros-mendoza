@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
   const { id } = await ctx.params
 
   const responses = await prisma.surveyResponse.findMany({
-    where: { clientId: id },
+    where: { clientId: id, agencyId: auth.agencyId },
     orderBy: { submittedAt: 'desc' },
   })
   return NextResponse.json(responses)
