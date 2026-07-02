@@ -3,12 +3,19 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// La CLI de Prisma (migrate deploy/dev/status) necesita la conexión DIRECTA a
+// Neon: el pooler (PgBouncer) no soporta los advisory locks que usa migrate.
+// En Netlify DATABASE_URL apunta al host "-pooler", así que aquí lo quitamos.
+// La app en runtime NO usa este archivo — usa el adapter en src/lib/prisma.ts.
+const directUrl = (process.env["DIRECT_DATABASE_URL"] || process.env["DATABASE_URL"] || "")
+  .replace("-pooler", "");
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: directUrl,
   },
 });
