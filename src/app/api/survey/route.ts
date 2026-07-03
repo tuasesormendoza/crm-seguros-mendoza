@@ -30,6 +30,19 @@ export async function POST(req: NextRequest) {
     })
     if (!client) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
 
+    // Anti-spam: esta ruta es pública (el clientId del link actúa como token),
+    // así que limitamos a 1 respuesta por cliente cada 24 horas.
+    const recent = await prisma.surveyResponse.findFirst({
+      where: { clientId, submittedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      select: { id: true },
+    })
+    if (recent) {
+      return NextResponse.json(
+        { error: 'Ya recibimos tu respuesta. ¡Gracias por tu opinión!' },
+        { status: 429 }
+      )
+    }
+
     const survey = await prisma.surveyResponse.create({
       data: {
         clientId,

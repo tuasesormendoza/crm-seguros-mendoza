@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { validatePassword } from '@/lib/validate'
 
 export async function GET() {
   const auth = await requireAdmin()
@@ -25,9 +26,8 @@ export async function POST(request: NextRequest) {
   if (!email || !name || !password) {
     return NextResponse.json({ error: 'Email, nombre y contraseña son requeridos' }, { status: 400 })
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
-  }
+  const pwError = validatePassword(password)
+  if (pwError) return NextResponse.json({ error: pwError }, { status: 400 })
 
   // Máximo 3 usuarios POR AGENCIA
   const count = await prisma.user.count({ where: { agencyId: auth.agencyId } })

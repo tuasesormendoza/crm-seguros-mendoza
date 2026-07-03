@@ -79,6 +79,15 @@ export function validateProspect(d: Record<string, unknown>): Errors {
   return errors
 }
 
+// Contraseñas: mínimo 8 caracteres con al menos una letra y un número.
+// Devuelve el mensaje de error, o null si la contraseña es válida.
+export function validatePassword(pw: unknown): string | null {
+  if (typeof pw !== 'string' || pw.length < 8) return 'La contraseña debe tener al menos 8 caracteres'
+  if (!/[a-zA-Z]/.test(pw)) return 'La contraseña debe incluir al menos una letra'
+  if (!/\d/.test(pw)) return 'La contraseña debe incluir al menos un número'
+  return null
+}
+
 // Utility: return a 400 JSON response with field errors
 export function validationError(errors: Errors) {
   const message = Object.values(errors)[0] ?? 'Datos inválidos'

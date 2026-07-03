@@ -7,6 +7,7 @@ import { formatDate, formatDateTime, formatCurrency, getAge } from '@/lib/utils'
 import ClientForm from '@/components/ClientForm'
 import DocumentsSection from '@/components/DocumentsSection'
 import ContactButtons from '@/components/ContactButtons'
+import LoadError from '@/components/LoadError'
 import AppointmentModal from '@/components/client-profile/AppointmentModal'
 import SherpaLink from '@/components/client-profile/SherpaLink'
 import PlanBenefitsSection from '@/components/client-profile/PlanBenefitsSection'
@@ -36,6 +37,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [insurerHistoryError, setInsurerHistoryError] = useState('')
   const [newInsurerChange, setNewInsurerChange] = useState({ insurer: '', startPeriod: '', endPeriod: '' })
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponse[]>([])
+  const [loadError, setLoadError] = useState(false)
   const router = useRouter()
 
   const loadClient = useCallback((id: string) => {
@@ -59,7 +61,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       setClientId(p.id)
       // Single consolidated request — one serverless invocation instead of 5.
       fetch(`/api/clients/${p.id}/full`)
-        .then(r => r.json())
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
         .then(data => {
           if (data?.client) setClient(data.client)
           if (data?.activities) setActivities(data.activities)
@@ -67,7 +69,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           if (data?.insurerHistory) setInsurerHistory(data.insurerHistory)
           if (data?.surveyResponses) setSurveyResponses(data.surveyResponses)
         })
-        .catch(() => {})
+        .catch(() => setLoadError(true))
     })
   }, [params])
 
@@ -183,6 +185,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const ACTIVITY_ICONS: Record<string, string> = {
     nota: '📝', llamada: '📞', email: '📧', documento: '📄', reunion: '🤝', otro: '•'
   }
+
+  if (!client && loadError) return <LoadError message="No se pudo cargar el perfil del cliente" />
 
   if (!client) return <div className="flex items-center justify-center h-64"><div className="text-gray-400">Cargando...</div></div>
 

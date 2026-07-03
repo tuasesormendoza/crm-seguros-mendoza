@@ -140,6 +140,7 @@ export default function SettingsPage() {
     setPwSuccess(false)
     if (newPw !== confirmPw) { setPwError('Las contraseñas no coinciden'); return }
     if (newPw.length < 8) { setPwError('Mínimo 8 caracteres'); return }
+    if (!/[a-zA-Z]/.test(newPw) || !/\d/.test(newPw)) { setPwError('Debe incluir al menos una letra y un número'); return }
     setSavingPw(true)
     const res = await fetch('/api/settings/change-password', {
       method: 'POST',
@@ -662,7 +663,7 @@ export default function SettingsPage() {
             </div>
           </div>
           <div>
-            <label className={LABEL}>Nueva contraseña <span className="text-gray-400">(mínimo 8 caracteres)</span></label>
+            <label className={LABEL}>Nueva contraseña <span className="text-gray-400">(mín. 8 caracteres, con letras y números)</span></label>
             <input className={INPUT} type={showPw ? 'text' : 'password'} value={newPw}
               onChange={e => setNewPw(e.target.value)} required minLength={8} />
           </div>
@@ -709,7 +710,7 @@ export default function SettingsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           {[
             { label: 'Versión', value: '1.0.0' },
-            { label: 'Base de datos', value: 'SQLite (local)' },
+            { label: 'Base de datos', value: 'PostgreSQL (Neon)' },
             { label: 'Framework', value: 'Next.js 16' },
             { label: 'Backup', value: 'Manual (Configuración)' },
           ].map(item => (

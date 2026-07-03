@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { validatePassword } from '@/lib/validate'
 
 export async function POST(request: NextRequest) {
   const { currentPassword, newPassword } = await request.json()
 
-  if (!newPassword || newPassword.length < 8) {
-    return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' }, { status: 400 })
-  }
+  const pwError = validatePassword(newPassword)
+  if (pwError) return NextResponse.json({ error: pwError }, { status: 400 })
 
   // Get the logged-in user from session
   const session = await getSession()

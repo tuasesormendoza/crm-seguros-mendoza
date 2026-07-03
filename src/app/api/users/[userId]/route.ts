@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { validatePassword } from '@/lib/validate'
 
 export async function PUT(request: NextRequest, ctx: RouteContext<'/api/users/[userId]'>) {
   const auth = await requireAdmin()
@@ -29,7 +30,13 @@ export async function PUT(request: NextRequest, ctx: RouteContext<'/api/users/[u
   if (email !== undefined)  updateData.email = email.trim().toLowerCase()
   if (role !== undefined)   updateData.role = ['admin', 'assistant'].includes(role) ? role : 'agent'
   if (active !== undefined) updateData.active = active
-  if (password && password.length >= 8) updateData.password = await bcrypt.hash(password, 12)
+  if (password) {
+    // Antes una contraseña débil se ignoraba EN SILENCIO (el admin creía haberla
+    // cambiado y no). Ahora se rechaza con un error claro.
+    const pwError = validatePassword(password)
+    if (pwError) return NextResponse.json({ error: pwError }, { status: 400 })
+    updateData.password = await bcrypt.hash(password, 12)
+  }
 
   const user = await prisma.user.update({
     where: { id: userId },

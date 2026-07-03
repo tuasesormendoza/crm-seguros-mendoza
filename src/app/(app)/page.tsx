@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import { getMotivationalQuote } from '@/lib/motivationalQuotes'
+import LoadError from '@/components/LoadError'
 
 const REVIEW_LINK = 'https://g.page/r/CbFgt44hL28OEAE/review'
 
@@ -162,12 +163,17 @@ export default function Dashboard() {
   const [goalsProgress, setGoalsProgress] = useState<GoalsProgress | null>(null)
   const [birthdayTemplate, setBirthdayTemplate] = useState('Hola {nombre}, ¡feliz cumpleaños! 🎂🎉 Que tengas un día muy especial. Con cariño, {agente}')
   const [agentName, setAgentName] = useState('Omar Mendoza')
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
-    fetch('/api/dashboard').then(r => r.json()).then(setData)
+    fetch('/api/dashboard')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
+      .then(setData)
+      .catch(() => setLoadError(true))
+    // Datos secundarios: si fallan, el dashboard funciona con los valores por defecto
     fetch('/api/goals').then(r => r.json()).then(d => {
       if (d.goals) { setGoals(d.goals); setGoalsProgress(d.progress) }
-    })
+    }).catch(() => {})
     fetch('/api/settings').then(r => r.json()).then(s => {
       if (s.birthdayTemplate) setBirthdayTemplate(s.birthdayTemplate)
       if (s.agentName) setAgentName(s.agentName)
@@ -181,6 +187,8 @@ export default function Dashboard() {
       }).catch(() => {})
     }
   }, [])
+
+  if (!data && loadError) return <LoadError message="No se pudo cargar el dashboard" />
 
   if (!data) return (
     <div className="flex items-center justify-center h-64">

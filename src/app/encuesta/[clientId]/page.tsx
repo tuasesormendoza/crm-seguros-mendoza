@@ -33,7 +33,7 @@ export default function SurveyPage() {
     fetch(`/api/survey?clientId=${clientId}`)
       .then(r => r.json())
       .then(d => { if (d.firstName) setFirstName(d.firstName) })
-      .catch(() => {})
+      .catch(() => {}) // saludo cosmético: si falla, la encuesta funciona sin el nombre
   }, [clientId])
 
   async function handleSubmit(e: React.FormEvent) {

@@ -120,7 +120,7 @@ export default function ClientsPage() {
     fetch('/api/clients?recentlyLost=1')
       .then(r => r.json())
       .then((lost: Client[]) => setRecentlyCancelled(Array.isArray(lost) ? lost : []))
-      .catch(() => {})
+      .catch(() => {}) // banner opcional: si falla, la lista principal sigue funcionando
   }, [])
 
   // Toda la búsqueda/filtrado/orden/paginación ocurre en el SERVIDOR (rápido y

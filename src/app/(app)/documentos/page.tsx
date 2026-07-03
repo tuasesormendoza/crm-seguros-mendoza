@@ -79,7 +79,7 @@ export default function DocumentosPage() {
           type: 'email',
           content: `📧 Email enviado: "${emailSubject}" → ${emailTo}`,
         }),
-      }).catch(() => {})
+      }).catch(() => {}) // registro secundario: el email ya se envió con éxito
     }
   }
 

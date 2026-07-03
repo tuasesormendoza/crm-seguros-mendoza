@@ -49,6 +49,8 @@ const EXEMPTIONS = new Map<string, string>([
     'Ruta pública por diseño: expone solo el primer nombre para saludar en la encuesta; el clientId actúa como token del link.'],
   ['survey/route.ts :: surveyResponse.create',
     'Ruta pública: hereda el agencyId del cliente consultado (client.agencyId), no del usuario.'],
+  ['survey/route.ts :: surveyResponse.findFirst',
+    'Ruta pública: chequeo anti-spam (1 respuesta/24h) por clientId, que actúa como token del link; solo devuelve existencia.'],
   ['settings/change-password/route.ts :: user.findUnique',
     'Busca por email de LA SESIÓN actual (único global) — el usuario solo puede cambiar su propia contraseña.'],
   ['settings/change-password/route.ts :: user.update',

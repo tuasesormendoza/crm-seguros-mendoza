@@ -134,7 +134,7 @@ export default function UserManagement() {
                   <input type={showPw ? 'text' : 'password'}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm pr-16 focus:outline-none focus:ring-2 focus:ring-[#507b88]"
                     value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    required={!editUser} minLength={8} placeholder={editUser ? '(sin cambios)' : 'Mínimo 8 caracteres'} />
+                    required={!editUser} minLength={8} placeholder={editUser ? '(sin cambios)' : 'Mín. 8 caracteres, letras y números'} />
                   <button type="button" onClick={() => setShowPw(v => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium" style={{ color: '#507b88' }}>
                     {showPw ? '🙈' : '👁'}

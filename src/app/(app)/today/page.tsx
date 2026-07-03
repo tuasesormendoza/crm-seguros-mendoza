@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import LoadError from '@/components/LoadError'
 
 interface TodayData {
   todayAppointments: { id: string; date: string; notes: string | null; status: string; clientId: string; clientName: string }[]
@@ -44,9 +45,14 @@ export default function TodayPage() {
   const [data, setData] = useState<TodayData | null>(null)
   const [birthdayTemplate, setBirthdayTemplate] = useState('Hola {nombre}, ¡feliz cumpleaños! 🎂🎉 Que tengas un día muy especial. Con cariño, {agente}')
   const [agentName, setAgentName] = useState('Omar Mendoza')
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
-    fetch('/api/today').then(r => r.json()).then(setData)
+    fetch('/api/today')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
+      .then(setData)
+      .catch(() => setLoadError(true))
+    // Datos secundarios: si fallan, se usan la plantilla y el nombre por defecto
     fetch('/api/settings').then(r => r.json()).then(s => {
       if (s.birthdayTemplate) setBirthdayTemplate(s.birthdayTemplate)
       if (s.agentName) setAgentName(s.agentName)
@@ -56,6 +62,8 @@ export default function TodayPage() {
   const today = new Date()
   const weekday = today.toLocaleDateString('es-US', { weekday: 'long' })
   const dateStr = today.toLocaleDateString('es-US', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  if (!data && loadError) return <LoadError message="No se pudo cargar la agenda de hoy" />
 
   if (!data) return (
     <div className="flex items-center justify-center h-64">
