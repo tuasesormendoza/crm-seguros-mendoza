@@ -1,4 +1,5 @@
 import Sidebar from '@/components/Sidebar'
+import AssistantChat from '@/components/AssistantChat'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,6 +11,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      {/* Asistente virtual — vive en el layout para conservar la conversación al navegar */}
+      <AssistantChat />
     </div>
   )
 }
