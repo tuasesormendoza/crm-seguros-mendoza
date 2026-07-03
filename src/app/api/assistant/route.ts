@@ -71,6 +71,16 @@ const TOOLS = [
     input_schema: { type: 'object' as const, properties: {} },
   },
   {
+    name: 'conteo_por_aseguradora',
+    description: 'Cuenta, para una aseguradora dada (o todas si se omite), cuántas PÓLIZAS (clientes/titulares) y cuántas VIDAS (personas aseguradas: titular + dependientes) hay. Solo cuenta pólizas activas y la aseguradora coincide sin importar mayúsculas. ÚSALA para preguntas como "cuántos clientes/pólizas tengo con Oscar" y "cuántas vidas tengo con Oscar". IMPORTANTE: una póliza puede cubrir varias vidas, no son lo mismo.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        nombre: { type: 'string', description: 'Nombre de la aseguradora (ej. Oscar, Ambetter). Si se omite, devuelve el desglose de todas.' },
+      },
+    },
+  },
+  {
     name: 'estadisticas',
     description: 'Números generales del CRM: total de clientes por estatus, altas del mes, cancelaciones del mes y distribución por aseguradora.',
     input_schema: { type: 'object' as const, properties: {} },
@@ -81,14 +91,23 @@ const TOOLS = [
 
 const fmtDate = (d: Date | null) => d ? d.toISOString().split('T')[0] : null
 
+// Vidas CUBIERTAS de una póliza = personas realmente aseguradas. Si el titular
+// gestionó la póliza pero él NO está cubierto en ella (applicantInPolicy=false),
+// no se cuenta. Misma regla que la página de Comisiones — una póliza puede
+// cubrir varias vidas (titular + dependientes).
+function coveredLives(c: { affiliatesCount: number | null; applicantInPolicy: boolean | null }): number {
+  const raw = c.affiliatesCount ?? 1
+  return c.applicantInPolicy === false ? Math.max(raw - 1, 0) : raw
+}
+
 async function toolBuscarClientes(agencyId: string, input: Record<string, unknown>) {
   const clients = await prisma.client.findMany({
     where: {
       agencyId,
       ...(input.texto ? { fullName: { contains: String(input.texto), mode: 'insensitive' as const } } : {}),
-      ...(input.estado ? { status: String(input.estado) } : {}),
+      ...(input.estado ? { status: { equals: String(input.estado), mode: 'insensitive' as const } } : {}),
       ...(input.aseguradora ? { insurer: { contains: String(input.aseguradora), mode: 'insensitive' as const } } : {}),
-      ...(input.estado_usa ? { state: String(input.estado_usa) } : {}),
+      ...(input.estado_usa ? { state: { equals: String(input.estado_usa), mode: 'insensitive' as const } } : {}),
     },
     select: {
       fullName: true, status: true, insurer: true, state: true, phone: true,
@@ -206,8 +225,7 @@ async function toolResumenComisiones(agencyId: string) {
   for (const c of clients) {
     const insurer = c.insurer || 'Sin aseguradora'
     const pmpm = ratesMap[insurer] ?? 18
-    const raw = c.affiliatesCount ?? 1
-    const vidas = c.applicantInPolicy === false ? Math.max(raw - 1, 0) : raw
+    const vidas = coveredLives(c)
     if (!byInsurer[insurer]) byInsurer[insurer] = { vidas: 0, pmpm, mensual: 0 }
     byInsurer[insurer].vidas += vidas
     byInsurer[insurer].mensual += pmpm * vidas
@@ -241,17 +259,53 @@ async function toolEstadisticas(agencyId: string) {
   }
 }
 
+// Cuenta pólizas (titulares) vs vidas (personas aseguradas) por aseguradora.
+// Solo pólizas activas. La coincidencia de la aseguradora ignora mayúsculas.
+async function toolConteoPorAseguradora(agencyId: string, input: Record<string, unknown>) {
+  const nombre = String(input.nombre || '').trim()
+  const clients = await prisma.client.findMany({
+    where: {
+      agencyId,
+      status: 'Activo',
+      ...(nombre ? { insurer: { contains: nombre, mode: 'insensitive' as const } } : {}),
+    },
+    select: { insurer: true, affiliatesCount: true, applicantInPolicy: true },
+  })
+  if (nombre && clients.length === 0) {
+    return { error: `No encontré pólizas activas con una aseguradora parecida a "${nombre}".` }
+  }
+  // Agrupa por aseguradora (por si "oscar" coincide con más de una variante)
+  const byInsurer: Record<string, { polizas: number; vidas: number }> = {}
+  for (const c of clients) {
+    const key = c.insurer || 'Sin aseguradora'
+    if (!byInsurer[key]) byInsurer[key] = { polizas: 0, vidas: 0 }
+    byInsurer[key].polizas += 1
+    byInsurer[key].vidas += coveredLives(c)
+  }
+  const desglose = Object.entries(byInsurer)
+    .map(([aseguradora, r]) => ({ aseguradora, ...r }))
+    .sort((a, b) => b.polizas - a.polizas)
+  return {
+    nota: 'Solo pólizas activas. "polizas" = número de clientes/titulares; "vidas" = personas aseguradas (titular + dependientes cubiertos). Una póliza puede tener varias vidas.',
+    consulta: nombre || 'todas las aseguradoras',
+    totalPolizas: clients.length,
+    totalVidas: desglose.reduce((s, r) => s + r.vidas, 0),
+    desglose,
+  }
+}
+
 async function runTool(name: string, input: Record<string, unknown>, agencyId: string, role: string): Promise<unknown> {
   switch (name) {
-    case 'buscar_clientes':    return toolBuscarClientes(agencyId, input)
-    case 'detalle_cliente':    return toolDetalleCliente(agencyId, input)
-    case 'renovaciones':       return toolRenovaciones(agencyId, input)
-    case 'agenda_hoy':         return toolAgendaHoy(agencyId)
+    case 'buscar_clientes':          return toolBuscarClientes(agencyId, input)
+    case 'detalle_cliente':          return toolDetalleCliente(agencyId, input)
+    case 'renovaciones':             return toolRenovaciones(agencyId, input)
+    case 'agenda_hoy':               return toolAgendaHoy(agencyId)
+    case 'conteo_por_aseguradora':   return toolConteoPorAseguradora(agencyId, input)
     case 'resumen_comisiones':
       if (role === 'assistant') return { error: 'El rol Asistente no tiene acceso a comisiones.' }
       return toolResumenComisiones(agencyId)
-    case 'estadisticas':       return toolEstadisticas(agencyId)
-    default:                   return { error: `Herramienta desconocida: ${name}` }
+    case 'estadisticas':             return toolEstadisticas(agencyId)
+    default:                         return { error: `Herramienta desconocida: ${name}` }
   }
 }
 
@@ -299,6 +353,8 @@ export async function POST(request: NextRequest) {
     `Eres el asistente virtual del CRM de seguros de ${agentNameRow?.value || 'la agencia'}.`,
     `Hoy es ${hoy}. El usuario se llama ${auth.name || 'el agente'} (rol: ${auth.role}).`,
     'Respondes SIEMPRE en español, de forma breve y accionable. Usas las herramientas para consultar datos reales del CRM antes de responder; nunca inventas cifras ni clientes.',
+    'DISTINCIÓN CLAVE: una PÓLIZA (o "cliente"/"titular") NO es lo mismo que una VIDA. Una sola póliza puede cubrir varias vidas (el titular + su cónyuge + sus hijos). Ejemplo: 1 póliza de una familia de 4 = 1 póliza pero 4 vidas. Cuando te pregunten "cuántos clientes/pólizas" o "cuántas vidas/afiliados" tengo con una aseguradora, usa la herramienta conteo_por_aseguradora, que devuelve ambos números por separado, y responde con el número correcto según lo que preguntaron.',
+    'Los nombres de aseguradora y estatus no distinguen mayúsculas de minúsculas: "oscar", "OScar" y "Oscar" son la misma.',
     'Si una herramienta no devuelve lo que el usuario busca, dilo con claridad y sugiere dónde verlo en el CRM (Clientes, Pipeline, Comisiones, Hoy, Reportes, Configuración).',
     'No tienes acceso a datos sensibles (SSN, cuentas bancarias, contraseñas) y si te los piden explicas que solo se ven en el perfil del cliente.',
     'Formato: usa listas con viñetas cuando enumeres clientes o cifras. Montos en dólares con $.',
