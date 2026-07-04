@@ -117,6 +117,7 @@ model Client {
   documents            Document[]
   commissionChecks     CommissionCheck[]
   insurerHistory       InsurerHistory[]
+  calendarEvents       CalendarEvent[]
 
   @@index([agencyId])
   // Índices compuestos para las consultas más frecuentes (lista paginada
@@ -277,9 +278,12 @@ model CalendarEvent {
   title     String
   date      DateTime
   notes     String?
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
   @@index([agencyId])
+  @@index([clientId])
 }
 
 model Document {

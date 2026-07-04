@@ -20,9 +20,10 @@ export async function GET(request: NextRequest) {
     include: { client: { select: { id: true, fullName: true } } },
   })
 
-  // Manually-created calendar events
+  // Manually-created calendar events (incluye el cliente vinculado si lo hay)
   const events = await prisma.calendarEvent.findMany({
     where: { agencyId, date: { gte: start, lte: end } },
+    include: { client: { select: { id: true, fullName: true } } },
     orderBy: { date: 'asc' },
   })
 

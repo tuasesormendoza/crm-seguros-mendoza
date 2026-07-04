@@ -7,8 +7,10 @@ interface CalendarDay {
   appointments: { id: string; date: string; notes: string | null; status: string; client: { id: string; fullName: string } }[]
   renewals: { id: string; fullName: string; renewalDate: string; insurer: string | null }[]
   birthdays: { id: string; name: string; date: string; clientId?: string }[]
-  events: { id: string; title: string; date: string; notes: string | null }[]
+  events: { id: string; title: string; date: string; notes: string | null; client?: { id: string; fullName: string } | null }[]
 }
+
+interface ClientOption { id: string; fullName: string }
 
 export default function CalendarPage() {
   const today = new Date()
@@ -19,6 +21,11 @@ export default function CalendarPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', date: '', time: '', notes: '' })
   const [saving, setSaving] = useState(false)
+
+  // Selector de cliente (opcional) para vincular el evento a su perfil
+  const [clients, setClients] = useState<ClientOption[]>([])
+  const [clientSearch, setClientSearch] = useState('')
+  const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null)
 
   function emptyDay(): CalendarDay {
     return { appointments: [], renewals: [], birthdays: [], events: [] }
@@ -59,6 +66,18 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month])
 
+  // Lista de clientes para el selector (id + nombre), una sola vez
+  useEffect(() => {
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then((res: ClientOption[]) => setClients(Array.isArray(res) ? res.map(c => ({ id: c.id, fullName: c.fullName })) : []))
+      .catch(() => {}) // el selector es opcional: si falla, el evento se crea sin cliente
+  }, [])
+
+  const clientMatches = clientSearch.trim().length >= 2 && !selectedClient
+    ? clients.filter(c => c.fullName.toLowerCase().includes(clientSearch.toLowerCase())).slice(0, 8)
+    : []
+
   function prevMonth() {
     if (month === 1) { setYear(y => y - 1); setMonth(12) }
     else setMonth(m => m - 1)
@@ -77,9 +96,11 @@ export default function CalendarPage() {
       await fetch('/api/calendar-events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: form.title, date: dateTime, notes: form.notes || null }),
+        body: JSON.stringify({ title: form.title, date: dateTime, notes: form.notes || null, clientId: selectedClient?.id || null }),
       })
       setForm({ title: '', date: '', time: '', notes: '' })
+      setSelectedClient(null)
+      setClientSearch('')
       setShowForm(false)
       load()
     } finally {
@@ -169,6 +190,40 @@ export default function CalendarPage() {
                 className="w-full px-3 py-2 rounded-lg border text-sm"
                 rows={2}
               />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: '#507b88' }}>
+                Cliente relacionado (opcional)
+                <span className="ml-2 font-normal text-gray-400">Se registrará una nota en su perfil</span>
+              </label>
+              {selectedClient ? (
+                <div className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ background: '#f0f7fb', borderColor: '#b8d4e8' }}>
+                  <span className="text-sm font-semibold" style={{ color: '#0369a1' }}>👤 {selectedClient.fullName}</span>
+                  <button type="button" onClick={() => { setSelectedClient(null); setClientSearch('') }}
+                    className="text-xs text-gray-500 hover:text-red-600">Quitar ✕</button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={e => setClientSearch(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                    placeholder="Escribe el nombre del cliente para buscar..."
+                  />
+                  {clientMatches.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {clientMatches.map(c => (
+                        <button key={c.id} type="button"
+                          onClick={() => { setSelectedClient(c); setClientSearch('') }}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b last:border-0">
+                          {c.fullName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <button
@@ -273,6 +328,11 @@ export default function CalendarPage() {
                   <div>
                     <p className="font-medium text-sm" style={{ color: '#10253f' }}>{e.title}</p>
                     {e.notes && <p className="text-xs text-gray-500">{e.notes}</p>}
+                    {e.client && (
+                      <Link href={`/clients/${e.client.id}`} className="text-xs font-medium hover:underline" style={{ color: '#0369a1' }}>
+                        👤 {e.client.fullName}
+                      </Link>
+                    )}
                     <p className="text-xs text-gray-400">{new Date(e.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                   <button onClick={() => handleDeleteEvent(e.id)} className="text-gray-400 hover:text-red-600 text-sm px-2">🗑</button>
