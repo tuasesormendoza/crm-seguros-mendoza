@@ -8,6 +8,7 @@ export interface SessionData {
   name?: string
   role?: string
   agencyId?: string  // Inquilino (agencia) al que pertenece el usuario — multi-tenant
+  googleOAuthState?: string  // nonce anti-CSRF del flujo OAuth de Google Calendar
 }
 
 // Deferred so Next.js build phase (no env vars injected yet) doesn't throw.

@@ -184,14 +184,15 @@ model Dependent {
 }
 
 model Appointment {
-  id        String   @id @default(cuid())
-  agencyId  String?
-  clientId  String
-  date      DateTime
-  notes     String?
-  status    String   @default("Programada")
-  createdAt DateTime @default(now())
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  agencyId      String?
+  clientId      String
+  date          DateTime
+  notes         String?
+  status        String   @default("Programada")
+  googleEventId String?  // id del evento espejo en Google Calendar (sync)
+  createdAt     DateTime @default(now())
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([agencyId])
 }
@@ -273,17 +274,38 @@ model CommissionCheck {
 // Eventos de calendario creados manualmente por el agente (no ligados
 // necesariamente a un cliente), ej. recordatorios, reuniones, tareas.
 model CalendarEvent {
-  id        String   @id @default(cuid())
-  agencyId  String?
-  title     String
-  date      DateTime
-  notes     String?
-  clientId  String?
-  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  agencyId      String?
+  title         String
+  date          DateTime
+  notes         String?
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  googleEventId String?  // id del evento espejo en Google Calendar (sync)
+  source        String   @default("crm") // "crm" o "google" — de dónde vino el evento
+  createdAt     DateTime @default(now())
 
   @@index([agencyId])
   @@index([clientId])
+}
+
+// Conexión OAuth de Google Calendar por usuario. Los tokens se guardan CIFRADOS
+// (AES-256-GCM, ver src/lib/encrypt.ts). syncToken permite la sincronización
+// incremental Google→CRM sin releer todo el calendario cada vez.
+model GoogleAccount {
+  id           String   @id @default(cuid())
+  agencyId     String?
+  userId       String   @unique
+  email        String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  calendarId   String   @default("primary")
+  syncToken    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([agencyId])
 }
 
 model Document {

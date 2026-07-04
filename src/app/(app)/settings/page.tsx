@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import UserManagement from '@/components/settings/UserManagement'
 import LogoUploader from '@/components/settings/LogoUploader'
 import ColorSettings from '@/components/settings/ColorSettings'
+import GoogleCalendar from '@/components/settings/GoogleCalendar'
 import { INPUT, LABEL, SECTION, TITLE, SaveBtn, type Settings } from '@/components/settings/shared'
 
 export default function SettingsPage() {
@@ -700,6 +701,9 @@ export default function SettingsPage() {
           💾 Descargar Backup
         </a>
       </div>
+
+      {/* ── Google Calendar ───────────────────────────────────── */}
+      <GoogleCalendar />
 
       {/* ── Usuarios ──────────────────────────────────────────── */}
       <UserManagement />
