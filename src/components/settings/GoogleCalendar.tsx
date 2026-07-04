@@ -58,7 +58,13 @@ export default function GoogleCalendar() {
     try {
       const res = await fetch('/api/google/sync', { method: 'POST' })
       const data = await res.json()
-      setSyncMsg(res.ok ? `✅ Sincronizado — ${data.applied ?? 0} cambio(s) traído(s) de Google.` : `❌ ${data.error || 'Error al sincronizar'}`)
+      if (!res.ok) {
+        setSyncMsg(`❌ ${data.error || 'Error al sincronizar'}`)
+      } else if (Array.isArray(data.errors) && data.errors.length > 0) {
+        setSyncMsg(`⚠️ Sincronización con errores: ${data.errors.join(' · ')}`)
+      } else {
+        setSyncMsg(`✅ Sincronizado — ${data.applied ?? 0} cambio(s) traído(s) de Google.`)
+      }
     } catch {
       setSyncMsg('❌ No se pudo sincronizar. Intenta de nuevo.')
     }
@@ -105,7 +111,7 @@ export default function GoogleCalendar() {
               </button>
             </div>
           </div>
-          {syncMsg && <p className="text-xs mt-2" style={{ color: syncMsg.startsWith('✅') ? '#065f46' : '#b91c1c' }}>{syncMsg}</p>}
+          {syncMsg && <p className="text-xs mt-2" style={{ color: syncMsg.startsWith('✅') ? '#065f46' : syncMsg.startsWith('⚠️') ? '#92400e' : '#b91c1c' }}>{syncMsg}</p>}
           <p className="text-xs text-gray-400 mt-2">
             Tus citas y eventos del CRM se envían a Google al instante. Los eventos que creas en Google llegan al CRM cada pocos minutos (o al presionar &quot;Sincronizar ahora&quot;).
           </p>

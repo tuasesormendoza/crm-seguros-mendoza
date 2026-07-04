@@ -75,21 +75,30 @@ function startDate(item: { start?: { dateTime?: string; date?: string } }): Date
   return s ? new Date(s) : null
 }
 
+// Ventana del barrido completo: últimos 7 días + todo el futuro. Cubre eventos
+// creados ANTES de la primera sincronización (que un timeMin de "ahora" dejaría
+// invisibles para siempre, porque el sync incremental solo ve cambios nuevos).
+const FULL_SYNC_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
 // Trae los cambios de Google de UNA cuenta y los aplica al CRM.
+// `full=true` ignora el syncToken y hace un barrido completo de la ventana —
+// lo usa el botón "Sincronizar ahora" para recuperar eventos perdidos; el cron
+// usa el modo incremental (barato). El mapeo en GoogleEventLink evita duplicados
+// en ambos modos.
 async function pullAccount(acct: {
   id: string; agencyId: string | null; calendarId: string; syncToken: string | null
   accessToken: string; refreshToken: string; expiresAt: Date
-}): Promise<number> {
+}, full = false): Promise<number> {
   const token = await getValidAccessToken(acct)
+  const windowStart = new Date(Date.now() - FULL_SYNC_WINDOW_MS)
 
-  // Sin syncToken previo: primera sincronización desde hoy en adelante.
-  let result = await listGoogleEvents(token, acct.calendarId, acct.syncToken
+  let result = await listGoogleEvents(token, acct.calendarId, (!full && acct.syncToken)
     ? { syncToken: acct.syncToken }
-    : { timeMin: new Date() })
+    : { timeMin: windowStart })
 
   // Si el token incremental caducó, resincronizamos desde cero.
   if (result.expired) {
-    result = await listGoogleEvents(token, acct.calendarId, { timeMin: new Date() })
+    result = await listGoogleEvents(token, acct.calendarId, { timeMin: windowStart })
   }
 
   let applied = 0
@@ -152,20 +161,24 @@ async function pullAccount(acct: {
 }
 
 // Sincroniza Google → CRM para las cuentas conectadas. Sin agencyId sincroniza
-// TODAS (lo usa la función programada); con agencyId solo esa agencia (botón
-// "Sincronizar ahora"). Devuelve cuántos cambios se aplicaron.
-export async function pullAccounts(agencyId?: string): Promise<{ accounts: number; applied: number }> {
+// TODAS (lo usa la función programada, modo incremental); con agencyId solo esa
+// agencia. `full=true` fuerza el barrido completo de la ventana (botón
+// "Sincronizar ahora"). Los errores por cuenta se devuelven para que el usuario
+// los VEA en vez de quedar solo en el log del servidor.
+export async function pullAccounts(agencyId?: string, opts?: { full?: boolean }): Promise<{ accounts: number; applied: number; errors: string[] }> {
   const accounts = await prisma.googleAccount.findMany({
     where: agencyId ? { agencyId } : undefined,
-    select: { id: true, agencyId: true, calendarId: true, syncToken: true, accessToken: true, refreshToken: true, expiresAt: true },
+    select: { id: true, agencyId: true, calendarId: true, syncToken: true, accessToken: true, refreshToken: true, expiresAt: true, email: true },
   })
   let applied = 0
+  const errors: string[] = []
   for (const acct of accounts) {
     try {
-      applied += await pullAccount(acct)
+      applied += await pullAccount(acct, opts?.full)
     } catch (err) {
       console.error(`pullAccount ${acct.id} falló:`, err)
+      errors.push(`${acct.email}: ${err instanceof Error ? err.message : 'error desconocido'}`)
     }
   }
-  return { accounts: accounts.length, applied }
+  return { accounts: accounts.length, applied, errors }
 }
