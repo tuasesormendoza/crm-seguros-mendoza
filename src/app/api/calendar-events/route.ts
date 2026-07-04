@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth, clientInAgency } from '@/lib/auth'
+import { pushToGoogle } from '@/lib/calendarSync'
 
 export async function POST(request: NextRequest) {
   const auth = await getAuth()
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest) {
       },
     })
   }
+
+  // Reflejar el evento en Google Calendar (si hay cuentas conectadas).
+  await pushToGoogle(auth.agencyId, 'event', event.id, { title, date: new Date(date), notes })
 
   return NextResponse.json(event)
 }

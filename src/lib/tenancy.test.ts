@@ -31,6 +31,7 @@ const PUBLIC_ROUTES = new Set([
   'theme/route.ts',          // colores del login (sin PII)
   'survey/route.ts',         // encuesta pública de satisfacción (link enviado al cliente)
   'logo/[agencyId]/route.ts', // logo público para emails (solo bytes de imagen)
+  'google/sync-cron/route.ts', // cron de sync Google→CRM; protegido por clave derivada del SESSION_SECRET
 ])
 
 // ── Modelos sin inquilino (no llevan agencyId en el schema) ──────────────────
@@ -59,8 +60,6 @@ const EXEMPTIONS = new Map<string, string>([
     'Flujo de login (pre-autenticación): busca por email para verificar credenciales.'],
   ['auth/route.ts :: user.update',
     'Flujo de login: actualiza lastLogin del usuario que acaba de autenticarse.'],
-  ['appointments/[apptId]/route.ts :: appointment.findUnique',
-    'Re-lectura tras updateMany filtrado por agencyId (count===0 → 404): el registro ya demostró pertenecer a la agencia.'],
   ['prospects/[id]/route.ts :: prospect.findUnique',
     'Re-lectura tras updateMany filtrado por agencyId (count===0 → 404).'],
   ['commission-payments/[id]/route.ts :: commissionPayment.update',

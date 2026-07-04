@@ -308,6 +308,24 @@ model GoogleAccount {
   @@index([agencyId])
 }
 
+// Mapea un registro del CRM (cita o evento) con su copia en Google Calendar,
+// por cada cuenta de Google conectada. Evita duplicados y permite actualizar/
+// borrar el espejo correcto en ambas direcciones.
+model GoogleEventLink {
+  id              String   @id @default(cuid())
+  agencyId        String?
+  googleAccountId String
+  kind            String   // 'event' (CalendarEvent) | 'appointment' (Appointment)
+  crmId           String   // id del registro en el CRM
+  googleEventId   String   // id del evento en Google Calendar
+  createdAt       DateTime @default(now())
+
+  @@unique([googleAccountId, kind, crmId])
+  @@index([agencyId])
+  @@index([crmId])
+  @@index([googleEventId])
+}
+
 model Document {
   id          String   @id @default(cuid())
   agencyId    String?

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
+import { deleteFromGoogle } from '@/lib/calendarSync'
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/calendar-events/[id]'>) {
   const auth = await getAuth()
@@ -8,5 +9,7 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/calendar
   const { id } = await ctx.params
   const res = await prisma.calendarEvent.deleteMany({ where: { id, agencyId: auth.agencyId } })
   if (res.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  // Borrar también el espejo en Google Calendar.
+  await deleteFromGoogle(auth.agencyId, 'event', id)
   return NextResponse.json({ success: true })
 }
