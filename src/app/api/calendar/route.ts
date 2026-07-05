@@ -33,13 +33,10 @@ export async function GET(request: NextRequest) {
     select: { id: true, fullName: true, renewalDate: true, insurer: true },
   })
 
-  // Birthdays - all clients + dependents, check month/day
+  // Birthdays — SOLO clientes titulares de la póliza (los dependientes no se
+  // muestran en el calendario, a pedido del usuario).
   const allClients = await prisma.client.findMany({
     select: { id: true, fullName: true, birthDate: true },
-    where: { agencyId, birthDate: { not: null } },
-  })
-  const allDependents = await prisma.dependent.findMany({
-    select: { id: true, name: true, birthDate: true, clientId: true },
     where: { agencyId, birthDate: { not: null } },
   })
 
@@ -54,19 +51,6 @@ export async function GET(request: NextRequest) {
         name: c.fullName,
         date: `${year}-${String(mon).padStart(2, '0')}-${String(bd.getUTCDate()).padStart(2, '0')}`,
         clientId: c.id,
-      })
-    }
-  }
-
-  for (const d of allDependents) {
-    if (!d.birthDate) continue
-    const bd = new Date(d.birthDate)
-    if (bd.getUTCMonth() + 1 === mon) {
-      birthdays.push({
-        id: d.id,
-        name: d.name || 'Dependiente',
-        date: `${year}-${String(mon).padStart(2, '0')}-${String(bd.getUTCDate()).padStart(2, '0')}`,
-        clientId: d.clientId,
       })
     }
   }

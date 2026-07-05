@@ -5,6 +5,14 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Funciones programadas (registradas explícitamente: la detección automática
+# del `export const config = { schedule }` dentro del archivo no es confiable).
+[functions."keepalive"]
+  schedule = "*/4 * * * *"
+
+[functions."google-sync"]
+  schedule = "*/3 * * * *"
+
 # Environment variables you must configure in the Netlify dashboard
 # (Site settings → Environment variables) — NEVER commit real values:
 #

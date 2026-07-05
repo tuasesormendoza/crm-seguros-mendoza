@@ -27,6 +27,11 @@ export default function CalendarPage() {
   const [clientSearch, setClientSearch] = useState('')
   const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null)
 
+  // Sincronización manual con Google Calendar (visible solo si está conectado)
+  const [googleConnected, setGoogleConnected] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
+
   function emptyDay(): CalendarDay {
     return { appointments: [], renewals: [], birthdays: [], events: [] }
   }
@@ -72,7 +77,33 @@ export default function CalendarPage() {
       .then(r => r.json())
       .then((res: ClientOption[]) => setClients(Array.isArray(res) ? res.map(c => ({ id: c.id, fullName: c.fullName })) : []))
       .catch(() => {}) // el selector es opcional: si falla, el evento se crea sin cliente
+    // ¿Hay una cuenta de Google conectada? (para mostrar el botón de sincronizar)
+    fetch('/api/google/status')
+      .then(r => r.json())
+      .then(d => setGoogleConnected(!!d.connected))
+      .catch(() => {}) // botón opcional: si falla, el calendario funciona igual
   }, [])
+
+  async function syncGoogle() {
+    setSyncing(true)
+    setSyncMsg(null)
+    try {
+      const res = await fetch('/api/google/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setSyncMsg(`❌ ${data.error || 'Error al sincronizar'}`)
+      } else if (Array.isArray(data.errors) && data.errors.length > 0) {
+        setSyncMsg(`⚠️ ${data.errors.join(' · ')}`)
+      } else {
+        setSyncMsg(`✅ ${data.applied ?? 0} cambio(s) traído(s) de Google`)
+        load() // refrescar el mes visible con lo que llegó
+      }
+    } catch {
+      setSyncMsg('❌ No se pudo sincronizar')
+    }
+    setSyncing(false)
+    setTimeout(() => setSyncMsg(null), 6000)
+  }
 
   const clientMatches = clientSearch.trim().length >= 2 && !selectedClient
     ? clients.filter(c => c.fullName.toLowerCase().includes(clientSearch.toLowerCase())).slice(0, 8)
@@ -127,7 +158,7 @@ export default function CalendarPage() {
         <h1 className="text-2xl font-bold capitalize" style={{ color: '#10253f' }}>
           Calendario - {monthName}
         </h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
           <button onClick={prevMonth} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: '#305a72' }}>← Anterior</button>
           <button onClick={nextMonth} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: '#305a72' }}>Siguiente →</button>
           <button
@@ -140,8 +171,28 @@ export default function CalendarPage() {
           >
             + Nuevo evento
           </button>
+          {googleConnected && (
+            <button
+              onClick={syncGoogle}
+              disabled={syncing}
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold border disabled:opacity-50"
+              style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff' }}
+              title="Traer los cambios de Google Calendar al CRM"
+            >
+              {syncing ? 'Sincronizando...' : '🔄 Sincronizar Google'}
+            </button>
+          )}
         </div>
       </div>
+
+      {syncMsg && (
+        <div className="mb-4 text-sm px-3 py-2 rounded-lg inline-block"
+          style={syncMsg.startsWith('✅')
+            ? { background: '#f0fdf4', color: '#065f46', border: '1px solid #a7f3d0' }
+            : { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
+          {syncMsg}
+        </div>
+      )}
 
       {showForm && (
         <div className="mb-6 bg-white rounded-xl shadow-md p-5 border">
