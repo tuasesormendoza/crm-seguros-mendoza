@@ -172,7 +172,9 @@ export async function pullAccounts(agencyId?: string, opts?: { full?: boolean })
   })
   let applied = 0
   const errors: string[] = []
+  const touchedAgencies = new Set<string>()
   for (const acct of accounts) {
+    if (acct.agencyId) touchedAgencies.add(acct.agencyId)
     try {
       applied += await pullAccount(acct, opts?.full)
     } catch (err) {
@@ -180,5 +182,17 @@ export async function pullAccounts(agencyId?: string, opts?: { full?: boolean })
       errors.push(`${acct.email}: ${err instanceof Error ? err.message : 'error desconocido'}`)
     }
   }
+
+  // Bitácora del último pull (diagnóstico visible sin acceso a los logs del
+  // servidor): queda en Settings como googleLastSync por agencia.
+  const log = JSON.stringify({ at: new Date().toISOString(), full: !!opts?.full, accounts: accounts.length, applied, errors })
+  for (const aid of touchedAgencies) {
+    await prisma.settings.upsert({
+      where: { agencyId_key: { agencyId: aid, key: 'googleLastSync' } },
+      create: { agencyId: aid, key: 'googleLastSync', value: log },
+      update: { value: log },
+    }).catch(() => {})
+  }
+
   return { accounts: accounts.length, applied, errors }
 }
