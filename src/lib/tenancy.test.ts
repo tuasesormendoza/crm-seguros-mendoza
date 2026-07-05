@@ -149,8 +149,12 @@ test('toda consulta prisma en rutas API está aislada por agencyId', () => {
     const text = readFileSync(file, 'utf8')
     const fileHasClientGuard = /clientInAgency\s*\(/.test(text)
     // Variable `where` construida en el archivo con agencyId dentro de sus
-    // primeras líneas (patrón: const where = { agencyId: auth.agencyId, ... }).
-    const fileHasScopedWhereVar = /const where[^=]*=\s*\{[\s\S]{0,400}?\bagencyId\b/.test(text)
+    // primeras líneas (patrón: const where = { agencyId: auth.agencyId, ... }),
+    // o asignada desde un helper que recibe el agencyId como primer argumento
+    // (ej. const where = buildSegmentWhere(auth.agencyId, ...)).
+    const fileHasScopedWhereVar =
+      /const where[^=]*=\s*\{[\s\S]{0,400}?\bagencyId\b/.test(text) ||
+      /const where[^=]*=\s*\w+\(\s*(auth\.)?agencyId\b/.test(text)
 
     for (const call of extractPrismaCalls(file)) {
       const key = `${relPath} :: ${call.model}.${call.method}`

@@ -16,8 +16,8 @@ export type AuditActor = {
 }
 
 export type AuditEntry = {
-  action: 'create' | 'update' | 'delete' | 'export' | 'backup' | 'login'
-  entity: 'client' | 'document' | 'user' | 'prospect' | 'commissionPayment' | 'session' | 'data'
+  action: 'create' | 'update' | 'delete' | 'export' | 'backup' | 'login' | 'send'
+  entity: 'client' | 'document' | 'user' | 'prospect' | 'commissionPayment' | 'session' | 'data' | 'campaign'
   entityId?: string
   entityLabel?: string
   metadata?: Record<string, unknown>
