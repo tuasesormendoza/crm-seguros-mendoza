@@ -25,20 +25,52 @@ const MAX_HISTORY = 12
 // Cuando el usuario pregunta CÓMO hacer algo, el asistente responde con los
 // nombres exactos de secciones, botones y pasos según esta guía.
 const CRM_GUIDE = `
-GUÍA DEL CRM (menú lateral izquierdo):
+GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y botones al explicar cómo hacer algo:
+
 • Dashboard (inicio): KPIs del negocio, barras de objetivos de producción y alertas.
+
 • Hoy: citas de hoy, cumpleaños de la semana (botón de WhatsApp para felicitar), clientes con primera prima sin pagar y seguimientos pendientes.
-• Clientes: lista con buscador y filtros (estatus, aseguradora, estado, etiqueta, WN). REGISTRAR UN CLIENTE: botón "+ Nuevo Cliente" (arriba a la derecha) → llenar Datos Personales, Dirección, Póliza ACA (aseguradora, plan, Precio ACA, Crédito Fiscal Otorgado), Dependientes (botón "+ Agregar dependiente"), Washington National si aplica, datos bancarios y portal → "Guardar". VER/EDITAR: clic en el nombre del cliente → su perfil tiene botones Editar, Agendar Cita, y secciones de Actividades, Documentos, Historial de Pólizas, Historial de Aseguradoras, Encuestas y Google Review.
-• Pipeline: tablero de prospectos por etapas (Nuevo → Contactado → Cotizado → Cerrado-Ganado/Perdido); se arrastran las tarjetas entre columnas. Incluye "Modo Combate" para cotización rápida con el link de consentimientos de HealthSherpa (ese link se configura en Configuración → Perfil del Agente).
+
+• Clientes: lista con buscador y filtros (estatus, aseguradora, estado, etiqueta, WN).
+  REGISTRAR UN CLIENTE: botón "+ Nuevo Cliente" (arriba a la derecha) → llenar Datos Personales, Dirección, Póliza ACA (aseguradora, plan, Precio ACA, Crédito Fiscal Otorgado), Dependientes (botón "+ Agregar dependiente"), Washington National si aplica, datos bancarios y portal → "Guardar".
+  VER/EDITAR: clic en el nombre del cliente → su perfil tiene botones Editar, Agendar Cita, y secciones de Actividades, Documentos, Historial de Pólizas, Historial de Aseguradoras, Encuestas y Google Review.
+
+• Pipeline: tablero de prospectos por etapas (Nuevo → Contactado → Cotizado → Cerrado-Ganado/Perdido); se arrastran las tarjetas entre columnas. Incluye "Modo Combate" para cotización rápida con el link de consentimientos de HealthSherpa (ese link se configura en Configuración → Perfil y Metas).
+
+• Oportunidades (venta cruzada): detecta clientes ACTIVOS a los que les falta un producto complementario. Dos listas: "Sin Dental" y "Sin Washington National". Cada cliente trae botones de 💬 WhatsApp y 📧 Email con un mensaje de oferta ya redactado. ÚSALA para vender dental o WN a quienes ya son clientes.
+
+• Campañas: envío masivo de emails a un segmento de clientes.
+  CÓMO ENVIAR UNA CAMPAÑA: 1) En "¿A quién?" elige el segmento (por estatus, estado, etiqueta, con/sin WN, o "un cliente específico" buscándolo por nombre). 2) Escribe el Asunto y el Mensaje (puedes usar {nombre} para personalizar y adjuntar hasta 3 imágenes). 3) Presiona "👁 Vista previa" para ver el correo tal como llegará. 4) "Enviar campaña" (máximo 60 correos por envío; solo llegan a clientes con email). También puedes "Guardar borrador".
+  MIS CAMPAÑAS: abajo está el historial; cada campaña se puede Editar, Reenviar o borrar. Requiere el email configurado en Configuración → Mensajería → Notificaciones por Email.
+
+• Reclamos WN: gestión de reclamos SOLO para clientes con póliza Washington National (los planes ACA no llevan reclamos aquí). CREAR: botón "+ Nuevo reclamo" → elegir el cliente WN, tipo (Hospitalización, Accidente, Cáncer, Enfermedad crítica, Incapacidad, Otro), fecha de servicio, monto y número de reclamo. Estados: Reportado → En revisión → Aprobado/Pagado o Rechazado.
+
 • Referidos: pestaña "Top Referidores" (ranking de clientes que refieren, botones 💬 Agradecer por WhatsApp y 📧 Email, "Ver prospectos") y pestaña "Solicitar" (enviar mensajes pidiendo referidos).
+
 • Calendario: vista mensual de citas y eventos.
+  CREAR UN EVENTO: botón "+ Nuevo evento" → título, fecha, notas y (opcional) seleccionar un cliente; si eliges un cliente, el evento también queda como una NOTA en la sección Actividades de ese cliente.
+  Los cumpleaños que aparecen en el calendario son solo de los CLIENTES TITULARES de la póliza (no de los dependientes).
+  GOOGLE CALENDAR: el botón "🔄 Sincronizar Google" está junto a "+ Nuevo evento". La sincronización es de DOS VÍAS: lo que creas en el CRM aparece en tu Google Calendar al instante, y lo que creas en Google llega al CRM cada pocos minutos (o al presionar ese botón). Para conectarlo por primera vez: Configuración → Integraciones y Respaldo → "Conectar Google Calendar".
+
 • Comisiones: pestañas 📊 Resumen (tabla por aseguradora: vidas, PMPM, mensual/anual + sección Washington National con pagos 75%/25% y riesgo de devolución), 👤 Por Cliente, 🔍 Conciliación e 📥 Importar estado de cuenta (subir el PDF de la aseguradora). Las tasas PMPM se editan al final del Resumen en "Configuración de Tasas PMPM".
+
 • Reportes: métricas del negocio y exportaciones.
-• Tarjeta Plan: genera una tarjeta-resumen del plan a partir del brochure PDF usando IA (requiere la API Key en Configuración → Claude AI).
-• Calc. APTC: calcula el crédito fiscal según ingreso anual y tamaño de familia (los valores FPL se actualizan cada enero en Configuración).
+
+• Tarjeta Plan: genera una tarjeta-resumen del plan a partir del brochure PDF usando IA (requiere la API Key en Configuración → Cálculos y AI → Claude AI).
+
+• Calc. APTC: calcula el crédito fiscal según ingreso anual y tamaño de familia (los valores FPL se actualizan cada enero en Configuración → Cálculos y AI).
+
 • Documentos: elegir cliente + plantilla → genera la carta personalizada → enviar por Email (con el logo de la agencia) o WhatsApp.
+
 • Auditoría (solo admin): registro de quién creó/modificó/eliminó qué.
-• Configuración (solo admin): Logo de la Agencia (arrastrar PNG), Colores del Sistema, Perfil del Agente (teléfonos, WhatsApp, NPN, dirección, licencias por estado, teléfonos de Georgia Access y Mercado de Salud, link HealthSherpa), Objetivos de Producción, Mensaje de Cumpleaños, Google Review (link y mensajes), Notificaciones por Email (Gmail con contraseña de aplicación: myaccount.google.com → Seguridad → Contraseñas de aplicaciones), Calculadora APTC/FPL + CMS API Key, valores por defecto de pólizas, Claude AI (API Key para Tarjeta Plan y este asistente), Cambiar Contraseña, Respaldo de Datos (botón "💾 Descargar Backup") y Usuarios del Sistema (máximo 3; roles: Administrador = acceso completo, Agente = estándar sin Configuración, Asistente = limitado sin comisiones).
+
+• Configuración (solo admin): organizada en pestañas. Al explicar cómo cambiar algo, di primero qué pestaña abrir:
+  - 🎨 Marca: Logo de la Agencia (arrastrar PNG) y Colores del Sistema.
+  - 👤 Perfil y Metas: Perfil del Agente (teléfonos, WhatsApp, NPN, dirección, licencias por estado, teléfonos de Georgia Access y Mercado de Salud, link de consentimientos HealthSherpa) y Objetivos de Producción.
+  - 💬 Mensajería: Mensaje de Cumpleaños, Google Review (link y mensajes) y Notificaciones por Email (Gmail con contraseña de aplicación: myaccount.google.com → Seguridad → Contraseñas de aplicaciones).
+  - 🧮 Cálculos y AI: Calculadora APTC/FPL + CMS API Key, valores por defecto de pólizas y Claude AI (API Key para Tarjeta Plan y para este asistente).
+  - 🔗 Integraciones y Respaldo: Conectar/Desconectar Google Calendar; Respaldo automático a Google Drive (una copia diaria de todos los datos, botón "💾 Respaldar ahora", conserva las últimas 30 — la primera vez hay que reconectar Google para dar el permiso de Drive); y "💾 Descargar Backup" para bajar una copia manual a la computadora.
+  - 🔐 Cuenta y Usuarios: Cambiar Contraseña y Usuarios del Sistema (máximo 3; roles: Administrador = acceso completo, Agente = estándar sin Configuración, Asistente = limitado sin comisiones).
 `.trim()
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
@@ -104,6 +136,27 @@ const TOOLS = [
     name: 'estadisticas',
     description: 'Números generales del CRM: total de clientes por estatus, altas del mes, cancelaciones del mes y distribución por aseguradora.',
     input_schema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'oportunidades',
+    description: 'Venta cruzada: clientes ACTIVOS a los que les falta un producto complementario. Devuelve cuántos y quiénes no tienen seguro Dental y cuántos y quiénes no tienen póliza Washington National (WN). Úsala para preguntas como "a quién le puedo vender dental" o "cuántos clientes no tienen WN".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        tipo: { type: 'string', description: 'Filtrar: "dental" (sin dental) o "wn" (sin Washington National). Si se omite, devuelve ambas listas.' },
+      },
+    },
+  },
+  {
+    name: 'reclamos',
+    description: 'Lista los reclamos de clientes con póliza Washington National (WN). Se puede filtrar por estatus (Reportado, En revisión, Aprobado, Pagado, Rechazado) o por nombre del cliente. Devuelve tipo, estatus, fechas y montos de cada reclamo.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        estado: { type: 'string', description: 'Filtrar por estatus del reclamo (ej. Reportado, En revisión, Pagado, Rechazado)' },
+        cliente: { type: 'string', description: 'Filtrar por nombre/apellido del cliente' },
+      },
+    },
   },
 ]
 
@@ -353,6 +406,56 @@ async function toolConteoPorAseguradora(agencyId: string, input: Record<string, 
   }
 }
 
+// Venta cruzada: clientes activos sin dental / sin Washington National.
+// Misma lógica que la página Oportunidades (/api/opportunities).
+async function toolOportunidades(agencyId: string, input: Record<string, unknown>) {
+  const tipo = String(input.tipo || '').toLowerCase()
+  const clients = await prisma.client.findMany({
+    where: { agencyId, status: 'Activo' },
+    select: { fullName: true, phone: true, insurer: true, state: true, dentalInsurer: true, wnPolicies: true },
+    orderBy: { fullName: 'asc' },
+  })
+  const hasWn = (wn: string | null) => !!wn && wn.includes('"type"')
+  const hasDental = (d: string | null) => !!d && d.trim().length > 0
+  const brief = (c: (typeof clients)[number]) => ({ nombre: c.fullName, telefono: c.phone, aseguradora: c.insurer, estado: c.state })
+
+  const sinDental = clients.filter(c => !hasDental(c.dentalInsurer))
+  const sinWn = clients.filter(c => !hasWn(c.wnPolicies))
+  const result: Record<string, unknown> = {
+    nota: 'Solo clientes activos. Ofréceles el producto que aún no tienen desde la página Oportunidades (botones de WhatsApp/Email).',
+    totalActivos: clients.length,
+  }
+  if (tipo !== 'wn') { result.sinDental = { total: sinDental.length, clientes: sinDental.slice(0, 15).map(brief) } }
+  if (tipo !== 'dental') { result.sinWashingtonNational = { total: sinWn.length, clientes: sinWn.slice(0, 15).map(brief) } }
+  return result
+}
+
+// Reclamos de Washington National (solo lectura), con filtro opcional.
+async function toolReclamos(agencyId: string, input: Record<string, unknown>) {
+  const claims = await prisma.claim.findMany({
+    where: {
+      agencyId,
+      ...(input.estado ? { status: { equals: String(input.estado), mode: 'insensitive' as const } } : {}),
+      ...(input.cliente ? { client: { is: nameWordsWhere(String(input.cliente)) } } : {}),
+    },
+    select: {
+      type: true, status: true, claimNumber: true, serviceDate: true, filedDate: true,
+      amount: true, amountPaid: true, client: { select: { fullName: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  })
+  return {
+    nota: 'Reclamos de clientes con póliza Washington National. El detalle completo está en la página "Reclamos WN".',
+    total: claims.length,
+    reclamos: claims.map(c => ({
+      cliente: c.client?.fullName, tipo: c.type, estatus: c.status, numero: c.claimNumber,
+      fechaServicio: fmtDate(c.serviceDate), fechaEnvio: fmtDate(c.filedDate),
+      montoReclamado: c.amount, montoPagado: c.amountPaid,
+    })),
+  }
+}
+
 async function runTool(name: string, input: Record<string, unknown>, agencyId: string, role: string): Promise<unknown> {
   switch (name) {
     case 'buscar_clientes':          return toolBuscarClientes(agencyId, input)
@@ -360,6 +463,10 @@ async function runTool(name: string, input: Record<string, unknown>, agencyId: s
     case 'renovaciones':             return toolRenovaciones(agencyId, input)
     case 'agenda_hoy':               return toolAgendaHoy(agencyId)
     case 'conteo_por_aseguradora':   return toolConteoPorAseguradora(agencyId, input)
+    case 'oportunidades':            return toolOportunidades(agencyId, input)
+    case 'reclamos':
+      if (role === 'assistant') return { error: 'El rol Asistente no tiene acceso a los reclamos WN.' }
+      return toolReclamos(agencyId, input)
     case 'resumen_comisiones':
       if (role === 'assistant') return { error: 'El rol Asistente no tiene acceso a comisiones.' }
       return toolResumenComisiones(agencyId)
@@ -417,14 +524,16 @@ export async function POST(request: NextRequest) {
     'Si una herramienta no devuelve lo que el usuario busca, dilo con claridad y sugiere dónde verlo en el CRM (Clientes, Pipeline, Comisiones, Hoy, Reportes, Configuración).',
     'Al buscar clientes por nombre, si detalle_cliente devuelve varias coincidencias, muestra la lista y pregunta a cuál se refiere. Siempre menciona el estatus del cliente (Activo, Cancelado, etc.) en los resultados.',
     'No tienes acceso al SSN ni a la información bancaria de los clientes; si te los piden explicas que por seguridad solo se ven en el perfil del cliente dentro del CRM.',
-    'MODO INSTRUCTOR: si el usuario pregunta CÓMO hacer algo en el sistema (registrar un cliente, subir el logo, importar un estado de cuenta, crear un usuario, etc.), guíalo paso a paso con los nombres EXACTOS de secciones y botones según la GUÍA DEL CRM de abajo. Sé específico: qué sección del menú abrir, qué botón presionar y en qué orden.',
+    'MODO INSTRUCTOR (muy importante): cuando el usuario pregunte CÓMO hacer una tarea en el sistema (registrar un cliente, enviar una campaña, crear un reclamo WN, conectar Google Calendar, activar el respaldo a Drive, subir el logo, importar un estado de cuenta, crear un usuario, etc.), NO respondas de forma vaga: guíalo como un instructor, paso a paso y numerado, con los nombres EXACTOS de la sección del menú, la pestaña y los botones según la GUÍA DEL CRM de abajo, en el orden correcto. Si la tarea depende de una configuración previa (ej. las campañas necesitan el email configurado, la Tarjeta Plan necesita la API Key), avísalo. Al final, ofrece ayudar con el siguiente paso.',
     'Formato: usa listas con viñetas cuando enumeres clientes o cifras. Montos en dólares con $.',
     auth.role === 'assistant' ? 'IMPORTANTE: este usuario tiene rol Asistente y NO puede ver comisiones.' : '',
     '',
     CRM_GUIDE,
   ].filter(Boolean).join('\n')
 
-  const tools = auth.role === 'assistant' ? TOOLS.filter(t => t.name !== 'resumen_comisiones') : TOOLS
+  const tools = auth.role === 'assistant'
+    ? TOOLS.filter(t => t.name !== 'resumen_comisiones' && t.name !== 'reclamos')
+    : TOOLS
 
   // Conversación para la API de Anthropic (los mensajes crecen con cada tool call)
   const messages: { role: string; content: unknown }[] = trimmed.map(m => ({ role: m.role, content: m.content }))
