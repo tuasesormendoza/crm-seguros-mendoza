@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
+import { renderCampaignHtml, renderCampaignSubject } from '@/lib/campaignRender'
 
 interface Recipients { total: number; withEmail: number; withPhone: number; recipients: { id: string; fullName: string; email: string | null; phone: string | null }[] }
 
@@ -29,12 +30,15 @@ export default function CampanasPage() {
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [waLinks, setWaLinks] = useState<{ name: string; url: string }[] | null>(null)
+  const [agentName, setAgentName] = useState('tu agente de seguros')
+  const [showPreview, setShowPreview] = useState(false)
 
   useEffect(() => {
     fetch('/api/clients?paginated=1&pageSize=1')
       .then(r => r.json())
       .then(d => setStates(Array.isArray(d.states) ? d.states : []))
       .catch(() => {})
+    fetch('/api/settings').then(r => r.json()).then(s => { if (s.agentName) setAgentName(s.agentName) }).catch(() => {})
   }, [])
 
   const loadPreview = useCallback(() => {
@@ -155,6 +159,11 @@ export default function CampanasPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-3">
         <h2 className="font-bold text-base" style={{ color: '#10253f' }}>3. Enviar</h2>
         <div className="flex flex-wrap gap-2">
+          <button onClick={() => setShowPreview(true)} disabled={!subject.trim() || !message.trim()}
+            className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
+            style={{ color: '#10253f', borderColor: '#cbd5e1', background: '#fff' }}>
+            👁 Vista previa
+          </button>
           <button onClick={send} disabled={sending || !preview?.withEmail}
             className="px-5 py-2 rounded-lg text-white font-semibold text-sm disabled:opacity-50"
             style={{ background: '#2a6496' }}>
@@ -196,6 +205,46 @@ export default function CampanasPage() {
           )}
         </div>
       )}
+
+      {/* Modal de vista previa — HTML idéntico al que se enviará */}
+      {showPreview && (() => {
+        const sample = preview?.recipients.find(r => r.fullName)?.fullName?.split(' ')[0] || 'Cliente'
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowPreview(false)}>
+            <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <h3 className="font-bold text-base" style={{ color: '#10253f' }}>👁 Vista previa del email</h3>
+                <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              </div>
+              <div className="px-5 py-2 border-b border-gray-100 text-xs text-gray-500 bg-gray-50">
+                Ejemplo con el nombre <strong>{sample}</strong> · así lo verá cada cliente con su propio nombre.
+              </div>
+              <div className="overflow-y-auto">
+                {/* Encabezado tipo correo */}
+                <div className="px-5 py-3 border-b border-gray-100">
+                  <div className="text-xs text-gray-400">De: {agentName}</div>
+                  <div className="text-sm font-semibold mt-0.5" style={{ color: '#10253f' }}>
+                    {renderCampaignSubject(subject, sample) || '(sin asunto)'}
+                  </div>
+                </div>
+                {/* Cuerpo renderizado idéntico al envío */}
+                <div className="px-5 py-4"
+                  dangerouslySetInnerHTML={{ __html: renderCampaignHtml(message, sample, agentName) }} />
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
+                <button onClick={() => setShowPreview(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold border" style={{ color: '#475569', borderColor: '#e2e8f0' }}>
+                  Cerrar
+                </button>
+                <button onClick={() => { setShowPreview(false); send() }} disabled={!preview?.withEmail}
+                  className="px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50" style={{ background: '#2a6496' }}>
+                  📧 Enviar ahora
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

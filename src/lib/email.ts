@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import { prisma } from './prisma'
+import { renderCampaignHtml, renderCampaignSubject } from './campaignRender'
 
 // Multi-tenant: la configuración de email (SMTP) es POR AGENCIA. Siempre se debe
 // pasar el agencyId para no mezclar credenciales entre inquilinos.
@@ -43,24 +44,6 @@ export async function sendEmail(agencyId: string, subject: string, html: string)
 
 // ── Campañas (envío masivo a CLIENTES) ───────────────────────────────────────
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-// Convierte el texto plano de la campaña (con {nombre}) en HTML seguro.
-function renderCampaignHtml(body: string, firstName: string, agencyName: string): string {
-  const personalized = body.replace(/\{nombre\}/g, firstName)
-  const htmlBody = escapeHtml(personalized).replace(/\n/g, '<br>')
-  return `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;line-height:1.6">
-    ${htmlBody}
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
-    <p style="font-size:11px;color:#9ca3af">
-      Recibes este mensaje porque eres cliente de ${escapeHtml(agencyName)}.
-      Si no deseas recibir más comunicaciones, responde a este correo con la palabra <strong>BAJA</strong>.
-    </p>
-  </div>`
-}
-
 export interface CampaignRecipient { email: string; name: string }
 
 // Envía una campaña a varios clientes reutilizando una sola conexión SMTP en
@@ -92,11 +75,12 @@ export async function sendCampaign(
   const errors: string[] = []
   await Promise.all(recipients.map(async r => {
     try {
+      const first = r.name.split(' ')[0]
       await transporter.sendMail({
         from: cfg.from || cfg.user,
         to: r.email,
-        subject: subject.replace(/\{nombre\}/g, r.name.split(' ')[0]),
-        html: renderCampaignHtml(body, r.name.split(' ')[0], agencyName),
+        subject: renderCampaignSubject(subject, first),
+        html: renderCampaignHtml(body, first, agencyName),
       })
       sent++
     } catch (err) {
