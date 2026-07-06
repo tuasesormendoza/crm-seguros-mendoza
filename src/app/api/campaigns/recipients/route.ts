@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     tag: sp.get('tag') || undefined,
     wn: sp.get('wn') || undefined,
     missing: sp.get('missing') || undefined,
+    clientId: sp.get('clientId') || undefined,
   })
 
   const clients = await prisma.client.findMany({

@@ -9,9 +9,13 @@ export interface SegmentParams {
   tag?: string
   wn?: string        // 'con' | 'sin'
   missing?: string   // 'dental' | 'wn'
+  clientId?: string  // un cliente específico (ignora los demás filtros)
 }
 
 export function buildSegmentWhere(agencyId: string, p: SegmentParams) {
+  // Cliente específico: el segmento es exactamente esa persona.
+  if (p.clientId) return { agencyId, id: p.clientId }
+
   const noWn = { OR: [{ wnPolicies: null }, { NOT: { wnPolicies: { contains: '"type"' } } }] }
   return {
     agencyId,

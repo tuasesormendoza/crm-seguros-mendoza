@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer'
 import { prisma } from './prisma'
-import { renderCampaignHtml, renderCampaignSubject } from './campaignRender'
+import { renderCampaignHtml, renderCampaignSubject, type CampaignImage } from './campaignRender'
 
 // Multi-tenant: la configuración de email (SMTP) es POR AGENCIA. Siempre se debe
 // pasar el agencyId para no mezclar credenciales entre inquilinos.
@@ -55,11 +55,24 @@ export async function sendCampaign(
   subject: string,
   body: string,
   agencyName: string,
+  images: CampaignImage[] = [],
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
   const cfg = await getEmailConfig(agencyId)
   if (!cfg.enabled || !cfg.user || !cfg.pass) {
     return { sent: 0, failed: recipients.length, errors: ['El email no está configurado en Configuración → Notificaciones por Email.'] }
   }
+
+  // Imágenes → adjuntos inline referenciados por CID en el HTML.
+  const attachments = images.map((img, i) => {
+    const match = /^data:([^;]+);base64,(.+)$/.exec(img.dataUrl)
+    return match ? {
+      filename: img.name || `imagen-${i + 1}`,
+      content: Buffer.from(match[2], 'base64'),
+      contentType: match[1],
+      cid: `img${i}`,
+    } : null
+  }).filter((a): a is NonNullable<typeof a> => a !== null)
+  const imageSrcs = attachments.map(a => `cid:${a.cid}`)
 
   const transporter = nodemailer.createTransport({
     host: cfg.host,
@@ -80,7 +93,8 @@ export async function sendCampaign(
         from: cfg.from || cfg.user,
         to: r.email,
         subject: renderCampaignSubject(subject, first),
-        html: renderCampaignHtml(body, first, agencyName),
+        html: renderCampaignHtml(body, first, agencyName, imageSrcs),
+        attachments,
       })
       sent++
     } catch (err) {

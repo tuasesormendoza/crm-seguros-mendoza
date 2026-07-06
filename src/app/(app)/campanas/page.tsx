@@ -1,13 +1,21 @@
 'use client'
 
-// Campañas — envío masivo por email a un segmento de clientes.
+// Campañas — envío masivo por email a un segmento de clientes (o a uno solo),
+// con imágenes, historial, edición y reenvío.
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
-import { renderCampaignHtml, renderCampaignSubject } from '@/lib/campaignRender'
+import { renderCampaignHtml, renderCampaignSubject, type CampaignImage } from '@/lib/campaignRender'
+import { formatDateTime } from '@/lib/utils'
 
 interface Recipients { total: number; withEmail: number; withPhone: number; recipients: { id: string; fullName: string; email: string | null; phone: string | null }[] }
+interface CampaignRow {
+  id: string; subject: string; message: string; segment: string
+  sentAt: string | null; sentCount: number; failedCount: number; createdAt: string; hasImages: boolean
+}
+interface ClientOption { id: string; fullName: string }
+interface Segment { status: string; state: string; missing: string; clientId: string }
 
 const STATUSES = ['Activo', 'Pendiente', 'Cancelado', 'Con otro agente']
 const SPECIAL = [
@@ -15,6 +23,7 @@ const SPECIAL = [
   { key: 'dental', label: 'Solo los que NO tienen plan dental' },
   { key: 'wn', label: 'Solo los que NO tienen seguro suplementario' },
 ]
+const EMPTY_SEGMENT: Segment = { status: 'Activo', state: '', missing: '', clientId: '' }
 
 const INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white'
 const LABEL = 'block text-xs font-semibold text-gray-600 mb-1'
@@ -23,15 +32,31 @@ export default function CampanasPage() {
   const role = useRole()
 
   const [states, setStates] = useState<string[]>([])
-  const [segment, setSegment] = useState({ status: 'Activo', state: '', missing: '' })
+  const [segment, setSegment] = useState<Segment>(EMPTY_SEGMENT)
   const [preview, setPreview] = useState<Recipients | null>(null)
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
+  const [images, setImages] = useState<CampaignImage[]>([])
+  const [imgError, setImgError] = useState('')
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [waLinks, setWaLinks] = useState<{ name: string; url: string }[] | null>(null)
   const [agentName, setAgentName] = useState('tu agente de seguros')
   const [showPreview, setShowPreview] = useState(false)
+
+  // Historial + edición
+  const [history, setHistory] = useState<CampaignRow[]>([])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [savingDraft, setSavingDraft] = useState(false)
+
+  // Cliente específico
+  const [clients, setClients] = useState<ClientOption[]>([])
+  const [clientSearch, setClientSearch] = useState('')
+  const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null)
+
+  const loadHistory = useCallback(() => {
+    fetch('/api/campaigns').then(r => r.json()).then(d => setHistory(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/clients?paginated=1&pageSize=1')
@@ -39,13 +64,21 @@ export default function CampanasPage() {
       .then(d => setStates(Array.isArray(d.states) ? d.states : []))
       .catch(() => {})
     fetch('/api/settings').then(r => r.json()).then(s => { if (s.agentName) setAgentName(s.agentName) }).catch(() => {})
-  }, [])
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then((res: ClientOption[]) => setClients(Array.isArray(res) ? res.map(c => ({ id: c.id, fullName: c.fullName })) : []))
+      .catch(() => {})
+    loadHistory()
+  }, [loadHistory])
 
   const loadPreview = useCallback(() => {
     const params = new URLSearchParams()
-    if (segment.status) params.set('status', segment.status)
-    if (segment.state) params.set('state', segment.state)
-    if (segment.missing) params.set('missing', segment.missing)
+    if (segment.clientId) params.set('clientId', segment.clientId)
+    else {
+      if (segment.status) params.set('status', segment.status)
+      if (segment.state) params.set('state', segment.state)
+      if (segment.missing) params.set('missing', segment.missing)
+    }
     fetch(`/api/campaigns/recipients?${params}`)
       .then(r => r.json())
       .then(setPreview)
@@ -54,6 +87,38 @@ export default function CampanasPage() {
 
   useEffect(() => { loadPreview() }, [loadPreview])
 
+  const clientMatches = clientSearch.trim().length >= 2 && !selectedClient
+    ? clients.filter(c => c.fullName.toLowerCase().includes(clientSearch.toLowerCase())).slice(0, 8)
+    : []
+
+  function pickClient(c: ClientOption) {
+    setSelectedClient(c)
+    setClientSearch('')
+    setSegment(s => ({ ...s, clientId: c.id }))
+  }
+  function clearClient() {
+    setSelectedClient(null)
+    setClientSearch('')
+    setSegment(s => ({ ...s, clientId: '' }))
+  }
+
+  // ── Imágenes ────────────────────────────────────────────────────────────────
+  function addImages(files: FileList | null) {
+    if (!files) return
+    setImgError('')
+    const remaining = 3 - images.length
+    Array.from(files).slice(0, remaining).forEach(file => {
+      if (!file.type.startsWith('image/')) { setImgError('Solo se permiten imágenes.'); return }
+      if (file.size > 1_500_000) { setImgError(`"${file.name}" pesa más de 1.5 MB.`); return }
+      const reader = new FileReader()
+      reader.onload = () => {
+        setImages(prev => prev.length < 3 ? [...prev, { name: file.name, dataUrl: String(reader.result) }] : prev)
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // ── Enviar / guardar / editar ───────────────────────────────────────────────
   async function send() {
     if (!subject.trim() || !message.trim()) { setResult('❌ Escribe el asunto y el mensaje.'); return }
     if (!preview || preview.withEmail === 0) { setResult('❌ Ningún cliente del segmento tiene email.'); return }
@@ -64,20 +129,83 @@ export default function CampanasPage() {
       const res = await fetch('/api/campaigns/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, message, segment }),
+        body: JSON.stringify({ subject, message, segment, images, campaignId: editingId }),
       })
       const data = await res.json()
-      if (!res.ok) { setResult(`❌ ${data.error || 'Error al enviar'}`); }
+      if (!res.ok) { setResult(`❌ ${data.error || 'Error al enviar'}`) }
       else {
         let msg = `✅ Enviados: ${data.sent}`
         if (data.failed) msg += ` · Fallidos: ${data.failed}`
         if (data.limitados) msg += ` · ${data.limitados} quedaron para una próxima tanda (máx. ${data.maxPorEnvio} por envío)`
         setResult(msg)
+        setEditingId(data.campaignId || null)
+        loadHistory()
       }
     } catch {
       setResult('❌ No se pudo conectar con el servidor.')
     }
     setSending(false)
+  }
+
+  async function saveDraft() {
+    setSavingDraft(true)
+    setResult(null)
+    try {
+      const payload = { subject, message, segment, images }
+      const res = editingId
+        ? await fetch(`/api/campaigns/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        : await fetch('/api/campaigns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const data = await res.json()
+      if (!res.ok) setResult(`❌ ${data.error || 'Error al guardar'}`)
+      else {
+        if (data.id) setEditingId(data.id)
+        setResult('✅ Campaña guardada.')
+        loadHistory()
+      }
+    } catch {
+      setResult('❌ No se pudo guardar.')
+    }
+    setSavingDraft(false)
+  }
+
+  async function loadCampaign(id: string) {
+    const res = await fetch(`/api/campaigns/${id}`)
+    if (!res.ok) return
+    const c = await res.json()
+    setEditingId(c.id)
+    setSubject(c.subject || '')
+    setMessage(c.message || '')
+    try {
+      const seg = JSON.parse(c.segment || '{}')
+      const next: Segment = { status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '' }
+      setSegment(next)
+      if (next.clientId) {
+        const found = clients.find(cl => cl.id === next.clientId)
+        setSelectedClient(found || { id: next.clientId, fullName: '(cliente del historial)' })
+      } else {
+        setSelectedClient(null)
+      }
+    } catch { /* segmento ilegible: se conserva el actual */ }
+    try { setImages(c.images ? JSON.parse(c.images) : []) } catch { setImages([]) }
+    setResult(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function newCampaign() {
+    setEditingId(null)
+    setSubject('')
+    setMessage('')
+    setImages([])
+    setSegment(EMPTY_SEGMENT)
+    setSelectedClient(null)
+    setResult(null)
+  }
+
+  async function deleteCampaign(id: string) {
+    if (!confirm('¿Eliminar esta campaña del historial?')) return
+    await fetch(`/api/campaigns/${id}`, { method: 'DELETE' })
+    if (editingId === id) newCampaign()
+    loadHistory()
   }
 
   function generateWhatsApp() {
@@ -98,15 +226,55 @@ export default function CampanasPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: '#10253f' }}>📣 Campañas</h1>
-        <p className="text-sm text-gray-500 mt-1">Envía un mensaje a un segmento de tus clientes (avisos de inscripción, educación en salud, ofertas).</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: '#10253f' }}>📣 Campañas</h1>
+          <p className="text-sm text-gray-500 mt-1">Envía un mensaje a un segmento de tus clientes o a uno en específico.</p>
+        </div>
+        {editingId && (
+          <button onClick={newCampaign} className="text-xs px-3 py-2 rounded-lg border font-semibold" style={{ color: '#475569', borderColor: '#cbd5e1' }}>
+            + Nueva campaña
+          </button>
+        )}
       </div>
+
+      {editingId && (
+        <div className="text-xs px-3 py-2 rounded-lg" style={{ background: '#fef9c3', border: '1px solid #fde68a', color: '#92400e' }}>
+          ✏️ Editando una campaña del historial — al enviar o guardar, se actualiza esa campaña.
+        </div>
+      )}
 
       {/* Segmento */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
         <h2 className="font-bold text-base" style={{ color: '#10253f' }}>1. ¿A quién?</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        {/* Cliente específico */}
+        <div>
+          <label className={LABEL}>Cliente específico (opcional — ignora los filtros de abajo)</label>
+          {selectedClient ? (
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ background: '#f0f7fb', borderColor: '#b8d4e8' }}>
+              <span className="text-sm font-semibold" style={{ color: '#0369a1' }}>👤 {selectedClient.fullName}</span>
+              <button type="button" onClick={clearClient} className="text-xs text-gray-500 hover:text-red-600">Quitar ✕</button>
+            </div>
+          ) : (
+            <div className="relative">
+              <input type="text" value={clientSearch} onChange={e => setClientSearch(e.target.value)}
+                className={INPUT} placeholder="Escribe el nombre para buscar un cliente..." />
+              {clientMatches.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {clientMatches.map(c => (
+                    <button key={c.id} type="button" onClick={() => pickClient(c)}
+                      className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b last:border-0">
+                      {c.fullName}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 ${selectedClient ? 'opacity-40 pointer-events-none' : ''}`}>
           <div>
             <label className={LABEL}>Estatus</label>
             <select className={INPUT} value={segment.status} onChange={e => setSegment(s => ({ ...s, status: e.target.value }))}>
@@ -153,6 +321,30 @@ export default function CampanasPage() {
           <textarea className={INPUT} rows={6} value={message} onChange={e => setMessage(e.target.value)}
             placeholder={'Hola {nombre},\n\nQuiero recordarte que...'} />
         </div>
+
+        {/* Imágenes */}
+        <div>
+          <label className={LABEL}>Imágenes (opcional — hasta 3, máx. 1.5 MB c/u; van dentro del email)</label>
+          <div className="flex flex-wrap gap-3 items-start">
+            {images.map((img, i) => (
+              <div key={i} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img.dataUrl} alt={img.name} className="w-24 h-24 object-cover rounded-lg border border-gray-200" />
+                <button type="button" onClick={() => setImages(prev => prev.filter((_, j) => j !== i))}
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white text-xs leading-none">×</button>
+              </div>
+            ))}
+            {images.length < 3 && (
+              <label className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-[#2a6496] text-gray-400 hover:text-[#2a6496] transition-colors">
+                <span className="text-xl">+</span>
+                <span className="text-[10px]">Agregar</span>
+                <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple className="hidden"
+                  onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+              </label>
+            )}
+          </div>
+          {imgError && <p className="text-xs text-red-600 mt-1">⚠️ {imgError}</p>}
+        </div>
       </div>
 
       {/* Enviar */}
@@ -168,6 +360,11 @@ export default function CampanasPage() {
             className="px-5 py-2 rounded-lg text-white font-semibold text-sm disabled:opacity-50"
             style={{ background: '#2a6496' }}>
             {sending ? 'Enviando...' : `📧 Enviar por email${preview ? ` (${Math.min(preview.withEmail, 60)})` : ''}`}
+          </button>
+          <button onClick={saveDraft} disabled={savingDraft || (!subject.trim() && !message.trim())}
+            className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
+            style={{ color: '#475569', borderColor: '#cbd5e1' }}>
+            {savingDraft ? 'Guardando...' : '💾 Guardar sin enviar'}
           </button>
           <button onClick={generateWhatsApp} disabled={!preview?.withPhone || !message.trim()}
             className="px-5 py-2 rounded-lg font-semibold text-sm text-white disabled:opacity-50"
@@ -206,6 +403,43 @@ export default function CampanasPage() {
         </div>
       )}
 
+      {/* Historial */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+        <h2 className="font-bold text-base mb-1" style={{ color: '#10253f' }}>🗂 Mis campañas</h2>
+        <p className="text-xs text-gray-500 mb-4">Edita una campaña anterior o reenvíala (por ejemplo, a un segmento nuevo).</p>
+        {history.length === 0 ? (
+          <p className="text-sm text-gray-400">Aún no has creado campañas.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {history.map(c => (
+              <div key={c.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2.5 rounded-lg border"
+                style={{ borderColor: editingId === c.id ? '#2a6496' : '#f1f5f9', background: editingId === c.id ? '#f0f7fb' : '#fff' }}>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold truncate" style={{ color: '#10253f' }}>
+                    {c.subject || '(sin asunto)'} {c.hasImages && <span title="Incluye imágenes">🖼</span>}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {c.sentAt
+                      ? <>Enviada {formatDateTime(c.sentAt)} · ✅ {c.sentCount}{c.failedCount ? ` · ❌ ${c.failedCount}` : ''}</>
+                      : <span className="font-semibold text-amber-600">Borrador</span>}
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => loadCampaign(c.id)}
+                    className="text-xs px-3 py-1.5 rounded-lg border font-medium hover:bg-gray-50" style={{ color: '#0369a1', borderColor: '#bae6fd' }}>
+                    ✏️ {c.sentAt ? 'Editar / Reenviar' : 'Continuar'}
+                  </button>
+                  <button onClick={() => deleteCampaign(c.id)}
+                    className="text-xs px-2 py-1.5 rounded-lg border font-medium hover:bg-red-50" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>
+                    🗑
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Modal de vista previa — HTML idéntico al que se enviará */}
       {showPreview && (() => {
         const sample = preview?.recipients.find(r => r.fullName)?.fullName?.split(' ')[0] || 'Cliente'
@@ -220,16 +454,14 @@ export default function CampanasPage() {
                 Ejemplo con el nombre <strong>{sample}</strong> · así lo verá cada cliente con su propio nombre.
               </div>
               <div className="overflow-y-auto">
-                {/* Encabezado tipo correo */}
                 <div className="px-5 py-3 border-b border-gray-100">
                   <div className="text-xs text-gray-400">De: {agentName}</div>
                   <div className="text-sm font-semibold mt-0.5" style={{ color: '#10253f' }}>
                     {renderCampaignSubject(subject, sample) || '(sin asunto)'}
                   </div>
                 </div>
-                {/* Cuerpo renderizado idéntico al envío */}
                 <div className="px-5 py-4"
-                  dangerouslySetInnerHTML={{ __html: renderCampaignHtml(message, sample, agentName) }} />
+                  dangerouslySetInnerHTML={{ __html: renderCampaignHtml(message, sample, agentName, images.map(i => i.dataUrl)) }} />
               </div>
               <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
                 <button onClick={() => setShowPreview(false)}

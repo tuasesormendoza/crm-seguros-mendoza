@@ -233,6 +233,24 @@ model Claim {
   @@index([clientId])
 }
 
+// Campañas de email/WhatsApp: se guardan para poder verlas, editarlas y
+// reenviarlas. `segment` e `images` son JSON en texto; sentAt null = borrador.
+model Campaign {
+  id          String    @id @default(cuid())
+  agencyId    String?
+  subject     String
+  message     String
+  segment     String    @default("{}") // filtros JSON (status/state/missing/clientId)
+  images      String?   // JSON [{ name, dataUrl }] — se adjuntan inline al email
+  sentAt      DateTime?
+  sentCount   Int       @default(0)
+  failedCount Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([agencyId])
+}
+
 model CommissionRate {
   id                   String   @id @default(cuid())
   agencyId             String?
