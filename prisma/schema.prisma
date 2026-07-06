@@ -118,6 +118,7 @@ model Client {
   commissionChecks     CommissionCheck[]
   insurerHistory       InsurerHistory[]
   calendarEvents       CalendarEvent[]
+  claims               Claim[]
 
   @@index([agencyId])
   // Índices compuestos para las consultas más frecuentes (lista paginada
@@ -207,6 +208,29 @@ model Activity {
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([agencyId])
+}
+
+// Reclamos/siniestros — SOLO para clientes con póliza Washington National, que
+// es donde el agente gestiona los reclamos directamente. Los planes del mercado
+// de salud (ACA) no llevan reclamos aquí (el agente no tiene autorización).
+model Claim {
+  id          String    @id @default(cuid())
+  agencyId    String?
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type        String    // Hospitalización, Accidente, Cáncer, Enfermedad crítica, Incapacidad, Otro
+  status      String    @default("Reportado")
+  claimNumber String?   // número de referencia de Washington National
+  serviceDate DateTime? // fecha del evento médico / servicio
+  filedDate   DateTime? // fecha en que se envió a WN
+  amount      Float?    // monto reclamado
+  amountPaid  Float?    // monto pagado por WN
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([agencyId])
+  @@index([clientId])
 }
 
 model CommissionRate {
