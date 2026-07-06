@@ -7,9 +7,28 @@ import ColorSettings from '@/components/settings/ColorSettings'
 import GoogleCalendar from '@/components/settings/GoogleCalendar'
 import { INPUT, LABEL, SECTION, TITLE, SaveBtn, type Settings } from '@/components/settings/shared'
 
+// Pestañas de Configuración: agrupan las secciones en categorías para una
+// navegación profesional (en lugar de un scroll interminable).
+const SETTINGS_TABS = [
+  { id: 'marca', label: 'Marca', icon: '🎨' },
+  { id: 'perfil', label: 'Perfil y Metas', icon: '👤' },
+  { id: 'mensajes', label: 'Mensajería', icon: '💬' },
+  { id: 'herramientas', label: 'Cálculos y AI', icon: '🧮' },
+  { id: 'integraciones', label: 'Integraciones y Respaldo', icon: '🔗' },
+  { id: 'cuenta', label: 'Cuenta y Usuarios', icon: '🔐' },
+] as const
+type SettingsTabId = typeof SETTINGS_TABS[number]['id']
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
+
+  // Pestaña activa. Si venimos del redirect de OAuth de Google (?google=...),
+  // abrimos directo la pestaña de Integraciones para que se vea el mensaje.
+  const [tab, setTab] = useState<SettingsTabId>(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('google')) return 'integraciones'
+    return 'marca'
+  })
 
   // Only admins can access this page — everyone else sees a friendly message
   // instead of the full settings UI (and instead of a hard crash from /api/users
@@ -178,19 +197,47 @@ export default function SettingsPage() {
     </div>
   )
 
+  const activeTabLabel = SETTINGS_TABS.find(t => t.id === tab)?.label ?? ''
+
   return (
-    <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
-      <div>
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: '#10253f' }}>Configuración</h1>
         <p className="text-sm text-gray-500 mt-1">Personaliza tu CRM desde aquí sin tocar ningún archivo</p>
       </div>
 
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        {/* ── Navegación lateral (horizontal en móvil, vertical en escritorio) ── */}
+        <nav className="w-full md:w-56 shrink-0 md:sticky md:top-4">
+          <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible -mx-1 px-1 pb-1 md:pb-0">
+            {SETTINGS_TABS.map(t => {
+              const active = tab === t.id
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap text-left transition-colors ${active ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-gray-100'}`}
+                  style={active ? { background: '#10253f' } : undefined}>
+                  <span className="text-base">{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+
+        {/* ── Contenido de la pestaña activa ── */}
+        <div className="flex-1 min-w-0 w-full space-y-4 md:space-y-6">
+          <h2 className="text-lg font-bold md:hidden" style={{ color: '#10253f' }}>{activeTabLabel}</h2>
+
+          {tab === 'marca' && (<>
       {/* ── Logo de la Agencia ───────────────────────────────── */}
       <LogoUploader currentUrl={settings.logoUrl} onUploaded={url => set('logoUrl', url || '')} />
 
       {/* ── Colores del Sistema ───────────────────────────────── */}
       <ColorSettings settings={settings} set={set} onSave={(overrides) => saveSection(['themeBrand800','themeBrand500','themeBrand300','themeAccent'], () => {}, () => {}, overrides)} />
 
+      </>)}
+
+      {tab === 'perfil' && (<>
       {/* ── Perfil del Agente ─────────────────────────────────── */}
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>👤 Perfil del Agente</h2>
@@ -334,6 +381,9 @@ export default function SettingsPage() {
         </form>
       </div>
 
+      </>)}
+
+      {tab === 'mensajes' && (<>
       {/* ── Mensajes de Cumpleaños ───────────────────────────────── */}
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>🎂 Mensaje de Cumpleaños</h2>
@@ -479,6 +529,9 @@ export default function SettingsPage() {
         </form>
       </div>
 
+      </>)}
+
+      {tab === 'herramientas' && (<>
       {/* ── Valores por defecto de Pólizas ────────────────────── */}
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>🧮 Calculadora APTC — Niveles de Pobreza (FPL)</h2>
@@ -641,6 +694,9 @@ export default function SettingsPage() {
         </form>
       </div>
 
+      </>)}
+
+      {tab === 'cuenta' && (<>
       {/* ── Cambiar Contraseña ────────────────────────────────── */}
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>🔐 Seguridad — Cambiar Contraseña</h2>
@@ -691,6 +747,9 @@ export default function SettingsPage() {
         </form>
       </div>
 
+      </>)}
+
+      {tab === 'integraciones' && (<>
       {/* ── Backup ────────────────────────────────────────────── */}
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>💾 Respaldo de Datos</h2>
@@ -705,6 +764,9 @@ export default function SettingsPage() {
       {/* ── Google Calendar ───────────────────────────────────── */}
       <GoogleCalendar />
 
+      </>)}
+
+      {tab === 'cuenta' && (<>
       {/* ── Usuarios ──────────────────────────────────────────── */}
       <UserManagement />
 
@@ -723,6 +785,9 @@ export default function SettingsPage() {
               <div className="font-medium text-gray-700 mt-0.5">{item.value}</div>
             </div>
           ))}
+        </div>
+      </div>
+      </>)}
         </div>
       </div>
     </div>
