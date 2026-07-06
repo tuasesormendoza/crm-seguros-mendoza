@@ -34,27 +34,36 @@ const DEFAULT_FALLBACK: Partial<Record<PlatformKey, string>> = {
   fplYear: '2026', fpl1Person: '15650', fplPerPerson: '5500', aptcMaxPct: '8.5',
 }
 
-// Email del dueño del CRM, en variables de entorno de Netlify (OWNER_EMAIL).
+// Email del dueño del CRM (opcional), en variables de entorno de Netlify.
+// Es un OVERRIDE manual; si no se define, el dueño se detecta automáticamente
+// (ver ownerAgencyId).
 export function ownerEmail(): string {
   return (process.env.OWNER_EMAIL || '').trim().toLowerCase()
 }
 
-// ¿El usuario logueado es el dueño del CRM? Solo él ve/edita la config de plataforma.
-export function isOwner(auth: { email?: string | null }): boolean {
-  const oe = ownerEmail()
-  return !!oe && (auth.email || '').trim().toLowerCase() === oe
-}
-
-// agencyId del dueño (para leer sus settings de plataforma). Cacheado en memoria
-// del proceso: es un valor global que no cambia durante la vida del lambda.
+// agencyId del DUEÑO del CRM (para leer sus settings de plataforma). Cacheado en
+// memoria del proceso: es un valor global que no cambia durante la vida del lambda.
+//   1) Si hay OWNER_EMAIL, se usa la agencia de ese usuario (override explícito).
+//   2) Si no, el dueño es la agencia MÁS ANTIGUA (la principal, creada antes que
+//      cualquier agencia cliente). Así funciona sin configurar nada.
 let cachedOwnerAgencyId: string | null | undefined
 export async function ownerAgencyId(): Promise<string | null> {
   if (cachedOwnerAgencyId !== undefined) return cachedOwnerAgencyId
   const oe = ownerEmail()
-  if (!oe) { cachedOwnerAgencyId = null; return null }
-  const u = await prisma.user.findUnique({ where: { email: oe }, select: { agencyId: true } }).catch(() => null)
-  cachedOwnerAgencyId = u?.agencyId ?? null
+  if (oe) {
+    const u = await prisma.user.findUnique({ where: { email: oe }, select: { agencyId: true } }).catch(() => null)
+    if (u?.agencyId) { cachedOwnerAgencyId = u.agencyId; return cachedOwnerAgencyId }
+  }
+  const first = await prisma.agency.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } }).catch(() => null)
+  cachedOwnerAgencyId = first?.id ?? null
   return cachedOwnerAgencyId
+}
+
+// ¿El usuario logueado pertenece a la agencia DUEÑA? Solo ella ve/edita la
+// config de plataforma (CMS, Claude AI, FPL).
+export async function isOwner(auth: { agencyId?: string | null }): Promise<boolean> {
+  const oaid = await ownerAgencyId()
+  return !!oaid && auth.agencyId === oaid
 }
 
 // Valor GLOBAL de una clave de plataforma: settings del dueño → env → default.

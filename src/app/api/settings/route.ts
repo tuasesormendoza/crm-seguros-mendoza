@@ -62,7 +62,7 @@ export async function GET() {
   // Claves de PLATAFORMA (CMS, Claude AI, FPL): son GLOBALES, del dueño del CRM.
   // Se resuelven desde su cuenta (o env) para que todas las agencias las hereden,
   // en vez de mostrar el valor —vacío— de la agencia cliente.
-  const owner = isOwner(auth)
+  const owner = await isOwner(auth)
   const platform = await getPlatformSettings(PLATFORM_KEYS)
   for (const key of PLATFORM_KEYS) { if (platform[key]) map[key] = platform[key] }
   // La UI usa este flag para mostrar/ocultar las secciones exclusivas del dueño.
@@ -98,7 +98,7 @@ export async function PUT(request: NextRequest) {
   // Solo el DUEÑO del CRM puede escribir las claves de plataforma (CMS, Claude
   // AI, FPL). Una agencia cliente no puede fijarlas ni sobrescribirlas — se
   // ignoran silenciosamente aunque las mande en el request.
-  const owner = isOwner(auth)
+  const owner = await isOwner(auth)
   const blocked = new Set<string>(owner ? [] : PLATFORM_KEYS)
 
   // Upsert each key (skip password — handled by change-password endpoint,
