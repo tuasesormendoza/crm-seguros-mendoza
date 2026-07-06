@@ -72,10 +72,15 @@ export default function SettingsPage() {
   const [savingPw, setSavingPw] = useState(false)
   const [showPw, setShowPw] = useState(false)
 
+  // ¿Es el DUEÑO del CRM? Solo él ve/edita la config de plataforma (CMS API Key,
+  // FPL y Claude AI). Las agencias cliente heredan esos valores sin verlos.
+  const [isOwner, setIsOwner] = useState(false)
+
   const load = useCallback(async () => {
     const res = await fetch('/api/settings')
     const data = await res.json()
     setSettings(data)
+    setIsOwner(data.__isOwner === 'true')
     setLoading(false)
     // Load goals from productionGoals setting
     if (data.productionGoals) {
@@ -534,18 +539,28 @@ export default function SettingsPage() {
       {tab === 'herramientas' && (<>
       {/* ── Valores por defecto de Pólizas ────────────────────── */}
       <div className={SECTION}>
-        <h2 className={TITLE} style={{ color: '#10253f' }}>🧮 Calculadora APTC — Niveles de Pobreza (FPL)</h2>
-        <p className="text-xs text-gray-500 mb-1">
-          El gobierno publica nuevos valores FPL cada enero. Actualízalos aquí al inicio de cada año de cobertura.
-        </p>
-        <a href="https://aspe.hhs.gov/topics/poverty-economic-mobility/poverty-guidelines"
-          target="_blank" rel="noopener noreferrer"
-          className="text-xs mb-4 inline-block" style={{ color: '#2a6496' }}>
-          🔗 Ver valores oficiales HHS →
-        </a>
+        <h2 className={TITLE} style={{ color: '#10253f' }}>🧮 Calculadora APTC{isOwner ? ' — Niveles de Pobreza (FPL)' : ' y Pólizas'}</h2>
+        {isOwner ? (
+          <>
+            <p className="text-xs text-gray-500 mb-1">
+              El gobierno publica nuevos valores FPL cada enero. Actualízalos aquí al inicio de cada año de cobertura.
+            </p>
+            <a href="https://aspe.hhs.gov/topics/poverty-economic-mobility/poverty-guidelines"
+              target="_blank" rel="noopener noreferrer"
+              className="text-xs mb-4 inline-block" style={{ color: '#2a6496' }}>
+              🔗 Ver valores oficiales HHS →
+            </a>
+          </>
+        ) : (
+          <p className="text-xs text-gray-500 mb-4">
+            Elige cómo se ordenan los &quot;mejores planes&quot; en la calculadora y define los valores por defecto de las pólizas nuevas.
+          </p>
+        )}
         <form onSubmit={e => { e.preventDefault(); saveSection(['cmsApiKey','fplYear','fpl1Person','fplPerPerson','aptcMaxPct','bestPlansRankMode','defaultPolicyYear','defaultRenewalDate','defaultExpirationDate','wnCommissionPct'], setSavingPolicy, setSavedPolicy) }}
           className="space-y-4">
 
+          {/* Config de plataforma (CMS API Key + FPL) — SOLO el dueño del CRM */}
+          {isOwner && (<>
           {/* CMS API Key */}
           <div className="p-4 rounded-xl" style={{ background: settings.cmsApiKey ? '#d1fae5' : '#fef9c3', border: `1px solid ${settings.cmsApiKey ? '#a7f3d0' : '#fde68a'}` }}>
             <div className="flex items-start gap-3">
@@ -608,6 +623,7 @@ export default function SettingsPage() {
           <div className="text-xs text-gray-400 -mt-2">
             FPL calculado: 1 persona = <strong>${Number(settings.fpl1Person || 15650).toLocaleString()}</strong> · 2 = <strong>${(Number(settings.fpl1Person || 15650) + Number(settings.fplPerPerson || 5500)).toLocaleString()}</strong> · 3 = <strong>${(Number(settings.fpl1Person || 15650) + Number(settings.fplPerPerson || 5500)*2).toLocaleString()}</strong> · 4 = <strong>${(Number(settings.fpl1Person || 15650) + Number(settings.fplPerPerson || 5500)*3).toLocaleString()}</strong>
           </div>
+          </>)}
 
           {/* Best plans ranking mode */}
           <div className="p-4 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
@@ -660,11 +676,12 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* ── Claude AI (Tarjeta de Plan) ──────────────────────── */}
+      {/* ── Claude AI (Tarjeta de Plan) — SOLO el dueño del CRM ──────── */}
+      {isOwner && (
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>🤖 Claude AI — Generador de Tarjetas</h2>
         <p className="text-xs text-gray-500 mb-4">
-          Necesario para extraer información del brochure PDF automáticamente.
+          Clave global del CRM: alimenta el generador de tarjetas y el asistente para TODAS las agencias.
           Obtén tu clave en <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style={{ color: '#305a72' }}>console.anthropic.com</a>
         </p>
         <form onSubmit={e => { e.preventDefault(); saveSection(['anthropicApiKey'], setSavingPolicy, setSavedPolicy) }} className="space-y-4">
@@ -693,6 +710,7 @@ export default function SettingsPage() {
           </div>
         </form>
       </div>
+      )}
 
       </>)}
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { getAuth, requireAdmin } from '@/lib/auth'
+import { isOwner, getPlatformSettings, PLATFORM_KEYS, PLATFORM_SECRET_KEYS } from '@/lib/platform'
 
 // Keys that must never be sent to non-admin users
 const SECRET_KEYS = ['cmsApiKey', 'anthropicApiKey', 'smtpUser', 'smtpPass']
@@ -58,11 +59,29 @@ export async function GET() {
   // (/api/logo/[agencyId]) used in outgoing email HTML.
   map.agencyId = auth.agencyId
 
+  // Claves de PLATAFORMA (CMS, Claude AI, FPL): son GLOBALES, del dueño del CRM.
+  // Se resuelven desde su cuenta (o env) para que todas las agencias las hereden,
+  // en vez de mostrar el valor —vacío— de la agencia cliente.
+  const owner = isOwner(auth)
+  const platform = await getPlatformSettings(PLATFORM_KEYS)
+  for (const key of PLATFORM_KEYS) { if (platform[key]) map[key] = platform[key] }
+  // La UI usa este flag para mostrar/ocultar las secciones exclusivas del dueño.
+  map.__isOwner = owner ? 'true' : 'false'
+
   if (session.role !== 'admin') {
     // Don't leak secret values to non-admins, but preserve a "is it configured?"
     // signal — e.g. the APTC calculator needs to know if a CMS API key exists
     // without seeing it, to decide whether to show the "add your key" warning.
     for (const key of SECRET_KEYS) {
+      map[key] = map[key] ? '••••••••' : ''
+    }
+  }
+
+  // Aunque sea admin: si NO es el dueño, nunca revelamos las llaves secretas de
+  // plataforma (solo un indicador de "configurada" para que la app sepa que la
+  // función está activa, sin poder verlas ni copiarlas).
+  if (!owner) {
+    for (const key of PLATFORM_SECRET_KEYS) {
       map[key] = map[key] ? '••••••••' : ''
     }
   }
@@ -76,8 +95,16 @@ export async function PUT(request: NextRequest) {
 
   const body: Record<string, string> = await request.json()
 
-  // Upsert each key (skip password — handled by change-password endpoint)
-  const entries = Object.entries(body).filter(([k]) => k !== 'passwordHash')
+  // Solo el DUEÑO del CRM puede escribir las claves de plataforma (CMS, Claude
+  // AI, FPL). Una agencia cliente no puede fijarlas ni sobrescribirlas — se
+  // ignoran silenciosamente aunque las mande en el request.
+  const owner = isOwner(auth)
+  const blocked = new Set<string>(owner ? [] : PLATFORM_KEYS)
+
+  // Upsert each key (skip password — handled by change-password endpoint,
+  // and el flag interno __isOwner nunca se persiste)
+  const entries = Object.entries(body)
+    .filter(([k]) => k !== 'passwordHash' && k !== '__isOwner' && !blocked.has(k))
   await Promise.all(entries.map(([key, value]) =>
     prisma.settings.upsert({
       where: { agencyId_key: { agencyId: auth.agencyId, key } },

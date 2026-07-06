@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
 import { DEFAULT_RATES } from '@/lib/commissions'
+import { getPlatformSetting } from '@/lib/platform'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Asistente virtual del CRM — POST /api/assistant
@@ -68,7 +69,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
   - 🎨 Marca: Logo de la Agencia (arrastrar PNG) y Colores del Sistema.
   - 👤 Perfil y Metas: Perfil del Agente (teléfonos, WhatsApp, NPN, dirección, licencias por estado, teléfonos de Georgia Access y Mercado de Salud, link de consentimientos HealthSherpa) y Objetivos de Producción.
   - 💬 Mensajería: Mensaje de Cumpleaños, Google Review (link y mensajes) y Notificaciones por Email (Gmail con contraseña de aplicación: myaccount.google.com → Seguridad → Contraseñas de aplicaciones).
-  - 🧮 Cálculos y AI: Calculadora APTC/FPL + CMS API Key, valores por defecto de pólizas y Claude AI (API Key para Tarjeta Plan y para este asistente).
+  - 🧮 Cálculos y AI: define cómo se ordenan los "mejores planes" de la Calculadora APTC (mejor protección financiera vs. menor costo), los valores por defecto de las pólizas nuevas (año, renovación, vencimiento) y el % de comisión de Washington National. Nota: la conexión con datos exactos del Marketplace (CMS), los valores FPL del gobierno y la clave de IA son parte del CRM y los administra el proveedor del sistema; no se configuran por agencia.
   - 🔗 Integraciones y Respaldo: Conectar/Desconectar Google Calendar; Respaldo automático a Google Drive (una copia diaria de todos los datos, botón "💾 Respaldar ahora", conserva las últimas 30 — la primera vez hay que reconectar Google para dar el permiso de Drive); y "💾 Descargar Backup" para bajar una copia manual a la computadora.
   - 🔐 Cuenta y Usuarios: Cambiar Contraseña y Usuarios del Sistema (máximo 3; roles: Administrador = acceso completo, Agente = estándar sin Configuración, Asistente = limitado sin comisiones).
 `.trim()
@@ -489,14 +490,12 @@ export async function POST(request: NextRequest) {
   const auth = await getAuth()
   if (auth instanceof NextResponse) return auth
 
-  const apiKeyRow = await prisma.settings.findFirst({
-    where: { agencyId: auth.agencyId, key: 'anthropicApiKey' },
-    select: { value: true },
-  })
-  const apiKey = apiKeyRow?.value
+  // La clave de IA es de PLATAFORMA (la controla el dueño del CRM; las agencias
+  // cliente la heredan). Ver src/lib/platform.ts.
+  const apiKey = await getPlatformSetting('anthropicApiKey')
   if (!apiKey) {
     return NextResponse.json({
-      error: 'El asistente necesita una API Key de Anthropic. Configúrala en Configuración → Claude AI.',
+      error: 'El asistente no está disponible: falta configurar la clave de IA del CRM (la administra el proveedor del sistema).',
     }, { status: 400 })
   }
 

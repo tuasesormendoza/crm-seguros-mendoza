@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
+import { getPlatformSetting } from '@/lib/platform'
 
 export async function POST(request: NextRequest) {
   const auth = await getAuth()
@@ -10,13 +10,12 @@ export async function POST(request: NextRequest) {
 
   if (!pdfText) return NextResponse.json({ error: 'No se recibió texto del PDF' }, { status: 400 })
 
-  // Get API key from DB settings first (por agencia), then env
-  const stored = await prisma.settings.findFirst({ where: { agencyId: auth.agencyId, key: 'anthropicApiKey' } }).catch(() => null)
-  const apiKey = stored?.value || process.env.ANTHROPIC_API_KEY || ''
+  // La clave de IA es de PLATAFORMA (la controla el dueño del CRM). Ver src/lib/platform.ts.
+  const apiKey = await getPlatformSetting('anthropicApiKey')
 
   if (!apiKey) {
     return NextResponse.json({
-      error: 'API Key de Anthropic no configurada. Ve a ⚙️ Configuración → Claude AI para agregarla.'
+      error: 'La generación con IA no está disponible: falta configurar la clave de IA del CRM (la administra el proveedor del sistema).'
     }, { status: 400 })
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
+import { getPlatformSettings } from '@/lib/platform'
 
 // ── FPL applicable percentage table (IRS) ─────────────────────────────────────
 const APPLICABLE_PCT: [number, number, number][] = [
@@ -31,18 +32,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'ZIP code, ingreso y edad son requeridos' }, { status: 400 })
   }
 
-  // Get settings (por agencia)
-  const rows = await prisma.settings.findMany({
-    where: { agencyId: auth.agencyId, key: { in: ['cmsApiKey', 'fpl1Person', 'fplPerPerson', 'fplYear', 'bestPlansRankMode'] } }
-  })
-  const s: Record<string, string> = {}
-  rows.forEach(r => { s[r.key] = r.value })
+  // CMS API Key y valores FPL son de PLATAFORMA (globales, del dueño del CRM).
+  // El modo de orden de "mejores planes" sí es de cada agencia.
+  const [rankRow, platform] = await Promise.all([
+    prisma.settings.findFirst({ where: { agencyId: auth.agencyId, key: 'bestPlansRankMode' }, select: { value: true } }),
+    getPlatformSettings(['cmsApiKey', 'fpl1Person', 'fplPerPerson', 'fplYear']),
+  ])
 
-  const cmsApiKey = s.cmsApiKey || process.env.CMS_API_KEY || ''
-  const fpl1 = Number(s.fpl1Person || 15650)
-  const fplPer = Number(s.fplPerPerson || 5500)
-  const planYear = year || s.fplYear || '2026'
-  const rankMode = s.bestPlansRankMode === 'cheapest' ? 'cheapest' : 'protection'
+  const cmsApiKey = platform.cmsApiKey || ''
+  const fpl1 = Number(platform.fpl1Person || 15650)
+  const fplPer = Number(platform.fplPerPerson || 5500)
+  const planYear = year || platform.fplYear || '2026'
+  const rankMode = rankRow?.value === 'cheapest' ? 'cheapest' : 'protection'
   const size = parseInt(householdSize) || 1
   const annualIncome = parseFloat(income)
   const clientAge = parseInt(age)
