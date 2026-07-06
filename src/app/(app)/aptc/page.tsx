@@ -52,7 +52,7 @@ function DataSourceBadge({ source }: { source: APTCResult['dataSource'] }) {
   return (
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
       style={{ background: '#fef3c7', color: '#92400e' }}>
-      ⚠️ Estimación (promedio nacional) — agrega CMS API Key para datos exactos
+      ⚠️ Estimación (promedio nacional)
     </span>
   )
 }
@@ -77,6 +77,9 @@ function APTCInner() {
   const [fpl1, setFpl1] = useState(15650)
   const [fplPer, setFplPer] = useState(5500)
   const [hasCmsKey, setHasCmsKey] = useState(false)
+  // Solo el DUEÑO del CRM configura el CMS API Key; a las agencias cliente no se
+  // les pide (lo heredan). Sin esto verían avisos para configurar algo que no pueden.
+  const [isOwner, setIsOwner] = useState(false)
 
   // Form
   const [income, setIncome] = useState('')
@@ -100,6 +103,7 @@ function APTCInner() {
       if (s.fpl1Person)   setFpl1(Number(s.fpl1Person))
       if (s.fplPerPerson) setFplPer(Number(s.fplPerPerson))
       setHasCmsKey(!!(s.cmsApiKey && s.cmsApiKey.length > 5))
+      setIsOwner(s.__isOwner === 'true')
     })
     if (clientId) {
       fetch(`/api/clients/${clientId}`).then(r => r.json()).then(c => {
@@ -163,7 +167,7 @@ function APTCInner() {
           </p>
         </div>
         <div className="flex gap-2">
-          {!hasCmsKey && (
+          {!hasCmsKey && isOwner && (
             <Link href="/settings"
               className="text-xs px-3 py-2 rounded-lg font-semibold border"
               style={{ color: '#d97706', borderColor: '#fde68a', background: '#fef9c3' }}>
@@ -187,7 +191,7 @@ function APTCInner() {
             <h2 className="font-bold text-xs uppercase tracking-widest text-gray-400">Datos del solicitante</h2>
 
             <InputField label="ZIP Code *"
-              hint={hasCmsKey ? '✅ Se usará para buscar planes reales en tu área' : '⚠️ Agrega CMS API Key para datos exactos por ZIP'}>
+              hint={hasCmsKey ? '✅ Se usará para buscar planes reales en tu área' : (isOwner ? '⚠️ Agrega CMS API Key para datos exactos por ZIP' : 'Se usará para estimar los planes de tu área')}>
               <input type="text" value={zipcode} onChange={e => setZipcode(e.target.value.replace(/\D/g,'').slice(0,5))}
                 placeholder="32822" maxLength={5} required className={SEL} />
             </InputField>
@@ -261,7 +265,7 @@ function APTCInner() {
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold uppercase tracking-wide text-gray-400">FPL {fplYear}</p>
-              <Link href="/settings" className="text-xs" style={{ color: '#2a6496' }}>Actualizar →</Link>
+              {isOwner && <Link href="/settings" className="text-xs" style={{ color: '#2a6496' }}>Actualizar →</Link>}
             </div>
             <div className="space-y-1">
               {[1,2,3,4,5].map(n => (
@@ -281,9 +285,9 @@ function APTCInner() {
               <div className="text-5xl mb-4">🧮</div>
               <p className="font-medium text-gray-500">Ingresa los datos y calcula</p>
               {hasCmsKey ? (
-                <p className="text-xs text-green-600 mt-2 font-semibold">✅ CMS API configurada — resultados exactos por ZIP</p>
+                <p className="text-xs text-green-600 mt-2 font-semibold">✅ {isOwner ? 'CMS API configurada — resultados exactos por ZIP' : 'Resultados exactos por ZIP'}</p>
               ) : (
-                <p className="text-xs text-amber-600 mt-2">Sin CMS API Key → resultados estimados</p>
+                <p className="text-xs text-amber-600 mt-2">{isOwner ? 'Sin CMS API Key → resultados estimados' : 'Resultados estimados'}</p>
               )}
             </div>
           ) : (
@@ -297,7 +301,7 @@ function APTCInner() {
               {result.cmsError && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
                   ⚠️ {result.cmsError}
-                  {result.cmsError.includes('API Key') && (
+                  {result.cmsError.includes('API Key') && isOwner && (
                     <Link href="/settings" className="ml-2 underline font-semibold">Configurar →</Link>
                   )}
                 </div>
@@ -470,7 +474,9 @@ function APTCInner() {
                   <p className="text-xs text-gray-400 flex-1 min-w-48">
                     {result.dataSource === 'cms_exact'
                       ? `✅ Basado en planes reales del Marketplace en ZIP ${result.zipcode}`
-                      : '⚠️ Estimación con promedios nacionales. Agrega CMS API Key para datos exactos por ZIP.'}
+                      : (isOwner
+                          ? '⚠️ Estimación con promedios nacionales. Agrega CMS API Key para datos exactos por ZIP.'
+                          : '⚠️ Estimación con promedios nacionales.')}
                   </p>
                   <div className="flex gap-2 shrink-0 flex-wrap">
                     {clientId && (

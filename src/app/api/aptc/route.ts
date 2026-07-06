@@ -245,9 +245,9 @@ export async function POST(request: NextRequest) {
         cmsError = `Error de conexión: ${msg.slice(0, 100)}`
       }
     }
-  } else if (!cmsApiKey) {
-    cmsError = 'Agrega tu CMS API Key en ⚙️ Configuración para obtener datos exactos'
   }
+  // Sin CMS API Key el cálculo cae a estimados nacionales; no se muestra ningún
+  // aviso para "agregar la key" porque es de plataforma (solo el dueño la define).
 
   // ── Subsidy calculation ───────────────────────────────────────────────────────
   // Use SLCSP from CMS if available, otherwise fall back to national average estimate
