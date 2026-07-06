@@ -13,6 +13,10 @@
 [functions."google-sync"]
   schedule = "*/3 * * * *"
 
+# Respaldo automático a Google Drive — una vez al día (~08:00 UTC).
+[functions."drive-backup"]
+  schedule = "0 8 * * *"
+
 # Environment variables you must configure in the Netlify dashboard
 # (Site settings → Environment variables) — NEVER commit real values:
 #

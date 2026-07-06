@@ -32,6 +32,7 @@ const PUBLIC_ROUTES = new Set([
   'survey/route.ts',         // encuesta pública de satisfacción (link enviado al cliente)
   'logo/[agencyId]/route.ts', // logo público para emails (solo bytes de imagen)
   'google/sync-cron/route.ts', // cron de sync Google→CRM; protegido por clave derivada del SESSION_SECRET
+  'google/backup-cron/route.ts', // cron de respaldo a Drive; protegido por clave derivada del SESSION_SECRET
 ])
 
 // ── Modelos sin inquilino (no llevan agencyId en el schema) ──────────────────

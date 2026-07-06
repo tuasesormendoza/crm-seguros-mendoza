@@ -21,15 +21,32 @@ const RESULT_MESSAGES: Record<string, { text: string; ok: boolean }> = {
   noconfig:  { text: '⚠️ Falta configurar las credenciales de Google en el servidor.', ok: false },
 }
 
+interface LastBackup {
+  at: string
+  ok: boolean
+  fileName: string | null
+  deleted: number
+  error: string | null
+}
+
+function formatWhen(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleString('es', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 export default function GoogleCalendar() {
   const [status, setStatus] = useState<Status | null>(null)
   const [busy, setBusy] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [result, setResult] = useState<{ text: string; ok: boolean } | null>(null)
+  const [lastBackup, setLastBackup] = useState<LastBackup | null>(null)
+  const [backingUp, setBackingUp] = useState(false)
+  const [backupMsg, setBackupMsg] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/google/status').then(r => r.json()).then(setStatus).catch(() => setStatus({ configured: false, connected: false, email: null }))
+    fetch('/api/google/backup').then(r => r.json()).then(d => setLastBackup(d.last ?? null)).catch(() => {})
     // Leer el resultado del redirect de OAuth y limpiar la URL
     const params = new URLSearchParams(window.location.search)
     const g = params.get('google')
@@ -69,6 +86,24 @@ export default function GoogleCalendar() {
       setSyncMsg('❌ No se pudo sincronizar. Intenta de nuevo.')
     }
     setSyncing(false)
+  }
+
+  async function backupNow() {
+    setBackingUp(true)
+    setBackupMsg(null)
+    try {
+      const res = await fetch('/api/google/backup', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setBackupMsg(`❌ ${data.error || 'No se pudo respaldar'}`)
+      } else {
+        setBackupMsg(`✅ Respaldo creado en Google Drive: ${data.fileName}`)
+        setLastBackup({ at: new Date().toISOString(), ok: true, fileName: data.fileName, deleted: data.deleted ?? 0, error: null })
+      }
+    } catch {
+      setBackupMsg('❌ No se pudo respaldar. Intenta de nuevo.')
+    }
+    setBackingUp(false)
   }
 
   return (
@@ -115,6 +150,31 @@ export default function GoogleCalendar() {
           <p className="text-xs text-gray-400 mt-2">
             Tus citas y eventos del CRM se envían a Google al instante. Los eventos que creas en Google llegan al CRM cada pocos minutos (o al presionar &quot;Sincronizar ahora&quot;).
           </p>
+
+          {/* ── Respaldo automático a Google Drive ─────────────────────────── */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold" style={{ color: '#10253f' }}>💾 Respaldo automático en Drive</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {lastBackup
+                    ? (lastBackup.ok
+                        ? `Último respaldo: ${formatWhen(lastBackup.at)}`
+                        : `⚠️ Último intento falló: ${lastBackup.error || 'error'}`)
+                    : 'Aún no se ha creado ningún respaldo.'}
+                </div>
+              </div>
+              <button onClick={backupNow} disabled={backingUp}
+                className="text-xs px-3 py-2 rounded-lg border font-medium disabled:opacity-50 whitespace-nowrap"
+                style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff' }}>
+                {backingUp ? 'Respaldando...' : '💾 Respaldar ahora'}
+              </button>
+            </div>
+            {backupMsg && <p className="text-xs mt-2" style={{ color: backupMsg.startsWith('✅') ? '#065f46' : '#b91c1c' }}>{backupMsg}</p>}
+            <p className="text-xs text-gray-400 mt-2">
+              Cada día se guarda una copia de todos tus datos (clientes, pólizas, comisiones, campañas, reclamos…) en la carpeta &quot;CRM Seguros - Backups&quot; de tu Google Drive. Se conservan los últimos 30. Los datos sensibles (SSN, banco) se guardan cifrados. Si conectaste Google antes de activar esta función, desconecta y vuelve a conectar para dar el permiso de Drive.
+            </p>
+          </div>
         </div>
       ) : (
         <a href="/api/google/connect"

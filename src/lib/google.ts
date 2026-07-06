@@ -11,11 +11,17 @@
 import { prisma } from '@/lib/prisma'
 import { encrypt, decrypt } from '@/lib/encrypt'
 
-// Permisos solicitados: leer/escribir eventos del calendario + el email de la
-// cuenta conectada (para mostrar "Conectado como ...").
+// Permisos solicitados:
+//  - calendar.events: leer/escribir eventos del calendario (sync de dos vías).
+//  - userinfo.email: email de la cuenta conectada (para mostrar "Conectado como…").
+//  - drive.file: respaldos automáticos en Google Drive. Es el scope MÍNIMO de
+//    Drive: la app solo ve/toca los archivos que ELLA MISMA crea (la carpeta de
+//    respaldos), nunca el resto del Drive del usuario. Además NO es un scope
+//    "sensible", así que no requiere verificación extra de Google.
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/drive.file',
 ]
 
 export function googleConfigured(): boolean {
