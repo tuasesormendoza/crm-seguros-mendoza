@@ -219,36 +219,41 @@ export default function ClientsPage() {
       )}
 
       {/* Filters */}
-      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px 20px', boxShadow: '0 1px 2px rgba(0,0,0,.05)' }}>
-        <div className="flex gap-2.5 flex-wrap">
+      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,.05)' }}>
+        <div className="flex flex-col gap-2.5">
           <input
             type="text"
             placeholder="Buscar por nombre, email, teléfono..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ ...INPUT_STYLE, flex: '1', minWidth: '200px' }}
+            className="w-full"
+            style={INPUT_STYLE}
           />
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={INPUT_STYLE}>
-            <option value="">Todos los estatus</option>
-            {['Activo','Cancelado','Con otro agente','Pendiente de Pago','Renovado','En Proceso'].map(s => <option key={s}>{s}</option>)}
-          </select>
-          <select value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} style={INPUT_STYLE}>
-            <option value="">Todas las aseguradoras</option>
-            {['Blue Cross Blue Shield','UnitedHealthcare','Oscar','Ambetter','Cigna','Aetna','CareSource','AmeriHealth','Molina','Anthem','Kaiser','Alliant','AvMed','Health Spring','Health First'].map(s => <option key={s}>{s}</option>)}
-          </select>
-          <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} style={INPUT_STYLE}>
-            <option value="">Todos los estados</option>
-            {availableStates.map(s => <option key={s}>{s}</option>)}
-          </select>
-          <select value={wnFilter} onChange={e => setWnFilter(e.target.value)} style={INPUT_STYLE}>
-            <option value="">WN: Todos</option>
-            <option value="con">Con Washington National</option>
-            <option value="sin">Sin Washington National</option>
-          </select>
-          <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={INPUT_STYLE}>
-            <option value="">Todas las etiquetas</option>
-            {PREDEFINED_TAGS.map(t => <option key={t}>{t}</option>)}
-          </select>
+          {/* En móvil: 2 columnas parejas (la última fila a ancho completo).
+              En escritorio: los 5 filtros en una sola fila. */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
+              <option value="">Todos los estatus</option>
+              {['Activo','Cancelado','Con otro agente','Pendiente de Pago','Renovado','En Proceso'].map(s => <option key={s}>{s}</option>)}
+            </select>
+            <select value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
+              <option value="">Todas las aseguradoras</option>
+              {['Blue Cross Blue Shield','UnitedHealthcare','Oscar','Ambetter','Cigna','Aetna','CareSource','AmeriHealth','Molina','Anthem','Kaiser','Alliant','AvMed','Health Spring','Health First'].map(s => <option key={s}>{s}</option>)}
+            </select>
+            <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
+              <option value="">Todos los estados</option>
+              {availableStates.map(s => <option key={s}>{s}</option>)}
+            </select>
+            <select value={wnFilter} onChange={e => setWnFilter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
+              <option value="">WN: Todos</option>
+              <option value="con">Con Washington National</option>
+              <option value="sin">Sin Washington National</option>
+            </select>
+            <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className="w-full min-w-0 col-span-2 md:col-span-1" style={INPUT_STYLE}>
+              <option value="">Todas las etiquetas</option>
+              {PREDEFINED_TAGS.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
