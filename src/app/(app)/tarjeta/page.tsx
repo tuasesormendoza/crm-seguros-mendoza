@@ -9,10 +9,25 @@ import { normalizeInsurer } from '@/lib/normalizeInsurer'
 
 interface CardData {
   co: string; pname: string; cat: string; net: string; ref: string
-  date: string; cost: string
+  date: string; endDate: string; cost: string
   ded: string; oop: string; hosp: string
   pcp: string; spec: string; uc: string
   xray: string; ct: string; lab: string; rx: string
+}
+
+// Marca de la agencia para la tarjeta (white-label): logo/nombre, web y colores.
+// Se llenan desde la Configuración de cada agencia.
+interface Brand {
+  name: string
+  logoSrc: string   // data URL del logo (vacío si la agencia no tiene logo)
+  website: string
+  headerColor: string
+  accentColor: string
+}
+
+const DEFAULT_BRAND: Brand = {
+  name: 'Tu Asesor de Seguros', logoSrc: '', website: '',
+  headerColor: '#0D2A4A', accentColor: '#F0C040',
 }
 
 // ── Language strings ─────────────────────────────────────────────────────────
@@ -49,18 +64,25 @@ function esc(s?: string | null) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
 }
 
-function fmtDate(s: string) {
-  if (!s) return ''
-  const d = new Date(s + 'T12:00:00')
-  return d.toLocaleDateString('es-US', { month:'long', day:'numeric', year:'numeric' })
+// Formato de fecha MM/DD/YY (a partir de un ISO YYYY-MM-DD).
+function fmtMDY(iso: string) {
+  if (!iso || iso.length < 10) return ''
+  const [y, m, day] = iso.split('-')
+  return `${m}/${day}/${y.slice(2)}`
 }
 
-function buildCardHTML(d: CardData, lang: 'es'|'en', scale=1): string {
+function buildCardHTML(d: CardData, lang: 'es'|'en', brand: Brand, scale=1): string {
   const S = (n: number) => `${n * scale}px`
   const L = T[lang]
   const catBg: Record<string,string> = { Bronze:'#CD7F32', Silver:'#64748B', Gold:'#D97706', Platinum:'#4F46E5', Catastrophic:'#DC2626' }
   const badge = catBg[d.cat] || '#10253f'
   const W = 900 * scale
+  const header = brand.headerColor || '#0D2A4A'
+  const accent = brand.accentColor || '#F0C040'
+  // Vigencia: "Desde MM/DD/YY Hasta MM/DD/YY" (el fin ya no está fijo a 2026).
+  const vig = d.date
+    ? `${L.from} ${fmtMDY(d.date)}${d.endDate ? ` ${L.to} ${fmtMDY(d.endDate)}` : ''}`
+    : ''
 
   const row = (lbl: string, val: string) => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:${S(5)} 0;border-bottom:1px solid #EEF2F7;font-family:Poppins,sans-serif;">
@@ -75,24 +97,27 @@ function buildCardHTML(d: CardData, lang: 'es'|'en', scale=1): string {
       <span style="flex:1;height:1px;background:#E2E8F0;display:inline-block;"></span>
     </div>`
 
+  // Encabezado: logo de la agencia si existe; si no, su nombre.
+  const brandTop = brand.logoSrc
+    ? `<img src="${brand.logoSrc}" alt="logo" style="max-height:${S(48)};max-width:${S(240)};object-fit:contain;display:block;" />`
+    : `<div style="font-family:Poppins,sans-serif;font-size:${S(22)};font-weight:800;letter-spacing:${S(-0.5)};color:#ffffff;">${esc(brand.name)}</div>
+       <div style="color:${accent};font-size:${S(10)};font-weight:600;letter-spacing:${S(1.5)};text-transform:uppercase;font-family:Poppins,sans-serif;margin-top:${S(2)};">${L.advisor}</div>`
+
   return `
 <div style="width:${W}px;font-family:Poppins,sans-serif;background:#ffffff;border-radius:${S(14)};overflow:hidden;box-shadow:0 8px 40px rgba(13,42,74,.22);">
-  <div style="background:#0D2A4A;padding:${S(20)} ${S(30)} ${S(22)};font-family:Poppins,sans-serif;">
+  <div style="background:${header};padding:${S(20)} ${S(30)} ${S(22)};font-family:Poppins,sans-serif;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${S(14)};padding-bottom:${S(12)};border-bottom:1px solid rgba(168,192,214,.2);">
-      <div style="line-height:1.2;">
-        <div style="font-family:Poppins,sans-serif;font-size:${S(22)};font-weight:800;letter-spacing:${S(-0.5)};color:#ffffff;">Omar Mendoza</div>
-        <div style="color:#F0C040;font-size:${S(10)};font-weight:600;letter-spacing:${S(1.5)};text-transform:uppercase;font-family:Poppins,sans-serif;">${L.advisor}</div>
-      </div>
+      <div style="line-height:1.2;">${brandTop}</div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:${S(5)};">
         ${d.cat ? `<span style="background:${badge};color:#fff;font-size:${S(10)};font-weight:800;padding:${S(3)} ${S(11)};border-radius:999px;letter-spacing:${S(1)};text-transform:uppercase;font-family:Poppins,sans-serif;">${esc(d.cat)} ${L.plan}</span>` : ''}
         ${d.net  ? `<span style="background:rgba(255,255,255,.1);color:#A8C0D6;font-size:${S(10)};font-weight:600;padding:${S(2)} ${S(9)};border-radius:999px;font-family:Poppins,sans-serif;">${esc(d.net)}</span>` : ''}
-        ${d.date ? `<div style="color:#A8C0D6;font-size:${S(10)};font-family:Poppins,sans-serif;">${L.coverage}: <strong style="color:#fff;">${L.from} ${fmtDate(d.date)} ${L.to} 12/31/2026</strong></div>` : ''}
+        ${vig ? `<div style="color:#A8C0D6;font-size:${S(10)};font-family:Poppins,sans-serif;">${L.coverage}: <strong style="color:#fff;">${vig}</strong></div>` : ''}
       </div>
     </div>
     <div>
       <div style="color:#ffffff;font-size:${S(28)};font-weight:800;line-height:1.05;letter-spacing:${S(-0.8)};font-family:Poppins,sans-serif;">${esc(d.co)}</div>
-      <div style="color:#F0C040;font-size:${S(13)};font-weight:500;margin-top:${S(3)};font-family:Poppins,sans-serif;">${esc(d.pname)}</div>
-      ${d.cost && d.cost !== 'N/D' ? `<div style="color:#F0C040;font-size:${S(19)};font-weight:800;margin-top:${S(5)};font-family:Poppins,sans-serif;">${esc(d.cost)} <span style="font-size:${S(11)};font-weight:400;color:rgba(240,192,64,.7);">${L.perMonth}</span></div>` : ''}
+      <div style="color:${accent};font-size:${S(13)};font-weight:500;margin-top:${S(3)};font-family:Poppins,sans-serif;">${esc(d.pname)}</div>
+      ${d.cost && d.cost !== 'N/D' ? `<div style="color:${accent};font-size:${S(19)};font-weight:800;margin-top:${S(5)};font-family:Poppins,sans-serif;">${esc(d.cost)} <span style="font-size:${S(11)};font-weight:400;opacity:.7;">${L.perMonth}</span></div>` : ''}
     </div>
   </div>
 
@@ -113,10 +138,10 @@ function buildCardHTML(d: CardData, lang: 'es'|'en', scale=1): string {
   <div style="background:#F0F4F8;padding:${S(7)} ${S(30)};text-align:center;font-family:Poppins,sans-serif;border-top:1px solid #E2E8F0;">
     <span style="color:#4A6080;font-size:${S(9)};font-style:italic;">${L.disclaimer}</span>
   </div>
-  <div style="background:#0D2A4A;padding:${S(10)} ${S(30)};display:flex;justify-content:center;align-items:center;gap:${S(6)};font-family:Poppins,sans-serif;">
+  ${brand.website ? `<div style="background:${header};padding:${S(10)} ${S(30)};display:flex;justify-content:center;align-items:center;gap:${S(6)};font-family:Poppins,sans-serif;">
     <span style="color:#A8C0D6;font-size:${S(11)};">${L.footerText}</span>
-    <span style="color:#F0C040;font-size:${S(12)};font-weight:700;">www.tuasesormendoza.com</span>
-  </div>
+    <span style="color:${accent};font-size:${S(12)};font-weight:700;">${esc(brand.website)}</span>
+  </div>` : ''}
 </div>`
 }
 
@@ -250,7 +275,7 @@ function TarjetaInner() {
   const previewRef = useRef<HTMLDivElement>(null)
 
   const [form, setForm] = useState<CardData>({
-    co: '', pname: '', cat: '', net: '', ref: '', date: '', cost: '',
+    co: '', pname: '', cat: '', net: '', ref: '', date: '', endDate: '', cost: '',
     ded: 'N/D', oop: 'N/D', hosp: 'N/D',
     pcp: 'N/D', spec: 'N/D', uc: 'N/D',
     xray: 'N/D', ct: 'N/D', lab: 'N/D', rx: 'N/D',
@@ -258,6 +283,49 @@ function TarjetaInner() {
 
   const setF = useCallback((key: keyof CardData) => (v: string) =>
     setForm(f => ({ ...f, [key]: v })), [])
+
+  // Marca de la agencia para la tarjeta (logo, nombre, web, colores) — white-label.
+  const [brand, setBrand] = useState<Brand>(DEFAULT_BRAND)
+  // Teléfono del cliente (si venimos desde su ficha) para enviar por WhatsApp.
+  const [clientPhone, setClientPhone] = useState('')
+
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(async (s) => {
+      // Si la agencia tiene logo, lo traemos como data URL (fiable para html2canvas).
+      let logoSrc = ''
+      if (s.agencyId) {
+        try {
+          const lr = await fetch(`/api/logo/${s.agencyId}`)
+          if (lr.ok) {
+            const blob = await lr.blob()
+            logoSrc = await new Promise<string>(res => {
+              const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(blob)
+            })
+          }
+        } catch { /* sin logo → se usa el nombre */ }
+      }
+      setBrand({
+        name: s.agentName || 'Tu Asesor de Seguros',
+        logoSrc,
+        website: s.cardWebsite || '',
+        headerColor: s.cardHeaderColor || '#0D2A4A',
+        accentColor: s.cardAccentColor || '#F0C040',
+      })
+    }).catch(() => {})
+  }, [])
+
+  // Trae el teléfono del cliente para el botón de WhatsApp (si aplica).
+  useEffect(() => {
+    if (!clientId) return
+    fetch(`/api/clients/${clientId}`).then(r => r.json()).then(c => {
+      if (c?.phone) setClientPhone(String(c.phone))
+    }).catch(() => {})
+  }, [clientId])
+
+  // Vigencia: al fijar la fecha de inicio, sugiere el fin al 31/dic de ese año
+  // (solo si el usuario no ha puesto una fecha de fin propia).
+  const setStartDate = useCallback((v: string) =>
+    setForm(f => ({ ...f, date: v, endDate: f.endDate || (v ? `${v.slice(0, 4)}-12-31` : '') })), [])
 
   // ── Read PDF text client-side ──────────────────────────────────────────────
   async function readPDF(file: File): Promise<string> {
@@ -342,7 +410,7 @@ function TarjetaInner() {
   // ── Render card into DOM (called from useEffect, after DOM update) ───────────
   const renderCard = useCallback(() => {
     if (!previewRef.current) return
-    previewRef.current.innerHTML = buildCardHTML(form, lang, 1)
+    previewRef.current.innerHTML = buildCardHTML(form, lang, brand, 1)
     requestAnimationFrame(() => {
       if (!previewRef.current) return
       const wrap = previewRef.current.parentElement
@@ -355,7 +423,7 @@ function TarjetaInner() {
       const h = previewRef.current.offsetHeight * sc
       wrap.style.height = h + 'px'
     })
-  }, [form, lang])
+  }, [form, lang, brand])
 
   // Fire renderCard AFTER React updates the DOM (step 3 div is now mounted)
   useEffect(() => {
@@ -388,7 +456,7 @@ function TarjetaInner() {
 
     const tmp = document.createElement('div')
     tmp.style.cssText = 'position:absolute;top:-99999px;left:0;z-index:-1;background:#fff;'
-    tmp.innerHTML = buildCardHTML(form, lang, 2)
+    tmp.innerHTML = buildCardHTML(form, lang, brand, 2)
     document.body.appendChild(tmp)
 
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r as FrameRequestCallback)))
@@ -416,6 +484,43 @@ function TarjetaInner() {
       a.click()
       URL.revokeObjectURL(a.href)
     } catch (e) { setError((e as Error).message) }
+    setSaving(false)
+  }
+
+  // Enviar la tarjeta al cliente por WhatsApp. En móvil (iPhone) usa la hoja de
+  // compartir del sistema para adjuntar la imagen directo al chat; en escritorio
+  // descarga el PNG y abre WhatsApp con el mensaje (la imagen se adjunta a mano).
+  async function sendWhatsApp() {
+    setSaving(true)
+    setError('')
+    try {
+      const blob = await downloadPNG()
+      if (!blob) throw new Error('No se pudo generar la imagen')
+      const fileName = `tarjeta-${form.co || 'plan'}.png`.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-.]/g, '').toLowerCase()
+      const file = new File([blob], fileName, { type: 'image/png' })
+      const saludo = clientName ? `Hola ${clientName}, ` : 'Hola, '
+      const msg = `${saludo}aquí está el resumen de tu plan ${form.pname || ''}${form.co ? ` con ${form.co}` : ''}. — ${brand.name}`
+
+      const navShare = navigator as Navigator & { canShare?: (d?: unknown) => boolean }
+      if (navShare.canShare && navShare.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: msg })
+      } else {
+        // Escritorio: descargar la imagen + abrir WhatsApp con el mensaje.
+        const a = document.createElement('a')
+        a.download = fileName; a.href = URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href)
+        const digits = clientPhone.replace(/\D/g, '')
+        const phone = digits.length === 10 ? '1' + digits : digits
+        const wa = phone.length >= 10
+          ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+          : `https://wa.me/?text=${encodeURIComponent(msg)}`
+        window.open(wa, '_blank')
+        setSavedMsg('📱 Descargamos la tarjeta y abrimos WhatsApp — adjunta la imagen en el chat para enviarla.')
+        setTimeout(() => setSavedMsg(''), 10000)
+      }
+    } catch (e) {
+      // Cancelar la hoja de compartir lanza AbortError; eso no es un error real.
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+    }
     setSaving(false)
   }
 
@@ -471,7 +576,7 @@ function TarjetaInner() {
   }
 
   function printCard() {
-    const cardHTML = buildCardHTML(form, lang, 1)
+    const cardHTML = buildCardHTML(form, lang, brand, 1)
     const win = window.open('', '_blank')
     if (!win) return
     win.document.write(`<!DOCTYPE html><html><head>
@@ -575,7 +680,8 @@ function TarjetaInner() {
             <SelectF label="Categoría" id="cat" value={form.cat} onChange={setF('cat')} options={['Bronze','Silver','Gold','Platinum','Catastrophic']} />
             <SelectF label="Red de Proveedores" id="net" value={form.net} onChange={setF('net')} options={['HMO','PPO','EPO','POS','HDHP']} />
             <SelectF label="Necesita Referido" id="ref" value={form.ref} onChange={setF('ref')} options={['Si','No']} />
-            <DateFieldMasked label="Fecha de inicio ★" value={form.date} onChange={setF('date')} required />
+            <DateFieldMasked label="Vigencia — Desde ★" value={form.date} onChange={setStartDate} required />
+            <DateFieldMasked label="Vigencia — Hasta" value={form.endDate} onChange={setF('endDate')} />
 
             {/* Costs */}
             <div className="md:col-span-2 text-xs font-bold uppercase tracking-widest text-gray-400 pt-2 border-t border-gray-100">Costos Financieros</div>
@@ -606,7 +712,7 @@ function TarjetaInner() {
           </div>
 
           <div className="flex gap-3 justify-end mt-6">
-            <button onClick={() => { setStep(1); setForm({ co:'',pname:'',cat:'',net:'',ref:'',date:'',cost:'',ded:'N/D',oop:'N/D',hosp:'N/D',pcp:'N/D',spec:'N/D',uc:'N/D',xray:'N/D',ct:'N/D',lab:'N/D',rx:'N/D' }); setFilledFields(new Set()) }}
+            <button onClick={() => { setStep(1); setForm({ co:'',pname:'',cat:'',net:'',ref:'',date:'',endDate:'',cost:'',ded:'N/D',oop:'N/D',hosp:'N/D',pcp:'N/D',spec:'N/D',uc:'N/D',xray:'N/D',ct:'N/D',lab:'N/D',rx:'N/D' }); setFilledFields(new Set()) }}
               className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50">
               ← Subir otro PDF
             </button>
@@ -623,7 +729,7 @@ function TarjetaInner() {
       {step === 3 && (
         <div className={SECTION}>
           <h2 className="text-lg font-bold mb-1" style={{ color: '#10253f' }}>Tarjeta del Plan Lista ✓</h2>
-          <p className="text-sm text-gray-500 mb-4">Descarga en PNG para enviar por WhatsApp / email, o imprímela.</p>
+          <p className="text-sm text-gray-500 mb-4">Envíala al cliente por WhatsApp, descárgala en PNG o imprímela.</p>
 
           {/* Actions bar */}
           <div className="flex items-center gap-2 mb-5 flex-wrap">
@@ -638,6 +744,11 @@ function TarjetaInner() {
               className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
               style={{ background: '#f0c040', color: '#0D2A4A' }}>
               {saving ? 'Generando...' : '⬇️ Descargar PNG'}
+            </button>
+            <button onClick={sendWhatsApp} disabled={saving}
+              className="px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50"
+              style={{ background: '#25d366' }}>
+              {saving ? 'Preparando...' : '📱 Enviar por WhatsApp'}
             </button>
 
             {/* Save to client */}

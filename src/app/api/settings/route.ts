@@ -39,6 +39,10 @@ const DEFAULTS: Record<string, string> = {
   defaultRenewalDate:     '11/15',
   defaultExpirationDate:  '12/31',
   wnCommissionPct:        '25',
+  // Marca de la Tarjeta de Plan (white-label por agencia)
+  cardWebsite:            '',
+  cardHeaderColor:        '#0D2A4A',
+  cardAccentColor:        '#F0C040',
   emailEnabled:           'false',
   emailFrom:              '',
   emailTo:                '',

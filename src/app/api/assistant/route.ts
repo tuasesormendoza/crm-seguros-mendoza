@@ -57,7 +57,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 
 • Reportes: métricas del negocio y exportaciones.
 
-• Tarjeta Plan: genera una tarjeta-resumen del plan a partir del brochure PDF usando IA (requiere la API Key en Configuración → Cálculos y AI → Claude AI).
+• Tarjeta Plan: genera una tarjeta-resumen del plan a partir del brochure PDF usando IA. Pasos: subir el PDF → verificar los datos (incluye "Vigencia — Desde/Hasta", que sale en formato MM/DD/YY) → generar. En el último paso puedes "📱 Enviar por WhatsApp" directo al cliente (en el teléfono adjunta la imagen sola; en computadora la descarga y abre WhatsApp), "Descargar PNG", "Imprimir", cambiar idioma ES/EN y, si vienes desde la ficha de un cliente, "Guardar tarjeta + datos en el perfil". La tarjeta muestra el LOGO de la agencia (o su nombre si no hay logo) y su web/colores — todo se configura en Configuración → Marca → Tarjeta de Plan.
 
 • Calc. APTC: calcula el crédito fiscal según ingreso anual y tamaño de familia (los valores FPL se actualizan cada enero en Configuración → Cálculos y AI).
 
@@ -66,7 +66,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 • Auditoría (solo admin): registro de quién creó/modificó/eliminó qué.
 
 • Configuración (solo admin): organizada en pestañas. Al explicar cómo cambiar algo, di primero qué pestaña abrir:
-  - 🎨 Marca: Logo de la Agencia (arrastrar PNG) y Colores del Sistema.
+  - 🎨 Marca: Logo de la Agencia (arrastrar PNG), Colores del Sistema y Tarjeta de Plan (página web del pie y colores de encabezado/acento de la tarjeta).
   - 👤 Perfil y Metas: Perfil del Agente (teléfonos, WhatsApp, NPN, dirección, licencias por estado, teléfonos de Georgia Access y Mercado de Salud, link de consentimientos HealthSherpa) y Objetivos de Producción.
   - 💬 Mensajería: Mensaje de Cumpleaños, Google Review (link y mensajes) y Notificaciones por Email (Gmail con contraseña de aplicación: myaccount.google.com → Seguridad → Contraseñas de aplicaciones).
   - 🧮 Cálculos y AI: define cómo se ordenan los "mejores planes" de la Calculadora APTC (mejor protección financiera vs. menor costo), los valores por defecto de las pólizas nuevas (año, renovación, vencimiento) y el % de comisión de Washington National. Nota: la conexión con datos exactos del Marketplace (CMS), los valores FPL del gobierno y la clave de IA son parte del CRM y los administra el proveedor del sistema; no se configuran por agencia.

@@ -48,6 +48,8 @@ export default function SettingsPage() {
   const [savedReview, setSavedReview] = useState(false)
   const [savingPolicy, setSavingPolicy] = useState(false)
   const [savedPolicy, setSavedPolicy] = useState(false)
+  const [savingCard, setSavingCard] = useState(false)
+  const [savedCard, setSavedCard] = useState(false)
 
   // Email section
   const [savingEmail, setSavingEmail] = useState(false)
@@ -239,6 +241,42 @@ export default function SettingsPage() {
 
       {/* ── Colores del Sistema ───────────────────────────────── */}
       <ColorSettings settings={settings} set={set} onSave={(overrides) => saveSection(['themeBrand800','themeBrand500','themeBrand300','themeAccent'], () => {}, () => {}, overrides)} />
+
+      {/* ── Tarjeta de Plan (white-label) ─────────────────────── */}
+      <div className={SECTION}>
+        <h2 className={TITLE} style={{ color: '#10253f' }}>🪪 Tarjeta de Plan</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Personaliza la tarjeta que generas para tus clientes. El logo se toma del &quot;Logo de la Agencia&quot; de arriba (si no hay logo, aparece tu nombre).
+        </p>
+        <form onSubmit={e => { e.preventDefault(); saveSection(['cardWebsite','cardHeaderColor','cardAccentColor'], setSavingCard, setSavedCard) }} className="space-y-4">
+          <div>
+            <label className={LABEL}>Página web (pie de la tarjeta)</label>
+            <input className={INPUT} value={settings.cardWebsite ?? ''} onChange={e => set('cardWebsite', e.target.value)} placeholder="www.tuagencia.com" />
+            <p className="text-xs text-gray-400 mt-1">Aparece abajo: &quot;Para agendar una cita con tu médico visita ...&quot;. Déjalo vacío para ocultarlo.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL}>Color del encabezado</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={settings.cardHeaderColor || '#0D2A4A'} onChange={e => set('cardHeaderColor', e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer bg-white p-0.5" />
+                <input className={INPUT + ' flex-1'} value={settings.cardHeaderColor ?? '#0D2A4A'} onChange={e => set('cardHeaderColor', e.target.value)} placeholder="#0D2A4A" />
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>Color de acento</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={settings.cardAccentColor || '#F0C040'} onChange={e => set('cardAccentColor', e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer bg-white p-0.5" />
+                <input className={INPUT + ' flex-1'} value={settings.cardAccentColor ?? '#F0C040'} onChange={e => set('cardAccentColor', e.target.value)} placeholder="#F0C040" />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <SaveBtn saving={savingCard} saved={savedCard} />
+          </div>
+        </form>
+      </div>
 
       </>)}
 
