@@ -65,6 +65,7 @@ model Client {
   acaPrice             Float?    @default(0)
   aptcAmount           Float?
   wnPolicies           String?
+  wnPaymentDay         String?   // día/fecha de cobro de las mensualidades WN (ej. "5" o "15 de cada mes")
   // Washington National (WN) commission tracking — WN's contract date often
   // differs from the ACA contractDate (the WN ancillary policy may be added
   // later). cancellationDate lets us compute "months active" precisely for
@@ -184,11 +185,15 @@ model Dependent {
   @@index([agencyId])
 }
 
+// Cita MÉDICA del cliente: el agente le agenda (o registra) la cita con su
+// médico primario o especialista y puede enviarle la confirmación por WhatsApp.
 model Appointment {
   id            String   @id @default(cuid())
   agencyId      String?
   clientId      String
   date          DateTime
+  doctorName    String?  // nombre del médico (primario o especialista)
+  location      String?  // dirección / consultorio del médico
   notes         String?
   status        String   @default("Programada")
   googleEventId String?  // id del evento espejo en Google Calendar (sync)
@@ -196,6 +201,24 @@ model Appointment {
   client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([agencyId])
+}
+
+// Agenda telefónica del agente: contactos sueltos (proveedores, médicos,
+// referidos, personal) que no son necesariamente clientes del CRM.
+model Contact {
+  id        String   @id @default(cuid())
+  agencyId  String?
+  name      String
+  phone     String?
+  email     String?
+  company   String?
+  category  String?  // Médico, Proveedor, Aseguradora, Referido, Personal, Otro
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([agencyId, name])
 }
 
 model Activity {

@@ -6,10 +6,12 @@ import { useState } from 'react'
 
 export default function AppointmentModal({ onClose, onSave }: {
   onClose: () => void
-  onSave: (data: { date: string; notes: string; status: string }) => Promise<void>
+  onSave: (data: { date: string; doctorName: string; location: string; notes: string; status: string }) => Promise<void>
 }) {
   const [date, setDate] = useState('')
   const [time, setTime] = useState('09:00')
+  const [doctorName, setDoctorName] = useState('')
+  const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('Programada')
   const [saving, setSaving] = useState(false)
@@ -18,13 +20,13 @@ export default function AppointmentModal({ onClose, onSave }: {
     e.preventDefault()
     if (!date) return
     setSaving(true)
-    try { await onSave({ date: `${date}T${time}:00`, notes, status }) } finally { setSaving(false) }
+    try { await onSave({ date: `${date}T${time}:00`, doctorName, location, notes, status }) } finally { setSaving(false) }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold mb-4" style={{ color: '#10253f' }}>Agendar Cita</h3>
+        <h3 className="text-lg font-bold mb-4" style={{ color: '#10253f' }}>🩺 Cita Médica</h3>
         <form onSubmit={handle} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -39,9 +41,21 @@ export default function AppointmentModal({ onClose, onSave }: {
             </div>
           </div>
           <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Nombre del médico</label>
+            <input type="text" value={doctorName} onChange={e => setDoctorName(e.target.value)}
+              placeholder="Dr. Juan Pérez — Médico Primario / Especialista"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88]" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Dirección del consultorio</label>
+            <input type="text" value={location} onChange={e => setLocation(e.target.value)}
+              placeholder="123 Main St, Suite 100, Orlando, FL"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88]" />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Motivo / Notas</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-              placeholder="Revisión de póliza, cotización, etc."
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              placeholder="Chequeo anual, seguimiento, etc."
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88]" />
           </div>
           <div>

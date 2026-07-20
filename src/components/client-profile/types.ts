@@ -19,6 +19,8 @@ export interface WnPolicy { type: string; monthly: string | number }
 export interface Appointment {
   id: string
   date: string
+  doctorName?: string | null
+  location?: string | null
   notes?: string | null
   status: string
 }

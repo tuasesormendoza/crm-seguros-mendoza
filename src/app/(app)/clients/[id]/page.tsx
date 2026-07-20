@@ -94,7 +94,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     setTimeout(() => setSaveSuccess(false), 4000)
   }
 
-  const handleAddAppointment = async (data: { date: string; notes: string; status: string }) => {
+  const handleAddAppointment = async (data: { date: string; doctorName: string; location: string; notes: string; status: string }) => {
     await fetch(`/api/clients/${clientId}/appointments`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
     })
@@ -731,10 +731,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
         {/* Right */}
         <div className="space-y-4">
-          {/* Citas */}
+          {/* Citas Médicas */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>Citas</h2>
+              <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>🩺 Citas Médicas</h2>
               <button onClick={() => setShowApptModal(true)}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
                 style={{ background: '#305a72' }}>
@@ -742,17 +742,27 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               </button>
             </div>
             {client.appointments.length === 0 ? (
-              <p className="text-sm text-gray-400">Sin citas agendadas</p>
+              <p className="text-sm text-gray-400">Sin citas médicas agendadas</p>
             ) : (
               <div className="space-y-2">
                 {client.appointments.map(a => {
                   const aStyle = APPT_STATUS_COLORS[a.status] || { bg: '#f3f4f6', text: '#374151' }
+                  // Mensaje de confirmación de cita médica por WhatsApp al cliente.
+                  const digits = (client.phone || '').replace(/\D/g, '')
+                  const waPhone = digits.length === 10 ? '1' + digits : digits
+                  const waMsg = `Hola ${client.fullName}, te confirmo tu cita médica:%0A📅 ${formatDateTime(a.date)}` +
+                    (a.doctorName ? `%0A🩺 ${a.doctorName}` : '') +
+                    (a.location ? `%0A📍 ${a.location}` : '') +
+                    (a.notes ? `%0A📝 ${a.notes}` : '')
+                  const waUrl = `https://wa.me/${waPhone}?text=${waMsg}`
                   return (
                     <div key={a.id} className="p-3 rounded-lg border border-gray-100 bg-gray-50">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-gray-900">{formatDateTime(a.date)}</div>
-                          {a.notes && <div className="text-xs text-gray-500 mt-0.5 truncate">{a.notes}</div>}
+                          {a.doctorName && <div className="text-xs text-gray-700 mt-0.5">🩺 {a.doctorName}</div>}
+                          {a.location && <div className="text-xs text-gray-500 mt-0.5">📍 {a.location}</div>}
+                          {a.notes && <div className="text-xs text-gray-500 mt-0.5">📝 {a.notes}</div>}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: aStyle.bg, color: aStyle.text }}>
@@ -761,7 +771,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                           <button onClick={() => handleDeleteAppointment(a.id)} className="text-gray-300 hover:text-red-400 text-xs px-1">✕</button>
                         </div>
                       </div>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {waPhone.length >= 11 && (
+                          <a href={waUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-xs font-semibold px-2.5 py-1 rounded-lg text-white inline-flex items-center gap-1"
+                            style={{ background: '#25d366' }}>
+                            💬 Confirmar por WhatsApp
+                          </a>
+                        )}
                         {['Completada', 'Cancelada', 'Reagendada'].filter(s => s !== a.status).map(s => (
                           <button key={s} onClick={() => handleUpdateApptStatus(a.id, s)}
                             className="text-xs text-gray-500 hover:text-gray-800 underline">
