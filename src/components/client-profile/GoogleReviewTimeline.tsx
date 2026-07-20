@@ -29,7 +29,10 @@ const REVIEW_STEPS = [
   },
 ]
 
-export default function GoogleReviewTimeline({ current }: { current?: string | null }) {
+export default function GoogleReviewTimeline({ current, onSelect }: {
+  current?: string | null
+  onSelect?: (key: string) => void
+}) {
   const currentIdx = REVIEW_STEPS.findIndex(s => s.key === current)
   const activeIdx = currentIdx === -1 ? 0 : currentIdx
 
@@ -53,9 +56,13 @@ export default function GoogleReviewTimeline({ current }: { current?: string | n
                   {i > 0 && (
                     <div className="flex-1 h-0.5 mt-0" style={{ background: isDone || isActive ? '#305a72' : '#e5e7eb' }} />
                   )}
-                  {/* Circle */}
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 border-2 transition-all"
+                  {/* Circle — tocable si se pasa onSelect */}
+                  <button
+                    type="button"
+                    onClick={onSelect ? () => onSelect(step.key) : undefined}
+                    disabled={!onSelect}
+                    title={onSelect ? `Marcar: ${step.key}` : undefined}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 border-2 transition-all ${onSelect ? 'cursor-pointer hover:scale-110' : ''}`}
                     style={{
                       background: isDone ? '#305a72' : isActive ? '#10253f' : '#f9fafb',
                       borderColor: isDone || isActive ? '#10253f' : '#d1d5db',
@@ -63,7 +70,7 @@ export default function GoogleReviewTimeline({ current }: { current?: string | n
                     }}
                   >
                     {isDone ? '✓' : step.icon}
-                  </div>
+                  </button>
                   {/* Right connector */}
                   {!isLast && (
                     <div className="flex-1 h-0.5" style={{ background: isDone ? '#305a72' : '#e5e7eb' }} />

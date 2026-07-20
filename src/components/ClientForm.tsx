@@ -297,7 +297,7 @@ const DynamicList = memo(function DynamicList({
   )
 })
 
-interface WnPolicy { type: string; monthly: string }
+interface WnPolicy { type: string; monthly: string; policyNumber: string }
 
 const WnPolicyRow = memo(function WnPolicyRow({
   policy, index, onChange, onRemove, showRemove,
@@ -307,16 +307,31 @@ const WnPolicyRow = memo(function WnPolicyRow({
   onRemove: (i: number) => void; showRemove: boolean
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 bg-gray-50 rounded-lg border border-gray-200">
-      <div className="md:col-span-2">
-        <label className={LABEL_CLASS}>Tipo de Póliza WN</label>
-        <select value={policy.type} onChange={e => onChange(index, 'type', e.target.value)} className={INPUT_CLASS}>
-          <option value="">Seleccionar...</option>
-          {WN_POLICY_TYPES.map(o => <option key={o}>{o}</option>)}
-        </select>
-      </div>
-      <div className="flex gap-2 items-end">
+    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+      <div className="flex items-end gap-2">
         <div className="flex-1">
+          <label className={LABEL_CLASS}>Tipo de Póliza WN</label>
+          <select value={policy.type} onChange={e => onChange(index, 'type', e.target.value)} className={INPUT_CLASS}>
+            <option value="">Seleccionar...</option>
+            {WN_POLICY_TYPES.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
+        {showRemove && (
+          <button type="button" onClick={() => onRemove(index)} className="mb-0.5 text-red-400 hover:text-red-600 px-2 py-2 text-sm">✕</button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className={LABEL_CLASS}>Número de Póliza</label>
+          <input
+            type="text"
+            value={policy.policyNumber}
+            onChange={e => onChange(index, 'policyNumber', e.target.value)}
+            placeholder="Ej: WN-1234567"
+            className={INPUT_CLASS}
+          />
+        </div>
+        <div>
           <label className={LABEL_CLASS}>Total Mensual ($)</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">$</span>
@@ -335,9 +350,6 @@ const WnPolicyRow = memo(function WnPolicyRow({
             />
           </div>
         </div>
-        {showRemove && (
-          <button type="button" onClick={() => onRemove(index)} className="mb-0.5 text-red-400 hover:text-red-600 px-2 py-2 text-sm">✕</button>
-        )}
       </div>
     </div>
   )
@@ -407,7 +419,7 @@ export interface FormData {
   address: string; aptSuite: string; city: string; zipCode: string; county: string; state: string
   contractDate: string; policyYear: string; coverageType: string; insurer: string
   affiliatesCount: string; planName: string; planCategory: string; planId: string
-  acaPrice: string; aptcAmount: string; wnPolicies: WnPolicy[]; wnContractDate: string; totalMonthly: string
+  acaPrice: string; aptcAmount: string; wnPolicies: WnPolicy[]; wnContractDate: string; wnPaymentDay: string; totalMonthly: string
   cancellationDate: string
   annualIncome: string; status: string; activationDate: string; renewalDate: string; policyExpirationDate: string
   preferredDoctors: string[]; specificMedications: string[]
@@ -428,7 +440,7 @@ interface InitialData {
   address?: string; aptSuite?: string; city?: string; zipCode?: string; county?: string; state?: string
   contractDate?: string; policyYear?: number | string; coverageType?: string; insurer?: string
   affiliatesCount?: number | string; planName?: string; planCategory?: string; planId?: string
-  acaPrice?: number | string; aptcAmount?: number | string; wnPolicies?: string | WnPolicy[]; wnContractDate?: string | null
+  acaPrice?: number | string; aptcAmount?: number | string; wnPolicies?: string | WnPolicy[]; wnContractDate?: string | null; wnPaymentDay?: string | null
   cancellationDate?: string | null
   totalMonthly?: number | string; annualIncome?: number | string; status?: string
   activationDate?: string; renewalDate?: string; policyExpirationDate?: string
@@ -466,9 +478,12 @@ function parseJsonArray(val?: string | string[] | null): string[] {
 }
 
 function parseWnPolicies(val?: string | WnPolicy[] | null): WnPolicy[] {
-  if (!val) return [{ type: '', monthly: '' }]
-  if (Array.isArray(val)) return val.length ? val.map(p => ({ type: p.type || '', monthly: String(p.monthly || '') })) : [{ type: '', monthly: '' }]
-  try { const p = JSON.parse(val); return Array.isArray(p) && p.length ? p : [{ type: '', monthly: '' }] } catch { return [{ type: '', monthly: '' }] }
+  const empty: WnPolicy[] = [{ type: '', monthly: '', policyNumber: '' }]
+  const norm = (p: { type?: string; monthly?: string | number; policyNumber?: string }): WnPolicy =>
+    ({ type: p.type || '', monthly: String(p.monthly ?? ''), policyNumber: p.policyNumber || '' })
+  if (!val) return empty
+  if (Array.isArray(val)) return val.length ? val.map(norm) : empty
+  try { const p = JSON.parse(val); return Array.isArray(p) && p.length ? p.map(norm) : empty } catch { return empty }
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -524,6 +539,7 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
     aptcAmount: initialData?.aptcAmount?.toString() || '',
     wnPolicies: parseWnPolicies(initialData?.wnPolicies),
     wnContractDate: toDateInput(initialData?.wnContractDate),
+    wnPaymentDay: initialData?.wnPaymentDay || '',
     cancellationDate: toDateInput(initialData?.cancellationDate),
     totalMonthly: initialData?.totalMonthly?.toString() || '0',
     annualIncome: initialData?.annualIncome?.toString() || '',
@@ -586,9 +602,9 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
     setForm(f => { const arr = [...f[key]]; arr[i] = val; return { ...f, [key]: arr } }), [])
 
   const addWnPolicy = useCallback(() =>
-    setForm(f => ({ ...f, wnPolicies: [...f.wnPolicies, { type: '', monthly: '' }] })), [])
+    setForm(f => ({ ...f, wnPolicies: [...f.wnPolicies, { type: '', monthly: '', policyNumber: '' }] })), [])
   const removeWnPolicy = useCallback((i: number) =>
-    setForm(f => { const arr = f.wnPolicies.filter((_, idx) => idx !== i); return { ...f, wnPolicies: arr.length ? arr : [{ type: '', monthly: '' }] } }), [])
+    setForm(f => { const arr = f.wnPolicies.filter((_, idx) => idx !== i); return { ...f, wnPolicies: arr.length ? arr : [{ type: '', monthly: '', policyNumber: '' }] } }), [])
   const changeWnPolicy = useCallback((i: number, key: keyof WnPolicy, val: string) =>
     setForm(f => {
       const arr = [...f.wnPolicies]
@@ -863,9 +879,8 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <DateInput label="Fecha de Contratación WN" value={form.wnContractDate} onChange={v => setField('wnContractDate', v)} />
-          <p className="text-xs text-gray-400 self-end pb-2">
-            Usa esta fecha para calcular comisión/riesgo de WN — a veces difiere de la "Fecha Contratación" del ACA. Si se deja vacía, se usa la fecha de contratación del ACA.
-          </p>
+          <Field label="Día de cobro de la mensualidad" value={form.wnPaymentDay} onChange={v => setField('wnPaymentDay', v)}
+            placeholder="Ej: 5 (día del mes en que se cobra)" />
         </div>
         <div className="space-y-3">
           {form.wnPolicies.map((p, i) => (

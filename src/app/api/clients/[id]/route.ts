@@ -53,6 +53,7 @@ function parseClientData(d: Record<string, unknown>) {
     aptcAmount: d.aptcAmount ? parseFloat(d.aptcAmount as string) : null,
     wnPolicies: Array.isArray(d.wnPolicies) ? JSON.stringify(d.wnPolicies) : (d.wnPolicies as string || null),
     wnContractDate: d.wnContractDate ? new Date(d.wnContractDate as string) : null,
+    wnPaymentDay: (d.wnPaymentDay as string) || null,
     cancellationDate: d.cancellationDate ? new Date(d.cancellationDate as string) : null,
     totalMonthly: d.totalMonthly ? parseFloat(d.totalMonthly as string) : 0,
     annualIncome: d.annualIncome ? parseFloat(d.annualIncome as string) : null,

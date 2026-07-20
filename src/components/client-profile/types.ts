@@ -14,7 +14,7 @@ export function getTagColor(label: string): string {
   return PREDEFINED_TAGS.find(t => t.label === label)?.color || '#507b88'
 }
 
-export interface WnPolicy { type: string; monthly: string | number }
+export interface WnPolicy { type: string; monthly: string | number; policyNumber?: string }
 
 export interface Appointment {
   id: string
@@ -80,7 +80,7 @@ export interface Client {
   planXray?: string | null; planCTScan?: string | null; planLab?: string | null
   planReferral?: string | null
   acaPrice?: number | null; aptcAmount?: number | null; wnPolicies?: string | null
-  wnContractDate?: string | null; cancellationDate?: string | null; wnSecondPaymentReceived?: boolean | null
+  wnContractDate?: string | null; wnPaymentDay?: string | null; cancellationDate?: string | null; wnSecondPaymentReceived?: boolean | null
   totalMonthly?: number | null; annualIncome?: number | null
   status?: string | null; activationDate?: string | null; renewalDate?: string | null; policyExpirationDate?: string | null
   preferredDoctors?: string | null; specificMedications?: string | null

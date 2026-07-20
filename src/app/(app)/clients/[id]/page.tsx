@@ -108,6 +108,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     loadClient(clientId!)
   }
 
+  const handleUpdateGoogleReview = async (stage: string) => {
+    // Actualización optimista: la etapa cambia al instante al tocarla.
+    setClient(c => c ? { ...c, googleReview: stage } : c)
+    await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ googleReview: stage }),
+    }).catch(() => loadClient(clientId!))
+  }
+
   const handleUpdateApptStatus = async (apptId: string, status: string) => {
     await fetch(`/api/appointments/${apptId}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
@@ -563,16 +571,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <p className="text-sm text-gray-400">—</p>
             ) : (
               <div className="space-y-2">
-                {(client.wnContractDate || client.cancellationDate) && (
+                {(client.wnContractDate || client.cancellationDate || client.wnPaymentDay) && (
                   <div className="pb-2 mb-1 border-b border-gray-100 text-xs text-gray-500 space-y-0.5">
                     {client.wnContractDate && <div>📅 Fecha de contratación WN: <strong>{formatDate(client.wnContractDate)}</strong></div>}
+                    {client.wnPaymentDay && <div>💵 Día de cobro de la mensualidad: <strong>{client.wnPaymentDay}</strong></div>}
                     {client.cancellationDate && <div>🚫 Fecha de cancelación: <strong>{formatDate(client.cancellationDate)}</strong></div>}
                   </div>
                 )}
                 {wnPolicies.map((p, i) => (
-                  <div key={i} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                    <span className="text-sm text-gray-900">{p.type || '—'}</span>
-                    <span className="text-sm font-semibold" style={{ color: '#305a72' }}>{formatCurrency(Number(p.monthly))}/mes</span>
+                  <div key={i} className="flex justify-between items-center gap-2 py-2 border-b border-gray-100 last:border-0">
+                    <div className="min-w-0">
+                      <div className="text-sm text-gray-900">{p.type || '—'}</div>
+                      {p.policyNumber && <div className="text-xs text-gray-400">N.º póliza: {p.policyNumber}</div>}
+                    </div>
+                    <span className="text-sm font-semibold shrink-0" style={{ color: '#305a72' }}>{formatCurrency(Number(p.monthly))}/mes</span>
                   </div>
                 ))}
                 <div className="flex justify-between items-center pt-2">
@@ -858,7 +870,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 </span>
               )}
             </div>
-            <GoogleReviewTimeline current={client.googleReview} />
+            <GoogleReviewTimeline current={client.googleReview} onSelect={handleUpdateGoogleReview} />
+            <p className="text-xs text-gray-400 mt-3 text-center">Toca una etapa para actualizar el avance</p>
           </div>
 
           {/* Survey responses */}
