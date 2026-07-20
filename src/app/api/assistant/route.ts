@@ -34,7 +34,13 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 
 • Clientes: lista con buscador y filtros (estatus, aseguradora, estado, etiqueta, WN).
   REGISTRAR UN CLIENTE: botón "+ Nuevo Cliente" (arriba a la derecha) → llenar Datos Personales, Dirección, Póliza ACA (aseguradora, plan, Precio ACA, Crédito Fiscal Otorgado), Dependientes (botón "+ Agregar dependiente"), Washington National si aplica, datos bancarios y portal → "Guardar".
-  VER/EDITAR: clic en el nombre del cliente → su perfil tiene botones Editar, Agendar Cita, y secciones de Actividades, Documentos, Historial de Pólizas, Historial de Aseguradoras, Encuestas y Google Review.
+  VER/EDITAR: clic en el nombre del cliente → su perfil tiene botón Editar y estas secciones:
+   - Citas Médicas: agenda la cita del cliente con su médico primario o especialista (fecha/hora, nombre del médico y dirección del consultorio). Cada cita trae un botón "💬 Confirmar por WhatsApp" que le envía al cliente la fecha, el médico y la dirección.
+   - Actividades: registra interacciones — tipos: Nota, Llamada, Mensaje de Texto, WhatsApp, Email, Documento, Reunión, Otro.
+   - Documentos: sube archivos por categoría (Identificación, Póliza, Banco, Email, Factura Médica, etc.).
+   - Washington National: además del tipo y monto de cada póliza, guarda el Número de Póliza por tipo y el Día de cobro de la mensualidad.
+   - Google Review: la barra de etapas es TOCABLE — toca la etapa (Pendiente → Enviada → Esperando al cliente → Realizada) para actualizar el avance al instante, sin entrar a Editar.
+   - También: Historial de Pólizas, Historial de Aseguradoras y Encuestas.
 
 • Pipeline: tablero de prospectos por etapas (Nuevo → Contactado → Cotizado → Cerrado-Ganado/Perdido); se arrastran las tarjetas entre columnas. Incluye "Modo Combate" para cotización rápida con el link de consentimientos de HealthSherpa (ese link se configura en Configuración → Perfil y Metas).
 
@@ -53,7 +59,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
   Los cumpleaños que aparecen en el calendario son solo de los CLIENTES TITULARES de la póliza (no de los dependientes).
   GOOGLE CALENDAR: el botón "🔄 Sincronizar Google" está junto a "+ Nuevo evento". La sincronización es de DOS VÍAS: lo que creas en el CRM aparece en tu Google Calendar al instante, y lo que creas en Google llega al CRM cada pocos minutos (o al presionar ese botón). Para conectarlo por primera vez: Configuración → Integraciones y Respaldo → "Conectar Google Calendar".
 
-• Comisiones: pestañas 📊 Resumen (tabla por aseguradora: vidas, PMPM, mensual/anual + sección Washington National con pagos 75%/25% y riesgo de devolución), 👤 Por Cliente, 🔍 Conciliación e 📥 Importar estado de cuenta (subir el PDF de la aseguradora). Las tasas PMPM se editan al final del Resumen en "Configuración de Tasas PMPM".
+• Comisiones: pestañas 📊 Resumen (tabla por aseguradora: vidas, PMPM, mensual/anual + sección Washington National con pagos 75%/25% y riesgo de devolución), 👤 Por Cliente, 🔍 Conciliación e 📥 Importar estado de cuenta (subir el PDF de la aseguradora). Las tasas PMPM y el día del ciclo de pago de cada aseguradora se editan al final del Resumen en "Configuración de Tasas PMPM". IMPORTANTE: la primera comisión de un cliente nuevo se cuenta a los 2 meses de la ACTIVACIÓN de la póliza (1ro del mes siguiente a la contratación), no de la fecha de contratación.
 
 • Reportes: métricas del negocio y exportaciones.
 
@@ -62,6 +68,8 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 • Calc. APTC: calcula el crédito fiscal según ingreso anual y tamaño de familia (los valores FPL se actualizan cada enero en Configuración → Cálculos y AI).
 
 • Documentos: elegir cliente + plantilla → genera la carta personalizada → enviar por Email (con el logo de la agencia) o WhatsApp.
+
+• Agenda (📇 Agenda Telefónica): directorio de contactos del agente que NO son clientes del CRM (médicos, proveedores, aseguradoras, referidos, personal). Botón "+ Nuevo Contacto"; cada contacto tiene botones de 📞 Llamar y 💬 WhatsApp, y buscador por nombre/teléfono/empresa.
 
 • Auditoría (solo admin): registro de quién creó/modificó/eliminó qué.
 
