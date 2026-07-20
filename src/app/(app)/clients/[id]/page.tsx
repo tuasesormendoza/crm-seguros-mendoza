@@ -760,13 +760,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 {client.appointments.map(a => {
                   const aStyle = APPT_STATUS_COLORS[a.status] || { bg: '#f3f4f6', text: '#374151' }
                   // Mensaje de confirmación de cita médica por WhatsApp al cliente.
+                  // El texto se codifica con encodeURIComponent para que los emojis
+                  // y acentos se vean bien también en WhatsApp Web (no como "?").
                   const digits = (client.phone || '').replace(/\D/g, '')
                   const waPhone = digits.length === 10 ? '1' + digits : digits
-                  const waMsg = `Hola ${client.fullName}, te confirmo tu cita médica:%0A📅 ${formatDateTime(a.date)}` +
-                    (a.doctorName ? `%0A🩺 ${a.doctorName}` : '') +
-                    (a.location ? `%0A📍 ${a.location}` : '') +
-                    (a.notes ? `%0A📝 ${a.notes}` : '')
-                  const waUrl = `https://wa.me/${waPhone}?text=${waMsg}`
+                  const waLines = [`Hola ${client.fullName}, te confirmo tu cita médica:`, `📅 ${formatDateTime(a.date)}`]
+                  if (a.doctorName) waLines.push(`🩺 ${a.doctorName}`)
+                  if (a.location) waLines.push(`📍 ${a.location}`)
+                  if (a.notes) waLines.push(`📝 ${a.notes}`)
+                  const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines.join('\n'))}`
                   return (
                     <div key={a.id} className="p-3 rounded-lg border border-gray-100 bg-gray-50">
                       <div className="flex items-start justify-between gap-2">
