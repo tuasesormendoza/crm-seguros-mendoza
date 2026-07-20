@@ -171,49 +171,20 @@ function Steps({ step }: { step: number }) {
   )
 }
 
-// ── Date input with MM/DD/YYYY mask (avoids OS locale issues with type="date") ─
+// ── Date input — selector nativo con calendario (valor YYYY-MM-DD) ─────────────
 
 function DateFieldMasked({ label, value, onChange, required=false }: {
   label: string; value: string; onChange: (v: string) => void; required?: boolean
 }) {
-  // value is YYYY-MM-DD internally; display is MM/DD/YYYY
-  function isoToDisplay(iso: string): string {
-    if (!iso || iso.length < 10) return ''
-    const [y, m, d] = iso.split('-')
-    return `${m}/${d}/${y}`
-  }
-
-  const [display, setDisplay] = useState(() => isoToDisplay(value))
-
-  useEffect(() => { setDisplay(isoToDisplay(value)) }, [value])
-
-  function handleChange(raw: string) {
-    const digits = raw.replace(/\D/g, '').slice(0, 8)
-    let fmt = digits
-    if (digits.length > 2) fmt = `${digits.slice(0,2)}/${digits.slice(2)}`
-    if (digits.length > 4) fmt = `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
-    setDisplay(fmt)
-    if (digits.length === 8) {
-      const mm = digits.slice(0,2), dd = digits.slice(2,4), yyyy = digits.slice(4,8)
-      const iso = `${yyyy}-${mm}-${dd}`
-      const test = new Date(`${yyyy}-${mm}-${dd}`)
-      if (!isNaN(test.getTime())) onChange(iso)
-    } else {
-      onChange('')
-    }
-  }
-
   return (
     <div>
       <label className="block text-xs font-bold uppercase tracking-wide mb-1" style={{ color: '#10253f' }}>
         {label}{required && <span className="ml-1 text-amber-600">★</span>}
       </label>
       <input
-        type="text"
-        value={display}
-        onChange={e => handleChange(e.target.value)}
-        placeholder="MM/DD/YYYY"
-        maxLength={10}
+        type="date"
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
         className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#305a72] transition-colors"
       />
     </div>

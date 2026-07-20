@@ -16,6 +16,7 @@ const CATEGORIES = [
   { value: 'Banco',                  icon: '🏦', color: '#f97316', bg: '#ffedd5' },
   { value: 'Email',                  icon: '📧', color: '#0ea5e9', bg: '#e0f2fe' },
   { value: 'Factura Médica',         icon: '🧾', color: '#e11d48', bg: '#ffe4e6' },
+  { value: 'ETF',                    icon: '🏧', color: '#0d9488', bg: '#ccfbf1' },
   { value: 'Otro',                   icon: '📎', color: '#6b7280', bg: '#f3f4f6' },
 ]
 

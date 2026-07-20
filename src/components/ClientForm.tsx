@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react'
+import { useState, useCallback, memo, useMemo, useRef } from 'react'
 
 const INSURERS = [
   'Alliant', 'Ambetter', 'AmeriHealth', 'Anthem', 'AvMed',
@@ -161,30 +161,6 @@ const DepRow = memo(function DepRow({
   const [showSSN, setShowSSN] = useState(false)
   const age = calcAge(dep.birthDate)
 
-  function isoToDisplay(iso: string): string {
-    if (!iso || iso.length < 10) return ''
-    const [y, m, d] = iso.split('-')
-    if (!y || !m || !d) return ''
-    return `${m}/${d}/${y}`
-  }
-
-  function handleDateChange(raw: string) {
-    const digits = raw.replace(/\D/g, '').slice(0, 8)
-    let display = digits
-    if (digits.length > 2) display = `${digits.slice(0, 2)}/${digits.slice(2)}`
-    if (digits.length > 4) display = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-    setDateDisplay(display)
-    if (digits.length === 8) {
-      const mm = digits.slice(0, 2), dd = digits.slice(2, 4), yyyy = digits.slice(4, 8)
-      const dt = new Date(`${yyyy}-${mm}-${dd}`)
-      if (!isNaN(dt.getTime())) onChange('birthDate', `${yyyy}-${mm}-${dd}`)
-    } else {
-      onChange('birthDate', '')
-    }
-  }
-
-  const [dateDisplay, setDateDisplay] = useState(() => isoToDisplay(dep.birthDate))
-  useEffect(() => { setDateDisplay(isoToDisplay(dep.birthDate)) }, [dep.birthDate])
   return (
     <div className="p-3 rounded-lg border border-gray-100 bg-gray-50/50">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -237,11 +213,9 @@ const DepRow = memo(function DepRow({
         <div>
           <label className={LABEL_CLASS}>F. Nacimiento{age !== null ? ` · ${age} años` : ''}</label>
           <input
-            type="text"
-            value={dateDisplay}
-            onChange={e => handleDateChange(e.target.value)}
-            placeholder="MM/DD/YYYY"
-            maxLength={10}
+            type="date"
+            value={dep.birthDate || ''}
+            onChange={e => onChange('birthDate', e.target.value)}
             className={INPUT_CLASS}
           />
         </div>
@@ -355,7 +329,8 @@ const WnPolicyRow = memo(function WnPolicyRow({
   )
 })
 
-// ── DateInput — always MM/DD/YYYY, cross-browser ────────────────────────────
+// ── DateInput — selector de fecha nativo (calendario). El valor se guarda como
+// YYYY-MM-DD (independiente del idioma del navegador). ─────────────────────────
 
 const DateInput = memo(function DateInput({
   label, value, onChange,
@@ -364,45 +339,13 @@ const DateInput = memo(function DateInput({
   value: string        // stored as YYYY-MM-DD
   onChange: (v: string) => void
 }) {
-  function isoToDisplay(iso: string): string {
-    if (!iso || iso.length < 10) return ''
-    const [y, m, d] = iso.split('-')
-    if (!y || !m || !d) return ''
-    return `${m}/${d}/${y}`
-  }
-
-  function handleChange(raw: string) {
-    const digits = raw.replace(/\D/g, '').slice(0, 8)
-    let display = digits
-    if (digits.length > 2) display = `${digits.slice(0, 2)}/${digits.slice(2)}`
-    if (digits.length > 4) display = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-    setDisplayVal(display)
-
-    if (digits.length === 8) {
-      const mm = digits.slice(0, 2), dd = digits.slice(2, 4), yyyy = digits.slice(4, 8)
-      const iso = `${yyyy}-${mm}-${dd}`
-      const dt = new Date(`${yyyy}-${mm}-${dd}`)
-      if (!isNaN(dt.getTime())) onChange(iso)
-    } else {
-      onChange('')
-    }
-  }
-
-  const [displayVal, setDisplayVal] = useState(() => isoToDisplay(value))
-
-  useEffect(() => {
-    setDisplayVal(isoToDisplay(value))
-  }, [value])
-
   return (
     <div>
       <label className={LABEL_CLASS}>{label}</label>
       <input
-        type="text"
-        value={displayVal}
-        onChange={e => handleChange(e.target.value)}
-        placeholder="MM/DD/YYYY"
-        maxLength={10}
+        type="date"
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
         className={INPUT_CLASS}
       />
     </div>

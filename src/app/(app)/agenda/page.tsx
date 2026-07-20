@@ -12,10 +12,10 @@ interface Contact {
   notes: string | null
 }
 
-const CATEGORIES = ['Médico', 'Proveedor', 'Aseguradora', 'Referido', 'Personal', 'Otro']
+const CATEGORIES = ['Cliente', 'Broker', 'Médico', 'Proveedor', 'Aseguradora', 'Referido', 'Personal', 'Otro']
 const CAT_COLOR: Record<string, string> = {
-  'Médico': '#0ea5e9', 'Proveedor': '#8b5cf6', 'Aseguradora': '#10b981',
-  'Referido': '#f59e0b', 'Personal': '#ec4899', 'Otro': '#6b7280',
+  'Cliente': '#2563eb', 'Broker': '#7c3aed', 'Médico': '#0ea5e9', 'Proveedor': '#8b5cf6',
+  'Aseguradora': '#10b981', 'Referido': '#f59e0b', 'Personal': '#ec4899', 'Otro': '#6b7280',
 }
 
 const EMPTY: Omit<Contact, 'id'> = { name: '', phone: '', email: '', company: '', category: '', notes: '' }
