@@ -3,9 +3,10 @@
 import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react'
 
 const INSURERS = [
-  'Blue Cross Blue Shield', 'UnitedHealthcare', 'Oscar', 'Ambetter', 'Cigna',
-  'Aetna', 'CareSource', 'AmeriHealth', 'Molina', 'Anthem', 'Kaiser',
-  'Alliant', 'AvMed', 'Health Spring', 'Health First',
+  'Alliant', 'Ambetter', 'AmeriHealth', 'Anthem', 'AvMed',
+  'Blue Cross Blue Shield', 'CareSource', 'Christus', 'Cigna', 'Community',
+  'Health First', 'Health Spring', 'Highmark', 'Imperial', 'Kaiser',
+  'LA Care', 'Medica', 'Molina', 'Oscar', 'Select Health', 'UnitedHealthcare',
 ]
 
 const PREDEFINED_TAGS = [

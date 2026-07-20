@@ -14,10 +14,27 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const DEFAULT_RATES: Record<string, number> = {
-  'Blue Cross Blue Shield': 25, 'UnitedHealthcare': 18, 'Oscar': 18, 'Ambetter': 18,
-  'Cigna': 20, 'Aetna': 18, 'CareSource': 19, 'AmeriHealth': 20, 'Molina': 18,
-  'Anthem': 20, 'Kaiser': 18, 'Alliant': 18, 'AvMed': 18, 'Health Spring': 18,
-  'Health First': 18, 'Florida Blue': 18,
+  'Alliant': 18, 'Ambetter': 18, 'AmeriHealth': 20, 'Anthem': 20, 'AvMed': 18,
+  'Blue Cross Blue Shield': 25, 'CareSource': 19, 'Christus': 18, 'Cigna': 20,
+  'Community': 18, 'Health First': 18, 'Health Spring': 18, 'Highmark': 18,
+  'Imperial': 18, 'Kaiser': 18, 'LA Care': 18, 'Medica': 18, 'Molina': 18,
+  'Oscar': 18, 'Select Health': 18, 'UnitedHealthcare': 18,
+}
+
+// Ciclo de pago por defecto: día del mes en que la aseguradora suele pagar la
+// comisión (valor inicial; el agente lo puede ajustar en Comisiones → Tasas).
+//   • Ciclo 1 — entre el 1 y 5 del mes  → día 5
+//   • Ciclo 2 — entre el 15 y 20 del mes → día 20
+//   • Sin ciclo de pago definido → null (no se muestra día)
+export const DEFAULT_PAYMENT_DAYS: Record<string, number | null> = {
+  // Ciclo 1 (1–5)
+  'Ambetter': 5, 'Blue Cross Blue Shield': 5, 'Cigna': 5, 'UnitedHealthcare': 5,
+  'Community': 5, 'AmeriHealth': 5, 'Anthem': 5, 'Medica': 5, 'Select Health': 5, 'Imperial': 5,
+  // Ciclo 2 (15–20)
+  'Oscar': 20, 'Molina': 20, 'Highmark': 20, 'Kaiser': 20, 'LA Care': 20,
+  'Christus': 20, 'AvMed': 20, 'Health First': 20,
+  // Sin ciclo definido
+  'CareSource': null, 'Alliant': null, 'Health Spring': null,
 }
 
 // Las fechas de InsurerHistory se guardan como medianoche UTC del día 1 del

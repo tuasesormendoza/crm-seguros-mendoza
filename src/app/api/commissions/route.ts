@@ -4,6 +4,7 @@ import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
 // Lógica pura extraída a un módulo testeable (ver src/lib/commissions.test.ts).
 import {
   DEFAULT_RATES,
+  DEFAULT_PAYMENT_DAYS,
   getActivationDate,
   buildStints,
   stintCovers,
@@ -52,13 +53,14 @@ export async function GET(request: NextRequest) {
     prisma.insurerHistory.findMany({ where: { agencyId } }),
   ])
 
-  // Build rates map
+  // Build rates map (el ciclo de pago cae al valor por defecto de la aseguradora
+  // cuando el agente no lo ha personalizado)
   const ratesMap: Record<string, number> = { ...DEFAULT_RATES }
-  const paymentDayMap: Record<string, number | null> = {}
+  const paymentDayMap: Record<string, number | null> = { ...DEFAULT_PAYMENT_DAYS }
   const monthsMap: Record<string, number> = {}
   for (const r of storedRates) {
     ratesMap[r.insurer] = r.pmpm
-    paymentDayMap[r.insurer] = r.paymentDay ?? null
+    paymentDayMap[r.insurer] = r.paymentDay ?? DEFAULT_PAYMENT_DAYS[r.insurer] ?? null
     monthsMap[r.insurer] = r.monthsToFirstPayment ?? 2
   }
 

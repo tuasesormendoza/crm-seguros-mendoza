@@ -1,25 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
-
-const DEFAULT_RATES: Record<string, number> = {
-  'Blue Cross Blue Shield': 25,
-  'UnitedHealthcare': 18,
-  'Oscar': 18,
-  'Ambetter': 18,
-  'Cigna': 20,
-  'Aetna': 18,
-  'CareSource': 19,
-  'AmeriHealth': 20,
-  'Molina': 18,
-  'Anthem': 20,
-  'Kaiser': 18,
-  'Alliant': 18,
-  'AvMed': 18,
-  'Health Spring': 18,
-  'Health First': 18,
-  'Florida Blue': 18,
-}
+import { DEFAULT_RATES, DEFAULT_PAYMENT_DAYS } from '@/lib/commissions'
 
 export async function GET() {
   const auth = await requireRole(COMMISSIONS_ROLES)
@@ -31,7 +13,7 @@ export async function GET() {
   const rates = Object.entries(DEFAULT_RATES).map(([insurer, defaultPmpm]) => ({
     insurer,
     pmpm: storedMap[insurer]?.pmpm ?? defaultPmpm,
-    paymentDay: storedMap[insurer]?.paymentDay ?? null,
+    paymentDay: storedMap[insurer]?.paymentDay ?? DEFAULT_PAYMENT_DAYS[insurer] ?? null,
     monthsToFirstPayment: storedMap[insurer]?.monthsToFirstPayment ?? 2,
   }))
 

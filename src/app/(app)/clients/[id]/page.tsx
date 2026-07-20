@@ -183,7 +183,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const ACTIVITY_ICONS: Record<string, string> = {
-    nota: '📝', llamada: '📞', email: '📧', documento: '📄', reunion: '🤝', otro: '•'
+    nota: '📝', llamada: '📞', texto: '💬', whatsapp: '🟢', email: '📧', documento: '📄', reunion: '🤝', otro: '•'
   }
 
   if (!client && loadError) return <LoadError message="No se pudo cargar el perfil del cliente" />
@@ -929,6 +929,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 >
                   <option value="nota">📝 Nota</option>
                   <option value="llamada">📞 Llamada</option>
+                  <option value="texto">💬 Mensaje de Texto</option>
+                  <option value="whatsapp">🟢 WhatsApp</option>
                   <option value="email">📧 Email</option>
                   <option value="documento">📄 Documento</option>
                   <option value="reunion">🤝 Reunión</option>

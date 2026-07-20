@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import ContactButtons from '@/components/ContactButtons'
 
@@ -98,6 +99,7 @@ const INPUT_STYLE: React.CSSProperties = {
 const PAGE_SIZE = 50
 
 export default function ClientsPage() {
+  const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -238,7 +240,7 @@ export default function ClientsPage() {
             </select>
             <select value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
               <option value="">Todas las aseguradoras</option>
-              {['Blue Cross Blue Shield','UnitedHealthcare','Oscar','Ambetter','Cigna','Aetna','CareSource','AmeriHealth','Molina','Anthem','Kaiser','Alliant','AvMed','Health Spring','Health First'].map(s => <option key={s}>{s}</option>)}
+              {['Alliant','Ambetter','AmeriHealth','Anthem','AvMed','Blue Cross Blue Shield','CareSource','Christus','Cigna','Community','Health First','Health Spring','Highmark','Imperial','Kaiser','LA Care','Medica','Molina','Oscar','Select Health','UnitedHealthcare'].map(s => <option key={s}>{s}</option>)}
             </select>
             <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
               <option value="">Todos los estados</option>
@@ -273,8 +275,15 @@ export default function ClientsPage() {
           let tags: string[] = []
           try { tags = JSON.parse(c.tags || '[]') } catch { tags = [] }
           return (
-            <Link key={c.id} href={`/clients/${c.id}`}
-              className="block rounded-2xl p-4 active:opacity-80"
+            // La tarjeta navega al perfil con router.push en vez de envolver
+            // todo en un <Link>, así los <a> de ContactButtons no quedan
+            // anidados dentro de otro <a> (HTML inválido → error de hidratación).
+            <div key={c.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(`/clients/${c.id}`)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${c.id}`) } }}
+              className="block rounded-2xl p-4 cursor-pointer active:opacity-80"
               style={{ background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
               {/* Header row */}
               <div className="flex items-start justify-between gap-2 mb-2">
@@ -307,13 +316,14 @@ export default function ClientsPage() {
                   ))}
                 </div>
               )}
-              {/* Actions */}
+              {/* Actions — stopPropagation evita que el tap en WhatsApp/teléfono
+                  dispare la navegación de la tarjeta. */}
               {c.phone && (
-                <div onClick={e => e.preventDefault()}>
+                <div onClick={e => e.stopPropagation()}>
                   <ContactButtons clientName={c.fullName} clientPhone={c.phone} size="sm" showLabel={false} />
                 </div>
               )}
-            </Link>
+            </div>
           )
         })}
       </div>

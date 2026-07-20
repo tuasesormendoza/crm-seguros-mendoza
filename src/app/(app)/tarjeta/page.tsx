@@ -273,6 +273,8 @@ function TarjetaInner() {
 
   const fileRef = useRef<HTMLInputElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
+  // PNG pre-generado (para que "Enviar por WhatsApp" comparta dentro del gesto).
+  const cardBlobRef = useRef<Blob | null>(null)
 
   const [form, setForm] = useState<CardData>({
     co: '', pname: '', cat: '', net: '', ref: '', date: '', endDate: '', cost: '',
@@ -430,6 +432,18 @@ function TarjetaInner() {
     if (step === 3) renderCard()
   }, [step, renderCard])
 
+  // Pre-generar el PNG al llegar al paso 3 (y al cambiar idioma/marca). Así el
+  // botón de WhatsApp puede compartir la imagen de inmediato, sin un `await`
+  // largo que haga que iOS pierda el "gesto de usuario" y bloquee el compartir.
+  useEffect(() => {
+    if (step !== 3) { cardBlobRef.current = null; return }
+    let cancelled = false
+    downloadPNG().then(blob => { if (!cancelled) cardBlobRef.current = blob }).catch(() => {})
+    return () => { cancelled = true }
+    // downloadPNG lee form/lang/brand por closure; re-generamos cuando cambian.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, lang, brand, form])
+
   // ── generateCard: just flip the step; useEffect handles the rest ────────────
   function generateCard() {
     setStep(3)
@@ -491,37 +505,47 @@ function TarjetaInner() {
   // compartir del sistema para adjuntar la imagen directo al chat; en escritorio
   // descarga el PNG y abre WhatsApp con el mensaje (la imagen se adjunta a mano).
   async function sendWhatsApp() {
-    setSaving(true)
     setError('')
-    try {
-      const blob = await downloadPNG()
-      if (!blob) throw new Error('No se pudo generar la imagen')
-      const fileName = `tarjeta-${form.co || 'plan'}.png`.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-.]/g, '').toLowerCase()
-      const file = new File([blob], fileName, { type: 'image/png' })
-      const saludo = clientName ? `Hola ${clientName}, ` : 'Hola, '
-      const msg = `${saludo}aquí está el resumen de tu plan ${form.pname || ''}${form.co ? ` con ${form.co}` : ''}. — ${brand.name}`
+    const fileName = `tarjeta-${form.co || 'plan'}.png`.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-.]/g, '').toLowerCase()
+    const saludo = clientName ? `Hola ${clientName}, ` : 'Hola, '
+    const msg = `${saludo}aquí está el resumen de tu plan ${form.pname || ''}${form.co ? ` con ${form.co}` : ''}. — ${brand.name}`
+    const digits = clientPhone.replace(/\D/g, '')
+    const phone = digits.length === 10 ? '1' + digits : digits
+    const waUrl = phone.length >= 10
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`
 
-      const navShare = navigator as Navigator & { canShare?: (d?: unknown) => boolean }
+    // Móvil (iPhone): compartir la imagen directo al chat con la hoja del sistema.
+    // Usamos el PNG YA generado para no romper el "gesto de usuario" con un await.
+    const blob = cardBlobRef.current
+    const navShare = navigator as Navigator & { canShare?: (d?: unknown) => boolean }
+    if (blob) {
+      const file = new File([blob], fileName, { type: 'image/png' })
       if (navShare.canShare && navShare.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], text: msg })
-      } else {
-        // Escritorio: descargar la imagen + abrir WhatsApp con el mensaje.
-        const a = document.createElement('a')
-        a.download = fileName; a.href = URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href)
-        const digits = clientPhone.replace(/\D/g, '')
-        const phone = digits.length === 10 ? '1' + digits : digits
-        const wa = phone.length >= 10
-          ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-          : `https://wa.me/?text=${encodeURIComponent(msg)}`
-        window.open(wa, '_blank')
-        setSavedMsg('📱 Descargamos la tarjeta y abrimos WhatsApp — adjunta la imagen en el chat para enviarla.')
-        setTimeout(() => setSavedMsg(''), 10000)
+        try {
+          await navigator.share({ files: [file], text: msg })
+        } catch (e) {
+          if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+        }
+        return
       }
-    } catch (e) {
-      // Cancelar la hoja de compartir lanza AbortError; eso no es un error real.
-      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
     }
-    setSaving(false)
+
+    // Escritorio (o sin soporte de compartir): descargar el PNG y abrir WhatsApp
+    // con el mensaje; la imagen se adjunta a mano en el chat.
+    const wa = window.open(waUrl, '_blank')   // abrir YA (dentro del gesto) para que no lo bloqueen
+    try {
+      const b = blob || await downloadPNG()
+      if (b) {
+        const a = document.createElement('a')
+        a.download = fileName; a.href = URL.createObjectURL(b); a.click(); URL.revokeObjectURL(a.href)
+      }
+      if (!wa) window.location.href = waUrl
+      setSavedMsg('📱 Descargamos la tarjeta y abrimos WhatsApp — adjunta la imagen en el chat para enviarla.')
+      setTimeout(() => setSavedMsg(''), 10000)
+    } catch (e) {
+      setError((e as Error).message)
+    }
   }
 
   async function handleSaveToClient() {

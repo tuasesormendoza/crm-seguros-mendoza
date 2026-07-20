@@ -14,6 +14,8 @@ const CATEGORIES = [
   { value: 'Carta',                  icon: '✉️', color: '#f59e0b', bg: '#fef3c7' },
   { value: 'Foto',                   icon: '🖼️', color: '#ec4899', bg: '#fce7f3' },
   { value: 'Banco',                  icon: '🏦', color: '#f97316', bg: '#ffedd5' },
+  { value: 'Email',                  icon: '📧', color: '#0ea5e9', bg: '#e0f2fe' },
+  { value: 'Factura Médica',         icon: '🧾', color: '#e11d48', bg: '#ffe4e6' },
   { value: 'Otro',                   icon: '📎', color: '#6b7280', bg: '#f3f4f6' },
 ]
 
