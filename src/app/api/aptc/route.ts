@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         }[]
       }
 
-      const searchPlans = (filter?: Record<string, unknown>) => fetch(
+      const doSearch = (filter?: Record<string, unknown>) => fetch(
         `https://marketplace.api.healthcare.gov/api/v1/plans/search?apikey=${cmsApiKey}&year=${planYear}`,
         {
           method: 'POST',
@@ -142,6 +142,26 @@ export async function POST(request: NextRequest) {
           signal: AbortSignal.timeout(8000),
         }
       )
+
+      // La API de CMS a veces falla de forma TRANSITORIA (error 5xx o el 400
+      // "no effective date match found") aunque los planes sí existan. Un solo
+      // reintento casi siempre devuelve los planes reales en vez de caer al
+      // estimado.
+      const searchPlans = async (filter?: Record<string, unknown>): Promise<Response> => {
+        let res = await doSearch(filter)
+        if (!res.ok) {
+          let transient = res.status >= 500
+          if (res.status === 400) {
+            const t = await res.clone().text().catch(() => '')
+            if (/effective date/i.test(t)) transient = true
+          }
+          if (transient) {
+            await new Promise(r => setTimeout(r, 400))
+            res = await doSearch(filter)
+          }
+        }
+        return res
+      }
 
       // Two queries: one scoped to Silver (for the official SLCSP benchmark),
       // one unfiltered (to surface the best real options across all metal levels —
@@ -177,9 +197,9 @@ export async function POST(request: NextRequest) {
         } else if (silverRes.status === 404) {
           cmsError = `ZIP code ${zipcode} no encontrado en el Marketplace federal`
         } else if (/effective date/i.test(errBody)) {
-          // El Marketplace aún no publica los planes del año consultado (se
-          // publican en el otoño anterior). No es un error de configuración.
-          cmsError = `El Marketplace todavía no tiene planes publicados para el año ${planYear}. Se muestra un cálculo estimado con promedios nacionales.`
+          // Fallo TEMPORAL de la API de CMS (no es que falten planes: existen).
+          // El reintento no bastó esta vez; sugerimos volver a calcular.
+          cmsError = 'El Marketplace (CMS) no respondió con los planes en este momento (a veces su API falla de forma temporal). Vuelve a presionar "Calcular"; mientras tanto se muestra un estimado.'
         } else {
           cmsError = `Error CMS API: ${silverRes.status} — ${errBody.slice(0, 120)}`
         }
