@@ -69,6 +69,19 @@ function InputField({ label, children, hint }: { label: string; children: React.
 
 // ─── Main inner ───────────────────────────────────────────────────────────────
 
+// Edad actual a partir de una fecha de nacimiento (ISO). Usa getters UTC porque
+// las fechas se guardan como medianoche UTC (evita un desfase de un día).
+function ageFromBirth(birth?: string | null): number | null {
+  if (!birth) return null
+  const d = new Date(birth)
+  if (isNaN(d.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - d.getUTCFullYear()
+  const m = today.getMonth() - d.getUTCMonth()
+  if (m < 0 || (m === 0 && today.getDate() < d.getUTCDate())) age--
+  return age >= 0 && age < 130 ? age : null
+}
+
 function APTCInner() {
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
@@ -105,12 +118,26 @@ function APTCInner() {
       setHasCmsKey(!!(s.cmsApiKey && s.cmsApiKey.length > 5))
       setIsOwner(s.__isOwner === 'true')
     })
-    if (clientId) {
-      fetch(`/api/clients/${clientId}`).then(r => r.json()).then(c => {
+    // Respaldo: en una recarga dura useSearchParams puede llegar vacío; tomamos
+    // el clientId directamente de la URL para que el pre-llenado no se pierda.
+    const cid = clientId || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('clientId') : null)
+    if (cid) {
+      fetch(`/api/clients/${cid}`).then(r => r.json()).then(c => {
         setClientName(c.fullName || '')
         if (c.annualIncome) setIncome(String(c.annualIncome))
         if (c.state) setState(c.state)
         if (c.zipCode) setZipcode(c.zipCode)
+        // Edad actual del solicitante (a partir de su fecha de nacimiento).
+        const mainAge = ageFromBirth(c.birthDate)
+        if (mainAge != null) setAge(String(mainAge))
+        // Dependientes → personas en el hogar + sus edades actuales.
+        const deps: { birthDate?: string | null }[] = Array.isArray(c.dependents) ? c.dependents : []
+        const size = Math.min(1 + deps.length, 8)              // el selector llega hasta 8
+        setHousehold(String(size))
+        setOtherAges(deps.slice(0, size - 1).map(d => {
+          const a = ageFromBirth(d.birthDate)
+          return a != null ? String(a) : ''
+        }))
       })
     }
   }, [clientId])
