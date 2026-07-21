@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole, COMMISSIONS_ROLES } from '@/lib/auth'
 import { sendCampaign } from '@/lib/email'
+import { getCampaignBrand } from '@/lib/campaignBrand'
 import { buildSegmentWhere, type SegmentParams } from '@/lib/campaignFilters'
 import { validateCampaignImages } from '@/lib/campaignImages'
 import { logAudit } from '@/lib/audit'
@@ -20,10 +21,11 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   const body = await request.json().catch(() => ({}))
-  const { subject, message, segment, images, campaignId } = body as {
+  const { subject, message, segment, images, campaignId, buttonText, buttonUrl } = body as {
     subject?: string; message?: string; segment?: SegmentParams
-    images?: unknown; campaignId?: string
+    images?: unknown; campaignId?: string; buttonText?: string; buttonUrl?: string
   }
+  const button = buttonText?.trim() && buttonUrl?.trim() ? { text: buttonText.trim(), url: buttonUrl.trim() } : null
 
   if (!subject?.trim() || !message?.trim()) {
     return NextResponse.json({ error: 'El asunto y el mensaje son obligatorios.' }, { status: 400 })
@@ -49,13 +51,10 @@ export async function POST(request: NextRequest) {
 
   const capped = recipients.slice(0, MAX_PER_SEND)
 
-  // Nombre de la agencia para el pie de "baja" (usa el nombre del agente).
-  const agentNameRow = await prisma.settings.findFirst({
-    where: { agencyId: auth.agencyId, key: 'agentName' }, select: { value: true },
-  })
-  const agencyName = agentNameRow?.value || 'tu agente de seguros'
+  // Marca de la agencia (logo, colores, contacto) para dar identidad al correo.
+  const brand = await getCampaignBrand(auth.agencyId, request.nextUrl.origin)
 
-  const result = await sendCampaign(auth.agencyId, capped, subject.trim(), message.trim(), agencyName, imgCheck.images)
+  const result = await sendCampaign(auth.agencyId, capped, subject.trim(), message.trim(), brand, imgCheck.images, button)
 
   // Guardar en el historial: actualiza la campaña editada o crea una nueva.
   const record = {
@@ -63,6 +62,8 @@ export async function POST(request: NextRequest) {
     message: message.trim(),
     segment: JSON.stringify(segment || {}),
     images: imgCheck.images.length ? JSON.stringify(imgCheck.images) : null,
+    buttonText: button?.text || null,
+    buttonUrl: button?.url || null,
     sentAt: new Date(),
     sentCount: result.sent,
     failedCount: result.failed,

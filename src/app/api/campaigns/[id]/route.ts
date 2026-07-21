@@ -22,7 +22,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
   const { id } = await ctx.params
 
   const body = await request.json().catch(() => ({}))
-  const { subject, message, segment, images } = body
+  const { subject, message, segment, images, buttonText, buttonUrl } = body
   const imgCheck = validateCampaignImages(images)
   if (imgCheck.error) return NextResponse.json({ error: imgCheck.error }, { status: 400 })
 
@@ -33,6 +33,8 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
       message: (message || '').trim(),
       segment: JSON.stringify(segment || {}),
       images: imgCheck.images.length ? JSON.stringify(imgCheck.images) : null,
+      buttonText: buttonText?.trim() || null,
+      buttonUrl: buttonUrl?.trim() || null,
     },
   })
   if (res.count === 0) return NextResponse.json({ error: 'Campaña no encontrada.' }, { status: 404 })

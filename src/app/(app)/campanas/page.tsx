@@ -6,8 +6,46 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
-import { renderCampaignHtml, renderCampaignSubject, type CampaignImage } from '@/lib/campaignRender'
+import { renderCampaignHtml, renderCampaignSubject, type CampaignImage, type CampaignBrand } from '@/lib/campaignRender'
 import { formatDateTime } from '@/lib/utils'
+
+// Plantillas listas: llenan asunto + mensaje + botón con un clic (luego editas).
+const TEMPLATES: { icon: string; name: string; subject: string; message: string; buttonText?: string }[] = [
+  {
+    icon: '📅', name: 'Inscripción Abierta',
+    subject: '¡Ya viene la Inscripción Abierta, {nombre}!',
+    message: 'Hola {nombre},\n\nSe acerca el período de Inscripción Abierta y quiero ayudarte a revisar tu cobertura para el próximo año: comparar planes, tu crédito fiscal y asegurarnos de que sigas con el mejor precio.\n\nAgenda unos minutos conmigo y lo vemos juntos.',
+    buttonText: 'Agendar mi cita',
+  },
+  {
+    icon: '🔄', name: 'Renovación',
+    subject: 'Es hora de renovar tu póliza, {nombre}',
+    message: 'Hola {nombre},\n\nSe acerca la renovación de tu póliza. Quiero asegurarme de que sigas con la mejor cobertura y el mejor precio para tu familia.\n\nResponde este correo o escríbeme y lo revisamos sin compromiso.',
+    buttonText: 'Quiero revisar mi póliza',
+  },
+  {
+    icon: '🦷', name: 'Plan Dental',
+    subject: '{nombre}, protege tu sonrisa desde $25/mes',
+    message: 'Hola {nombre},\n\n¿Sabías que tu plan de salud no cubre limpiezas ni tratamientos dentales? Tengo opciones de plan dental desde $25 al mes que incluyen limpiezas, radiografías y más.\n\nTe preparo una cotización sin compromiso.',
+    buttonText: 'Ver mi cotización dental',
+  },
+  {
+    icon: '🎂', name: 'Cumpleaños',
+    subject: '¡Feliz cumpleaños, {nombre}! 🎉',
+    message: '¡Hola {nombre}!\n\nTodo mi equipo te desea un muy feliz cumpleaños. 🎂 Que este nuevo año te traiga salud y muchas bendiciones.\n\nGracias por confiar en nosotros para cuidar lo más importante: tu bienestar y el de tu familia.',
+  },
+  {
+    icon: '⭐', name: 'Reseña Google',
+    subject: '{nombre}, ¿nos regalas 1 minuto?',
+    message: 'Hola {nombre},\n\nFue un placer ayudarte con tu seguro. Si quedaste contento con el servicio, una reseña en Google me ayudaría muchísimo a llegar a más familias como la tuya.\n\nSolo toma 1 minuto. ¡Gracias de corazón! 🙏',
+    buttonText: 'Dejar mi reseña',
+  },
+  {
+    icon: '👋', name: 'Bienvenida',
+    subject: '¡Bienvenido/a, {nombre}!',
+    message: 'Hola {nombre},\n\n¡Gracias por confiar en mí como tu agente de seguros! Estoy aquí para ayudarte en todo lo que necesites: dudas de tu póliza, citas médicas, reclamos o cualquier cambio.\n\nGuarda mi contacto y escríbeme cuando quieras. Estoy para servirte.',
+  },
+]
 
 interface Recipients { total: number; withEmail: number; withPhone: number; recipients: { id: string; fullName: string; email: string | null; phone: string | null }[] }
 interface CampaignRow {
@@ -36,6 +74,9 @@ export default function CampanasPage() {
   const [preview, setPreview] = useState<Recipients | null>(null)
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
+  const [buttonText, setButtonText] = useState('')
+  const [buttonUrl, setButtonUrl] = useState('')
+  const [brand, setBrand] = useState<CampaignBrand>({ agencyName: 'tu agente de seguros' })
   const [images, setImages] = useState<CampaignImage[]>([])
   const [imgError, setImgError] = useState('')
   const [sending, setSending] = useState(false)
@@ -63,7 +104,18 @@ export default function CampanasPage() {
       .then(r => r.json())
       .then(d => setStates(Array.isArray(d.states) ? d.states : []))
       .catch(() => {})
-    fetch('/api/settings').then(r => r.json()).then(s => { if (s.agentName) setAgentName(s.agentName) }).catch(() => {})
+    fetch('/api/settings').then(r => r.json()).then(s => {
+      if (s.agentName) setAgentName(s.agentName)
+      setBrand({
+        agencyName: s.agentName || 'tu agente de seguros',
+        logoUrl: s.logoUrl && s.agencyId ? `/api/logo/${s.agencyId}` : '',
+        headerColor: s.themeBrand800 || '#0D2A4A',
+        accentColor: s.themeAccent || '#2a6496',
+        phone: s.agentPhone || '',
+        whatsapp: s.agentWhatsApp || '',
+        email: s.agentEmail || '',
+      })
+    }).catch(() => {})
     fetch('/api/clients')
       .then(r => r.json())
       .then((res: ClientOption[]) => setClients(Array.isArray(res) ? res.map(c => ({ id: c.id, fullName: c.fullName })) : []))
@@ -129,7 +181,7 @@ export default function CampanasPage() {
       const res = await fetch('/api/campaigns/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, message, segment, images, campaignId: editingId }),
+        body: JSON.stringify({ subject, message, segment, images, buttonText, buttonUrl, campaignId: editingId }),
       })
       const data = await res.json()
       if (!res.ok) { setResult(`❌ ${data.error || 'Error al enviar'}`) }
@@ -151,7 +203,7 @@ export default function CampanasPage() {
     setSavingDraft(true)
     setResult(null)
     try {
-      const payload = { subject, message, segment, images }
+      const payload = { subject, message, segment, images, buttonText, buttonUrl }
       const res = editingId
         ? await fetch(`/api/campaigns/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         : await fetch('/api/campaigns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -175,6 +227,8 @@ export default function CampanasPage() {
     setEditingId(c.id)
     setSubject(c.subject || '')
     setMessage(c.message || '')
+    setButtonText(c.buttonText || '')
+    setButtonUrl(c.buttonUrl || '')
     try {
       const seg = JSON.parse(c.segment || '{}')
       const next: Segment = { status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '' }
@@ -195,10 +249,20 @@ export default function CampanasPage() {
     setEditingId(null)
     setSubject('')
     setMessage('')
+    setButtonText('')
+    setButtonUrl('')
     setImages([])
     setSegment(EMPTY_SEGMENT)
     setSelectedClient(null)
     setResult(null)
+  }
+
+  function applyTemplate(t: typeof TEMPLATES[number]) {
+    setSubject(t.subject)
+    setMessage(t.message)
+    if (t.buttonText) setButtonText(t.buttonText)
+    setResult(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function deleteCampaign(id: string) {
@@ -306,6 +370,21 @@ export default function CampanasPage() {
         )}
       </div>
 
+      {/* Plantillas */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+        <h2 className="font-bold text-base mb-1" style={{ color: '#10253f' }}>✨ Plantillas rápidas</h2>
+        <p className="text-xs text-gray-500 mb-3">Empieza con una plantilla lista y edítala a tu gusto.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {TEMPLATES.map(t => (
+            <button key={t.name} type="button" onClick={() => applyTemplate(t)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-gray-200 hover:border-[#2a6496] hover:bg-[#f0f7fb] text-left transition-colors">
+              <span className="text-lg shrink-0">{t.icon}</span>
+              <span className="text-sm font-medium truncate" style={{ color: '#10253f' }}>{t.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Mensaje */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
         <h2 className="font-bold text-base" style={{ color: '#10253f' }}>2. El mensaje</h2>
@@ -344,6 +423,16 @@ export default function CampanasPage() {
             )}
           </div>
           {imgError && <p className="text-xs text-red-600 mt-1">⚠️ {imgError}</p>}
+        </div>
+
+        {/* Botón de acción (CTA) */}
+        <div>
+          <label className={LABEL}>Botón de acción (opcional)</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input className={INPUT} value={buttonText} onChange={e => setButtonText(e.target.value)} placeholder="Texto — ej. Cotiza ahora" />
+            <input className={INPUT} value={buttonUrl} onChange={e => setButtonUrl(e.target.value)} placeholder="Enlace — ej. https://wa.me/1..." />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Aparece como un botón grande y llamativo en el correo. Déjalo vacío si no lo necesitas.</p>
         </div>
       </div>
 
@@ -461,7 +550,7 @@ export default function CampanasPage() {
                   </div>
                 </div>
                 <div className="px-5 py-4"
-                  dangerouslySetInnerHTML={{ __html: renderCampaignHtml(message, sample, agentName, images.map(i => i.dataUrl)) }} />
+                  dangerouslySetInnerHTML={{ __html: renderCampaignHtml(message, sample, brand, images.map(i => i.dataUrl), buttonText.trim() && buttonUrl.trim() ? { text: buttonText, url: buttonUrl } : null) }} />
               </div>
               <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
                 <button onClick={() => setShowPreview(false)}

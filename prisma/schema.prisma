@@ -265,6 +265,8 @@ model Campaign {
   message     String
   segment     String    @default("{}") // filtros JSON (status/state/missing/clientId)
   images      String?   // JSON [{ name, dataUrl }] — se adjuntan inline al email
+  buttonText  String?   // texto del botón CTA (ej. "Cotiza ahora")
+  buttonUrl   String?   // enlace del botón CTA
   sentAt      DateTime?
   sentCount   Int       @default(0)
   failedCount Int       @default(0)

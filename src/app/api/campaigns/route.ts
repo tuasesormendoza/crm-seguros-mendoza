@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   const body = await request.json().catch(() => ({}))
-  const { subject, message, segment, images } = body
+  const { subject, message, segment, images, buttonText, buttonUrl } = body
   if (!subject?.trim() && !message?.trim()) {
     return NextResponse.json({ error: 'Escribe al menos el asunto o el mensaje.' }, { status: 400 })
   }
@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
       message: (message || '').trim(),
       segment: JSON.stringify(segment || {}),
       images: imgCheck.images.length ? JSON.stringify(imgCheck.images) : null,
+      buttonText: buttonText?.trim() || null,
+      buttonUrl: buttonUrl?.trim() || null,
     },
     select: { id: true },
   })

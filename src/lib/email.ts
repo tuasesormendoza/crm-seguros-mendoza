@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer'
 import { prisma } from './prisma'
-import { renderCampaignHtml, renderCampaignSubject, type CampaignImage } from './campaignRender'
+import { renderCampaignHtml, renderCampaignSubject, type CampaignImage, type CampaignBrand, type CampaignButton } from './campaignRender'
 
 // Multi-tenant: la configuración de email (SMTP) es POR AGENCIA. Siempre se debe
 // pasar el agencyId para no mezclar credenciales entre inquilinos.
@@ -54,8 +54,9 @@ export async function sendCampaign(
   recipients: CampaignRecipient[],
   subject: string,
   body: string,
-  agencyName: string,
+  brand: CampaignBrand,
   images: CampaignImage[] = [],
+  button?: CampaignButton | null,
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
   const cfg = await getEmailConfig(agencyId)
   if (!cfg.enabled || !cfg.user || !cfg.pass) {
@@ -93,7 +94,7 @@ export async function sendCampaign(
         from: cfg.from || cfg.user,
         to: r.email,
         subject: renderCampaignSubject(subject, first),
-        html: renderCampaignHtml(body, first, agencyName, imageSrcs),
+        html: renderCampaignHtml(body, first, brand, imageSrcs, button),
         attachments,
       })
       sent++
