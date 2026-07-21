@@ -62,6 +62,7 @@ const T = {
 function esc(s?: string | null) {
   if (!s) return ''
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;')
 }
 
 // Formato de fecha MM/DD/YY (a partir de un ISO YYYY-MM-DD).
@@ -99,7 +100,7 @@ function buildCardHTML(d: CardData, lang: 'es'|'en', brand: Brand, scale=1): str
 
   // Encabezado: logo de la agencia si existe; si no, su nombre.
   const brandTop = brand.logoSrc
-    ? `<img src="${brand.logoSrc}" alt="logo" style="max-height:${S(48)};max-width:${S(240)};object-fit:contain;display:block;" />`
+    ? `<img src="${esc(brand.logoSrc)}" alt="logo" style="max-height:${S(48)};max-width:${S(240)};object-fit:contain;display:block;" />`
     : `<div style="font-family:Poppins,sans-serif;font-size:${S(22)};font-weight:800;letter-spacing:${S(-0.5)};color:#ffffff;">${esc(brand.name)}</div>
        <div style="color:${accent};font-size:${S(10)};font-weight:600;letter-spacing:${S(1.5)};text-transform:uppercase;font-family:Poppins,sans-serif;margin-top:${S(2)};">${L.advisor}</div>`
 
