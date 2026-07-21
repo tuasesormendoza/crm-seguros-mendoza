@@ -176,6 +176,10 @@ export async function POST(request: NextRequest) {
           cmsError = 'API Key inválida o expirada. Verifica la key en Configuración.'
         } else if (silverRes.status === 404) {
           cmsError = `ZIP code ${zipcode} no encontrado en el Marketplace federal`
+        } else if (/effective date/i.test(errBody)) {
+          // El Marketplace aún no publica los planes del año consultado (se
+          // publican en el otoño anterior). No es un error de configuración.
+          cmsError = `El Marketplace todavía no tiene planes publicados para el año ${planYear}. Se muestra un cálculo estimado con promedios nacionales.`
         } else {
           cmsError = `Error CMS API: ${silverRes.status} — ${errBody.slice(0, 120)}`
         }
