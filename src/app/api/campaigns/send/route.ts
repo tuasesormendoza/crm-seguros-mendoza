@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
   const where = buildSegmentWhere(auth.agencyId, segment || {})
   const clients = await prisma.client.findMany({
     where,
-    select: { fullName: true, email: true },
+    select: { fullName: true, email: true, insurer: true, planName: true, state: true },
     orderBy: { fullName: 'asc' },
   })
 
   const recipients = clients
     .filter(c => c.email && c.email.trim())
-    .map(c => ({ email: c.email!.trim(), name: c.fullName }))
+    .map(c => ({ email: c.email!.trim(), name: c.fullName, insurer: c.insurer, planName: c.planName, state: c.state }))
 
   if (recipients.length === 0) {
     return NextResponse.json({ error: 'Ningún cliente del segmento tiene email registrado.' }, { status: 400 })

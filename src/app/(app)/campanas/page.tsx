@@ -3,14 +3,14 @@
 // Campañas — envío masivo por email a un segmento de clientes (o a uno solo),
 // con imágenes, historial, edición y reenvío.
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
-import { renderCampaignHtml, renderCampaignSubject, type CampaignImage, type CampaignBrand } from '@/lib/campaignRender'
+import { renderCampaignHtml, renderCampaignSubject, campaignVarsFor, applyVars, CAMPAIGN_VARS, type CampaignImage, type CampaignBrand } from '@/lib/campaignRender'
 import { formatDateTime } from '@/lib/utils'
 
 // Plantillas listas: llenan asunto + mensaje + botón con un clic (luego editas).
-const TEMPLATES: { icon: string; name: string; subject: string; message: string; buttonText?: string }[] = [
+const TEMPLATES: { icon: string; name: string; subject: string; message: string; buttonText?: string; buttonUrl?: string }[] = [
   {
     icon: '📅', name: 'Inscripción Abierta',
     subject: '¡Ya viene la Inscripción Abierta, {nombre}!',
@@ -39,6 +39,7 @@ const TEMPLATES: { icon: string; name: string; subject: string; message: string;
     subject: '{nombre}, ¿nos regalas 1 minuto?',
     message: 'Hola {nombre},\n\nFue un placer ayudarte con tu seguro. Si quedaste contento con el servicio, una reseña en Google me ayudaría muchísimo a llegar a más familias como la tuya.\n\nSolo toma 1 minuto. ¡Gracias de corazón! 🙏',
     buttonText: 'Dejar mi reseña',
+    buttonUrl: '{reseña}',
   },
   {
     icon: '👋', name: 'Bienvenida',
@@ -47,7 +48,8 @@ const TEMPLATES: { icon: string; name: string; subject: string; message: string;
   },
 ]
 
-interface Recipients { total: number; withEmail: number; withPhone: number; recipients: { id: string; fullName: string; email: string | null; phone: string | null }[] }
+interface RecipientRow { id: string; fullName: string; email: string | null; phone: string | null; insurer?: string | null; planName?: string | null; state?: string | null }
+interface Recipients { total: number; withEmail: number; withPhone: number; recipients: RecipientRow[] }
 interface CampaignRow {
   id: string; subject: string; message: string; segment: string
   sentAt: string | null; sentCount: number; failedCount: number; createdAt: string; hasImages: boolean
@@ -89,6 +91,9 @@ export default function CampanasPage() {
   const [history, setHistory] = useState<CampaignRow[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [showVars, setShowVars] = useState(false)
+  const messageRef = useRef<HTMLTextAreaElement>(null)
 
   // Cliente específico
   const [clients, setClients] = useState<ClientOption[]>([])
@@ -257,10 +262,47 @@ export default function CampanasPage() {
     setResult(null)
   }
 
+  // ── Editor: insertar texto / envolver selección en el textarea del mensaje ──
+  function insertAtCursor(text: string) {
+    const el = messageRef.current
+    const start = el?.selectionStart ?? message.length
+    const end = el?.selectionEnd ?? message.length
+    const next = message.slice(0, start) + text + message.slice(end)
+    setMessage(next)
+    requestAnimationFrame(() => { if (el) { el.focus(); el.selectionStart = el.selectionEnd = start + text.length } })
+  }
+  function wrapSelection(before: string, after: string) {
+    const el = messageRef.current
+    if (!el) { insertAtCursor(before + after); return }
+    const start = el.selectionStart, end = el.selectionEnd
+    const sel = message.slice(start, end) || 'texto'
+    const next = message.slice(0, start) + before + sel + after + message.slice(end)
+    setMessage(next)
+    requestAnimationFrame(() => { el.focus(); el.selectionStart = start + before.length; el.selectionEnd = start + before.length + sel.length })
+  }
+
+  async function sendTest() {
+    if (!subject.trim() || !message.trim()) { setResult('❌ Escribe el asunto y el mensaje.'); return }
+    setTesting(true)
+    setResult(null)
+    try {
+      const res = await fetch('/api/campaigns/test', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, message, images, buttonText, buttonUrl }),
+      })
+      const data = await res.json()
+      setResult(res.ok ? `✅ Prueba enviada a ${data.to} — revisa tu bandeja.` : `❌ ${data.error || 'No se pudo enviar la prueba.'}`)
+    } catch {
+      setResult('❌ No se pudo conectar con el servidor.')
+    }
+    setTesting(false)
+  }
+
   function applyTemplate(t: typeof TEMPLATES[number]) {
     setSubject(t.subject)
     setMessage(t.message)
-    if (t.buttonText) setButtonText(t.buttonText)
+    setButtonText(t.buttonText || '')
+    setButtonUrl(t.buttonUrl || '')
     setResult(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -279,7 +321,8 @@ export default function CampanasPage() {
       .map(r => {
         const digits = r.phone!.replace(/\D/g, '')
         const intl = digits.length === 10 ? `1${digits}` : digits
-        const msg = message.replace(/\{nombre\}/g, r.fullName.split(' ')[0])
+        const vars = campaignVarsFor({ name: r.fullName, insurer: r.insurer, planName: r.planName, state: r.state }, brand)
+        const msg = applyVars(message, vars)
         return { name: r.fullName, url: `https://wa.me/${intl}?text=${encodeURIComponent(msg)}` }
       })
     setWaLinks(links)
@@ -393,12 +436,40 @@ export default function CampanasPage() {
           <input className={INPUT} value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ej. Ya viene la Inscripción Abierta 2027" />
         </div>
         <div>
-          <label className={LABEL}>
-            Mensaje
-            <span className="ml-2 font-normal text-gray-400">Usa <code className="bg-gray-100 px-1 rounded">{'{nombre}'}</code> para personalizar</span>
-          </label>
-          <textarea className={INPUT} rows={6} value={message} onChange={e => setMessage(e.target.value)}
+          <label className={LABEL}>Mensaje</label>
+          {/* Barra de formato + variables inteligentes */}
+          <div className="flex flex-wrap items-center gap-1 mb-2">
+            <button type="button" onClick={() => wrapSelection('**', '**')} title="Negrita"
+              className="w-8 h-8 rounded border border-gray-200 text-sm font-bold hover:bg-gray-50">B</button>
+            <button type="button" onClick={() => wrapSelection('*', '*')} title="Cursiva"
+              className="w-8 h-8 rounded border border-gray-200 text-sm italic hover:bg-gray-50">i</button>
+            <button type="button" onClick={() => insertAtCursor('\n- ')} title="Viñeta"
+              className="w-8 h-8 rounded border border-gray-200 text-base hover:bg-gray-50">•</button>
+            <button type="button" onClick={() => insertAtCursor(' https://')} title="Enlace (se activa solo)"
+              className="w-8 h-8 rounded border border-gray-200 text-sm hover:bg-gray-50">🔗</button>
+            <div className="relative">
+              <button type="button" onClick={() => setShowVars(v => !v)}
+                className="h-8 px-2.5 rounded border border-gray-200 text-xs font-semibold hover:bg-gray-50" style={{ color: '#2a6496' }}>
+                + Insertar variable
+              </button>
+              {showVars && (
+                <div className="absolute z-20 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg">
+                  {CAMPAIGN_VARS.map(v => (
+                    <button key={v.key} type="button" onClick={() => { insertAtCursor(`{${v.key}}`); setShowVars(false) }}
+                      className="block w-full text-left px-3 py-1.5 hover:bg-gray-50 border-b last:border-0">
+                      <code className="bg-gray-100 px-1 rounded text-xs">{`{${v.key}}`}</code>
+                      <span className="text-xs text-gray-500 ml-1">{v.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <textarea ref={messageRef} className={INPUT} rows={7} value={message} onChange={e => setMessage(e.target.value)}
             placeholder={'Hola {nombre},\n\nQuiero recordarte que...'} />
+          <p className="text-xs text-gray-400 mt-1">
+            Formato: <strong>**negrita**</strong>, <em>*cursiva*</em>, líneas con &quot;- &quot; para viñetas; los enlaces se activan solos. Las <strong>variables</strong> se reemplazan con los datos reales de cada cliente.
+          </p>
         </div>
 
         {/* Imágenes */}
@@ -444,6 +515,11 @@ export default function CampanasPage() {
             className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
             style={{ color: '#10253f', borderColor: '#cbd5e1', background: '#fff' }}>
             👁 Vista previa
+          </button>
+          <button onClick={sendTest} disabled={testing || !subject.trim() || !message.trim()}
+            className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
+            style={{ color: '#7c3aed', borderColor: '#ddd6fe', background: '#faf5ff' }}>
+            {testing ? 'Enviando prueba...' : '✉️ Enviar prueba a mí'}
           </button>
           <button onClick={send} disabled={sending || !preview?.withEmail}
             className="px-5 py-2 rounded-lg text-white font-semibold text-sm disabled:opacity-50"
@@ -531,7 +607,12 @@ export default function CampanasPage() {
 
       {/* Modal de vista previa — HTML idéntico al que se enviará */}
       {showPreview && (() => {
-        const sample = preview?.recipients.find(r => r.fullName)?.fullName?.split(' ')[0] || 'Cliente'
+        const sr = preview?.recipients.find(r => r.fullName)
+        const sampleVars = campaignVarsFor({
+          name: sr?.fullName || 'Carlos Rodríguez',
+          insurer: sr?.insurer || 'Ambetter', planName: sr?.planName || 'Silver 5', state: sr?.state || 'FL',
+        }, brand)
+        const previewButton = buttonText.trim() && buttonUrl.trim() ? { text: buttonText, url: buttonUrl } : null
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowPreview(false)}>
             <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -540,17 +621,17 @@ export default function CampanasPage() {
                 <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
               </div>
               <div className="px-5 py-2 border-b border-gray-100 text-xs text-gray-500 bg-gray-50">
-                Ejemplo con el nombre <strong>{sample}</strong> · así lo verá cada cliente con su propio nombre.
+                Ejemplo con datos de muestra (<strong>{sampleVars.nombre}</strong>{sampleVars.aseguradora ? ` · ${sampleVars.aseguradora}` : ''}{sampleVars.estado ? ` · ${sampleVars.estado}` : ''}) — cada cliente recibe los suyos.
               </div>
               <div className="overflow-y-auto">
                 <div className="px-5 py-3 border-b border-gray-100">
                   <div className="text-xs text-gray-400">De: {agentName}</div>
                   <div className="text-sm font-semibold mt-0.5" style={{ color: '#10253f' }}>
-                    {renderCampaignSubject(subject, sample) || '(sin asunto)'}
+                    {renderCampaignSubject(subject, sampleVars) || '(sin asunto)'}
                   </div>
                 </div>
                 <div className="px-5 py-4"
-                  dangerouslySetInnerHTML={{ __html: renderCampaignHtml(message, sample, brand, images.map(i => i.dataUrl), buttonText.trim() && buttonUrl.trim() ? { text: buttonText, url: buttonUrl } : null) }} />
+                  dangerouslySetInnerHTML={{ __html: renderCampaignHtml(message, sampleVars, brand, images.map(i => i.dataUrl), previewButton) }} />
               </div>
               <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
                 <button onClick={() => setShowPreview(false)}

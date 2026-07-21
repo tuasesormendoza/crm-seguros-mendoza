@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer'
 import { prisma } from './prisma'
-import { renderCampaignHtml, renderCampaignSubject, type CampaignImage, type CampaignBrand, type CampaignButton } from './campaignRender'
+import { renderCampaignHtml, renderCampaignSubject, campaignVarsFor, type CampaignImage, type CampaignBrand, type CampaignButton } from './campaignRender'
 
 // Multi-tenant: la configuración de email (SMTP) es POR AGENCIA. Siempre se debe
 // pasar el agencyId para no mezclar credenciales entre inquilinos.
@@ -44,7 +44,7 @@ export async function sendEmail(agencyId: string, subject: string, html: string)
 
 // ── Campañas (envío masivo a CLIENTES) ───────────────────────────────────────
 
-export interface CampaignRecipient { email: string; name: string }
+export interface CampaignRecipient { email: string; name: string; insurer?: string | null; planName?: string | null; state?: string | null }
 
 // Envía una campaña a varios clientes reutilizando una sola conexión SMTP en
 // pool (rápido y sin abrir/cerrar por correo). Personaliza {nombre} y agrega un
@@ -89,12 +89,12 @@ export async function sendCampaign(
   const errors: string[] = []
   await Promise.all(recipients.map(async r => {
     try {
-      const first = r.name.split(' ')[0]
+      const vars = campaignVarsFor(r, brand)
       await transporter.sendMail({
         from: cfg.from || cfg.user,
         to: r.email,
-        subject: renderCampaignSubject(subject, first),
-        html: renderCampaignHtml(body, first, brand, imageSrcs, button),
+        subject: renderCampaignSubject(subject, vars),
+        html: renderCampaignHtml(body, vars, brand, imageSrcs, button),
         attachments,
       })
       sent++

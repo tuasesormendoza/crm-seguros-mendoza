@@ -6,7 +6,7 @@ import type { CampaignBrand } from '@/lib/campaignRender'
 // (/api/logo/[agencyId]) porque Gmail y otros bloquean los data: URLs.
 export async function getCampaignBrand(agencyId: string, origin: string): Promise<CampaignBrand> {
   const rows = await prisma.settings.findMany({
-    where: { agencyId, key: { in: ['agentName', 'agentPhone', 'agentWhatsApp', 'agentEmail', 'themeBrand800', 'themeAccent', 'logoUrl'] } },
+    where: { agencyId, key: { in: ['agentName', 'agentPhone', 'agentWhatsApp', 'agentEmail', 'themeBrand800', 'themeAccent', 'logoUrl', 'googleReviewLink'] } },
     select: { key: true, value: true },
   })
   const s: Record<string, string> = {}
@@ -20,5 +20,6 @@ export async function getCampaignBrand(agencyId: string, origin: string): Promis
     phone: s.agentPhone || '',
     whatsapp: s.agentWhatsApp || '',
     email: s.agentEmail || '',
+    reviewLink: s.googleReviewLink || '',
   }
 }

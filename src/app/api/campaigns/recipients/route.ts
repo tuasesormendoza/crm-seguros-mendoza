@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   const clients = await prisma.client.findMany({
     where,
-    select: { id: true, fullName: true, email: true, phone: true },
+    select: { id: true, fullName: true, email: true, phone: true, insurer: true, planName: true, state: true },
     orderBy: { fullName: 'asc' },
   })
 
