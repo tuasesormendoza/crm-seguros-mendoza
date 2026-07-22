@@ -57,6 +57,7 @@ export async function sendCampaign(
   brand: CampaignBrand,
   images: CampaignImage[] = [],
   button?: CampaignButton | null,
+  trackUrl?: string,
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
   const cfg = await getEmailConfig(agencyId)
   if (!cfg.enabled || !cfg.user || !cfg.pass) {
@@ -94,7 +95,7 @@ export async function sendCampaign(
         from: cfg.from || cfg.user,
         to: r.email,
         subject: renderCampaignSubject(subject, vars),
-        html: renderCampaignHtml(body, vars, brand, imageSrcs, button),
+        html: renderCampaignHtml(body, vars, brand, imageSrcs, button, trackUrl),
         attachments,
       })
       sent++

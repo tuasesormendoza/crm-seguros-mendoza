@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
-import { buildSegmentWhere } from '@/lib/campaignFilters'
+import { buildSegmentWhere, smartPostFilter } from '@/lib/campaignFilters'
 
 // GET /api/campaigns/recipients — calcula el segmento de clientes según filtros.
 // Filtros: status, insurer, state, tag, wn (con|sin), missing (dental|wn).
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   const sp = request.nextUrl.searchParams
-  const where = buildSegmentWhere(auth.agencyId, {
+  const params = {
     status: sp.get('status') || undefined,
     insurer: sp.get('insurer') || undefined,
     state: sp.get('state') || undefined,
@@ -19,13 +19,18 @@ export async function GET(request: NextRequest) {
     wn: sp.get('wn') || undefined,
     missing: sp.get('missing') || undefined,
     clientId: sp.get('clientId') || undefined,
-  })
+    renewalSoon: sp.get('renewalSoon') || undefined,
+    noReview: sp.get('noReview') || undefined,
+    birthdayMonth: sp.get('birthdayMonth') || undefined,
+  }
+  const where = buildSegmentWhere(auth.agencyId, params)
 
-  const clients = await prisma.client.findMany({
+  const all = await prisma.client.findMany({
     where,
-    select: { id: true, fullName: true, email: true, phone: true, insurer: true, planName: true, state: true },
+    select: { id: true, fullName: true, email: true, phone: true, insurer: true, planName: true, state: true, birthDate: true },
     orderBy: { fullName: 'asc' },
   })
+  const clients = smartPostFilter(all, params)
 
   return NextResponse.json({
     total: clients.length,

@@ -33,6 +33,8 @@ const PUBLIC_ROUTES = new Set([
   'logo/[agencyId]/route.ts', // logo público para emails (solo bytes de imagen)
   'google/sync-cron/route.ts', // cron de sync Google→CRM; protegido por clave derivada del SESSION_SECRET
   'google/backup-cron/route.ts', // cron de respaldo a Drive; protegido por clave derivada del SESSION_SECRET
+  'campaigns/track/[id]/route.ts', // pixel de apertura (público, lo carga el email del cliente)
+  'campaigns/cron/route.ts',       // cron de campañas programadas/automáticas; protegido por cronKey
 ])
 
 // ── Modelos sin inquilino (no llevan agencyId en el schema) ──────────────────
@@ -77,6 +79,8 @@ const EXEMPTIONS = new Map<string, string>([
     'Verificar-luego-actuar: user.findFirst({id, agencyId}) + 404 al inicio del DELETE.'],
   ['users/route.ts :: user.findUnique',
     'Chequeo de unicidad GLOBAL de email antes de crear (email es @unique en todo el sistema); solo revela "email ocupado".'],
+  ['campaigns/track/[id]/route.ts :: campaign.updateMany',
+    'Pixel público de apertura: solo incrementa openCount por id de campaña (cuid no adivinable); no lee ni expone datos, no cruza agencias.'],
 ])
 
 // ── Recolectar archivos route.ts ──────────────────────────────────────────────

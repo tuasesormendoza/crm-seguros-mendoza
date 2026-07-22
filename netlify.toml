@@ -17,6 +17,10 @@
 [functions."drive-backup"]
   schedule = "0 8 * * *"
 
+# Campañas programadas + automáticas (cumpleaños/renovación/bienvenida) — c/30 min.
+[functions."campaigns"]
+  schedule = "*/30 * * * *"
+
 # Environment variables you must configure in the Netlify dashboard
 # (Site settings → Environment variables) — NEVER commit real values:
 #

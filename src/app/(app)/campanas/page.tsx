@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
+import Automations from '@/components/campaigns/Automations'
 import { renderCampaignHtml, renderCampaignSubject, campaignVarsFor, applyVars, CAMPAIGN_VARS, type CampaignImage, type CampaignBrand } from '@/lib/campaignRender'
 import { formatDateTime } from '@/lib/utils'
 
@@ -46,6 +47,24 @@ const TEMPLATES: { icon: string; name: string; subject: string; message: string;
     subject: '¡Bienvenido/a, {nombre}!',
     message: 'Hola {nombre},\n\n¡Gracias por confiar en mí como tu agente de seguros! Estoy aquí para ayudarte en todo lo que necesites: dudas de tu póliza, citas médicas, reclamos o cualquier cambio.\n\nGuarda mi contacto y escríbeme cuando quieras. Estoy para servirte.',
   },
+  {
+    icon: '💳', name: 'Recordatorio de pago',
+    subject: '{nombre}, no pierdas tu cobertura',
+    message: 'Hola {nombre},\n\nQuiero recordarte que es importante mantener al día el pago de tu póliza **{plan}** con {aseguradora} para no perder tu cobertura.\n\nSi tienes cualquier duda con tu pago, escríbeme y te ayudo enseguida.',
+    buttonText: 'Escríbeme por WhatsApp',
+  },
+  {
+    icon: '👥', name: 'Pide referidos',
+    subject: '{nombre}, ¿conoces a alguien que necesite seguro?',
+    message: 'Hola {nombre},\n\nGracias por confiar en mí. Si conoces a algún familiar o amigo que necesite ayuda con su seguro de salud, me encantaría atenderlo con el mismo cuidado que a ti.\n\nSolo pásale mi contacto o dime su número y yo me encargo. ¡Gracias por tu confianza! 🙌',
+    buttonText: 'Referir a alguien',
+  },
+  {
+    icon: '📄', name: 'Documentos pendientes',
+    subject: '{nombre}, necesitamos unos documentos',
+    message: 'Hola {nombre},\n\nPara completar o mantener tu cobertura al día, necesito que me envíes algunos documentos. Es rápido y te ayudo en cada paso.\n\nResponde este correo o escríbeme por WhatsApp y te digo exactamente qué necesitamos.',
+    buttonText: 'Enviar mis documentos',
+  },
 ]
 
 interface RecipientRow { id: string; fullName: string; email: string | null; phone: string | null; insurer?: string | null; planName?: string | null; state?: string | null }
@@ -53,9 +72,17 @@ interface Recipients { total: number; withEmail: number; withPhone: number; reci
 interface CampaignRow {
   id: string; subject: string; message: string; segment: string
   sentAt: string | null; sentCount: number; failedCount: number; createdAt: string; hasImages: boolean
+  openCount?: number; scheduledAt?: string | null
 }
 interface ClientOption { id: string; fullName: string }
-interface Segment { status: string; state: string; missing: string; clientId: string }
+interface Segment { status: string; state: string; missing: string; clientId: string; renewalSoon: string; noReview: string; birthdayMonth: string }
+
+// Segmentos inteligentes (chips de un clic). Cada uno fija ciertos filtros.
+const SMART_SEGMENTS: { key: string; label: string; apply: Partial<Segment> }[] = [
+  { key: 'renew60', label: '🔄 Renuevan en 60 días', apply: { renewalSoon: '60', status: '', birthdayMonth: '', noReview: '' } },
+  { key: 'bday', label: '🎂 Cumplen este mes', apply: { birthdayMonth: 'si', status: 'Activo', renewalSoon: '', noReview: '' } },
+  { key: 'noreview', label: '⭐ Sin reseña de Google', apply: { noReview: 'si', status: 'Activo', renewalSoon: '', birthdayMonth: '' } },
+]
 
 const STATUSES = ['Activo', 'Pendiente', 'Cancelado', 'Con otro agente']
 const SPECIAL = [
@@ -63,7 +90,7 @@ const SPECIAL = [
   { key: 'dental', label: 'Solo los que NO tienen plan dental' },
   { key: 'wn', label: 'Solo los que NO tienen seguro suplementario' },
 ]
-const EMPTY_SEGMENT: Segment = { status: 'Activo', state: '', missing: '', clientId: '' }
+const EMPTY_SEGMENT: Segment = { status: 'Activo', state: '', missing: '', clientId: '', renewalSoon: '', noReview: '', birthdayMonth: '' }
 
 const INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white'
 const LABEL = 'block text-xs font-semibold text-gray-600 mb-1'
@@ -93,6 +120,7 @@ export default function CampanasPage() {
   const [savingDraft, setSavingDraft] = useState(false)
   const [testing, setTesting] = useState(false)
   const [showVars, setShowVars] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')  // datetime-local (envío programado)
   const messageRef = useRef<HTMLTextAreaElement>(null)
 
   // Cliente específico
@@ -135,6 +163,9 @@ export default function CampanasPage() {
       if (segment.status) params.set('status', segment.status)
       if (segment.state) params.set('state', segment.state)
       if (segment.missing) params.set('missing', segment.missing)
+      if (segment.renewalSoon) params.set('renewalSoon', segment.renewalSoon)
+      if (segment.noReview) params.set('noReview', segment.noReview)
+      if (segment.birthdayMonth) params.set('birthdayMonth', segment.birthdayMonth)
     }
     fetch(`/api/campaigns/recipients?${params}`)
       .then(r => r.json())
@@ -179,18 +210,26 @@ export default function CampanasPage() {
   async function send() {
     if (!subject.trim() || (!message.trim() && images.length === 0)) { setResult('❌ Escribe un asunto y al menos un mensaje o una imagen.'); return }
     if (!preview || preview.withEmail === 0) { setResult('❌ Ningún cliente del segmento tiene email.'); return }
-    if (!confirm(`¿Enviar esta campaña por email a ${preview.withEmail} cliente(s)?`)) return
+    const isScheduled = scheduledAt.trim() !== '' && new Date(scheduledAt).getTime() > Date.now()
+    const confirmMsg = isScheduled
+      ? `¿Programar esta campaña para el ${new Date(scheduledAt).toLocaleString('es')}?`
+      : `¿Enviar esta campaña por email a ${preview.withEmail} cliente(s) ahora?`
+    if (!confirm(confirmMsg)) return
     setSending(true)
     setResult(null)
     try {
       const res = await fetch('/api/campaigns/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, message, segment, images, buttonText, buttonUrl, campaignId: editingId }),
+        body: JSON.stringify({ subject, message, segment, images, buttonText, buttonUrl, campaignId: editingId, scheduledAt: isScheduled ? new Date(scheduledAt).toISOString() : undefined }),
       })
       const data = await res.json()
       if (!res.ok) { setResult(`❌ ${data.error || 'Error al enviar'}`) }
-      else {
+      else if (data.scheduled) {
+        setResult(`📅 Campaña programada para el ${new Date(data.scheduledAt).toLocaleString('es')}. Se enviará sola.`)
+        setEditingId(data.campaignId || null)
+        loadHistory()
+      } else {
         let msg = `✅ Enviados: ${data.sent}`
         if (data.failed) msg += ` · Fallidos: ${data.failed}`
         if (data.limitados) msg += ` · ${data.limitados} quedaron para una próxima tanda (máx. ${data.maxPorEnvio} por envío)`
@@ -236,7 +275,7 @@ export default function CampanasPage() {
     setButtonUrl(c.buttonUrl || '')
     try {
       const seg = JSON.parse(c.segment || '{}')
-      const next: Segment = { status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '' }
+      const next: Segment = { status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '', renewalSoon: seg.renewalSoon || '', noReview: seg.noReview || '', birthdayMonth: seg.birthdayMonth || '' }
       setSegment(next)
       if (next.clientId) {
         const found = clients.find(cl => cl.id === next.clientId)
@@ -261,7 +300,7 @@ export default function CampanasPage() {
     setButtonUrl(c.buttonUrl || '')
     try {
       const seg = JSON.parse(c.segment || '{}')
-      setSegment({ status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '' })
+      setSegment({ status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '', renewalSoon: seg.renewalSoon || '', noReview: seg.noReview || '', birthdayMonth: seg.birthdayMonth || '' })
       setSelectedClient(seg.clientId ? (clients.find(cl => cl.id === seg.clientId) || { id: seg.clientId, fullName: '(cliente del historial)' }) : null)
     } catch { /* segmento ilegible */ }
     try { setImages(c.images ? JSON.parse(c.images) : []) } catch { setImages([]) }
@@ -275,6 +314,7 @@ export default function CampanasPage() {
     setMessage('')
     setButtonText('')
     setButtonUrl('')
+    setScheduledAt('')
     setImages([])
     setSegment(EMPTY_SEGMENT)
     setSelectedClient(null)
@@ -422,6 +462,26 @@ export default function CampanasPage() {
             </select>
           </div>
         </div>
+        {/* Segmentos inteligentes (chips) */}
+        <div className={`flex flex-wrap items-center gap-2 ${selectedClient ? 'opacity-40 pointer-events-none' : ''}`}>
+          <span className="text-xs text-gray-400">Segmentos rápidos:</span>
+          {SMART_SEGMENTS.map(sm => {
+            const active = (sm.key === 'renew60' && segment.renewalSoon === '60')
+              || (sm.key === 'bday' && segment.birthdayMonth === 'si')
+              || (sm.key === 'noreview' && segment.noReview === 'si')
+            return (
+              <button key={sm.key} type="button"
+                onClick={() => setSegment(s => active
+                  ? { ...s, renewalSoon: '', noReview: '', birthdayMonth: '' }
+                  : { ...s, ...sm.apply, clientId: '' })}
+                className="text-xs px-3 py-1.5 rounded-full border font-medium transition-colors"
+                style={active ? { background: '#10253f', color: '#fff', borderColor: '#10253f' } : { color: '#475569', borderColor: '#cbd5e1' }}>
+                {sm.label}
+              </button>
+            )
+          })}
+        </div>
+
         {preview && (
           <div className="text-sm px-3 py-2 rounded-lg" style={{ background: '#f0f7fb', border: '1px solid #b8d4e8', color: '#1e4a6e' }}>
             <strong>{preview.total}</strong> cliente(s) en el segmento · <strong>{preview.withEmail}</strong> con email (recibirán) · <strong>{preview.withPhone}</strong> con teléfono (para WhatsApp)
@@ -529,6 +589,13 @@ export default function CampanasPage() {
       {/* Enviar */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-3">
         <h2 className="font-bold text-base" style={{ color: '#10253f' }}>3. Enviar</h2>
+        <div className="flex items-center gap-2 flex-wrap p-2.5 rounded-lg" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <label className="text-xs font-semibold text-gray-600">📅 Programar envío (opcional):</label>
+          <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+          {scheduledAt && <button type="button" onClick={() => setScheduledAt('')} className="text-xs text-gray-400 hover:text-red-600">Quitar</button>}
+          <span className="text-xs text-gray-400">Si eliges fecha, se enviará sola en ese momento.</span>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setShowPreview(true)} disabled={!subject.trim() || (!message.trim() && images.length === 0)}
             className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
@@ -542,8 +609,8 @@ export default function CampanasPage() {
           </button>
           <button onClick={send} disabled={sending || !preview?.withEmail}
             className="px-5 py-2 rounded-lg text-white font-semibold text-sm disabled:opacity-50"
-            style={{ background: '#2a6496' }}>
-            {sending ? 'Enviando...' : `📧 Enviar por email${preview ? ` (${Math.min(preview.withEmail, 60)})` : ''}`}
+            style={{ background: scheduledAt ? '#7c3aed' : '#2a6496' }}>
+            {sending ? 'Procesando...' : scheduledAt ? '📅 Programar envío' : `📧 Enviar por email${preview ? ` (${Math.min(preview.withEmail, 60)})` : ''}`}
           </button>
           <button onClick={saveDraft} disabled={savingDraft || (!subject.trim() && !message.trim())}
             className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
@@ -604,8 +671,10 @@ export default function CampanasPage() {
                   </div>
                   <div className="text-xs text-gray-400">
                     {c.sentAt
-                      ? <>Enviada {formatDateTime(c.sentAt)} · ✅ {c.sentCount}{c.failedCount ? ` · ❌ ${c.failedCount}` : ''}</>
-                      : <span className="font-semibold text-amber-600">Borrador</span>}
+                      ? <>Enviada {formatDateTime(c.sentAt)} · ✅ {c.sentCount}{c.failedCount ? ` · ❌ ${c.failedCount}` : ''}{c.openCount ? ` · 👁 ${c.openCount} aperturas` : ''}</>
+                      : c.scheduledAt
+                        ? <span className="font-semibold" style={{ color: '#7c3aed' }}>📅 Programada para {formatDateTime(c.scheduledAt)}</span>
+                        : <span className="font-semibold text-amber-600">Borrador</span>}
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -627,6 +696,9 @@ export default function CampanasPage() {
           </div>
         )}
       </div>
+
+      {/* Campañas automáticas */}
+      <Automations />
 
       {/* Modal de vista previa — HTML idéntico al que se enviará */}
       {showPreview && (() => {

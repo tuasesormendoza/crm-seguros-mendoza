@@ -14,6 +14,7 @@ export async function GET() {
       select: {
         id: true, subject: true, message: true, segment: true,
         sentAt: true, sentCount: true, failedCount: true, createdAt: true,
+        openCount: true, scheduledAt: true,
       },
       orderBy: { updatedAt: 'desc' },
       take: 50,

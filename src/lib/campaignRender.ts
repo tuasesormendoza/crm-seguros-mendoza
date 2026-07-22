@@ -108,6 +108,7 @@ export function renderCampaignHtml(
   brand: CampaignBrand,
   imageSrcs: string[] = [],
   button?: CampaignButton | null,
+  trackUrl?: string,   // pixel de apertura (1x1) para contar aperturas aprox.
 ): string {
   const name = escapeHtml(brand.agencyName || 'Tu agente de seguros')
   const header = brand.headerColor || '#0D2A4A'
@@ -163,6 +164,7 @@ export function renderCampaignHtml(
       </td>
     </tr>
   </table>
+  ${trackUrl ? `<img src="${escapeHtml(trackUrl)}" width="1" height="1" alt="" style="display:none"/>` : ''}
 </div>`
 }
 

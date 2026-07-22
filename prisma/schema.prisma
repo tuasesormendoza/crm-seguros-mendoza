@@ -267,12 +267,37 @@ model Campaign {
   images      String?   // JSON [{ name, dataUrl }] — se adjuntan inline al email
   buttonText  String?   // texto del botón CTA (ej. "Cotiza ahora")
   buttonUrl   String?   // enlace del botón CTA
+  scheduledAt DateTime? // si está en el futuro y sentAt es null → envío programado
+  openCount   Int       @default(0) // aperturas aprox. (pixel de seguimiento)
   sentAt      DateTime?
   sentCount   Int       @default(0)
   failedCount Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  @@index([agencyId])
+  @@index([scheduledAt])
+}
+
+// Campañas AUTOMÁTICAS: se disparan solas según un evento del cliente.
+//   birthday → el día del cumpleaños · renewal → N días antes de la renovación
+//   welcome  → cuando se registra un cliente nuevo
+// El anti-duplicado usa NotificationLog (type "auto-<tipo>", refId por cliente).
+model Automation {
+  id         String   @id @default(cuid())
+  agencyId   String?
+  type       String   // 'birthday' | 'renewal' | 'welcome'
+  enabled    Boolean  @default(false)
+  subject    String
+  message    String
+  buttonText String?
+  buttonUrl  String?
+  images     String?
+  daysBefore Int?     // para 'renewal': cuántos días antes de la renovación enviar
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([agencyId, type])
   @@index([agencyId])
 }
 
