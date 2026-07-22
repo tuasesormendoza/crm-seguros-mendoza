@@ -113,7 +113,9 @@ export function renderCampaignHtml(
   const header = brand.headerColor || '#0D2A4A'
   const accent = brand.accentColor || '#2a6496'
 
-  const htmlBody = formatBody(applyVars(body, vars))
+  // Si no hay mensaje (campaña solo de imágenes), no se agrega cuerpo de texto.
+  const resolvedBody = applyVars(body, vars)
+  const htmlBody = resolvedBody.trim() ? `<div style="font-size:15px;color:#1f2937;line-height:1.7">${formatBody(resolvedBody)}</div>` : ''
 
   const imagesHtml = imageSrcs
     .map(src => `<div style="margin-top:16px;text-align:center"><img src="${src}" alt="" style="max-width:100%;border-radius:8px"/></div>`)
@@ -145,7 +147,7 @@ export function renderCampaignHtml(
     </tr>
     <tr>
       <td style="padding:28px 28px 22px">
-        <div style="font-size:15px;color:#1f2937;line-height:1.7">${htmlBody}</div>
+        ${htmlBody}
         ${imagesHtml}
         ${buttonHtml}
       </td>

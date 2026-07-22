@@ -177,7 +177,7 @@ export default function CampanasPage() {
 
   // ── Enviar / guardar / editar ───────────────────────────────────────────────
   async function send() {
-    if (!subject.trim() || !message.trim()) { setResult('❌ Escribe el asunto y el mensaje.'); return }
+    if (!subject.trim() || (!message.trim() && images.length === 0)) { setResult('❌ Escribe un asunto y al menos un mensaje o una imagen.'); return }
     if (!preview || preview.withEmail === 0) { setResult('❌ Ningún cliente del segmento tiene email.'); return }
     if (!confirm(`¿Enviar esta campaña por email a ${preview.withEmail} cliente(s)?`)) return
     setSending(true)
@@ -250,6 +250,25 @@ export default function CampanasPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  async function duplicateCampaign(id: string) {
+    const res = await fetch(`/api/campaigns/${id}`)
+    if (!res.ok) return
+    const c = await res.json()
+    setEditingId(null) // copia NUEVA — no edita ni pisa la original
+    setSubject(c.subject ? `${c.subject} (copia)` : '')
+    setMessage(c.message || '')
+    setButtonText(c.buttonText || '')
+    setButtonUrl(c.buttonUrl || '')
+    try {
+      const seg = JSON.parse(c.segment || '{}')
+      setSegment({ status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '' })
+      setSelectedClient(seg.clientId ? (clients.find(cl => cl.id === seg.clientId) || { id: seg.clientId, fullName: '(cliente del historial)' }) : null)
+    } catch { /* segmento ilegible */ }
+    try { setImages(c.images ? JSON.parse(c.images) : []) } catch { setImages([]) }
+    setResult('📋 Campaña duplicada — es una copia nueva. Edítala y envíala cuando quieras.')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function newCampaign() {
     setEditingId(null)
     setSubject('')
@@ -282,7 +301,7 @@ export default function CampanasPage() {
   }
 
   async function sendTest() {
-    if (!subject.trim() || !message.trim()) { setResult('❌ Escribe el asunto y el mensaje.'); return }
+    if (!subject.trim() || (!message.trim() && images.length === 0)) { setResult('❌ Escribe un asunto y al menos un mensaje o una imagen.'); return }
     setTesting(true)
     setResult(null)
     try {
@@ -436,7 +455,7 @@ export default function CampanasPage() {
           <input className={INPUT} value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ej. Ya viene la Inscripción Abierta 2027" />
         </div>
         <div>
-          <label className={LABEL}>Mensaje</label>
+          <label className={LABEL}>Mensaje <span className="font-normal text-gray-400">(opcional si envías solo imágenes)</span></label>
           {/* Barra de formato + variables inteligentes */}
           <div className="flex flex-wrap items-center gap-1 mb-2">
             <button type="button" onClick={() => wrapSelection('**', '**')} title="Negrita"
@@ -474,7 +493,7 @@ export default function CampanasPage() {
 
         {/* Imágenes */}
         <div>
-          <label className={LABEL}>Imágenes (opcional — hasta 3, máx. 1.5 MB c/u; van dentro del email)</label>
+          <label className={LABEL}>Imágenes (hasta 3, máx. 1.5 MB c/u; van dentro del email — puedes enviar una campaña solo con imágenes)</label>
           <div className="flex flex-wrap gap-3 items-start">
             {images.map((img, i) => (
               <div key={i} className="relative">
@@ -511,12 +530,12 @@ export default function CampanasPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-3">
         <h2 className="font-bold text-base" style={{ color: '#10253f' }}>3. Enviar</h2>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setShowPreview(true)} disabled={!subject.trim() || !message.trim()}
+          <button onClick={() => setShowPreview(true)} disabled={!subject.trim() || (!message.trim() && images.length === 0)}
             className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
             style={{ color: '#10253f', borderColor: '#cbd5e1', background: '#fff' }}>
             👁 Vista previa
           </button>
-          <button onClick={sendTest} disabled={testing || !subject.trim() || !message.trim()}
+          <button onClick={sendTest} disabled={testing || !subject.trim() || (!message.trim() && images.length === 0)}
             className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
             style={{ color: '#7c3aed', borderColor: '#ddd6fe', background: '#faf5ff' }}>
             {testing ? 'Enviando prueba...' : '✉️ Enviar prueba a mí'}
@@ -593,6 +612,10 @@ export default function CampanasPage() {
                   <button onClick={() => loadCampaign(c.id)}
                     className="text-xs px-3 py-1.5 rounded-lg border font-medium hover:bg-gray-50" style={{ color: '#0369a1', borderColor: '#bae6fd' }}>
                     ✏️ {c.sentAt ? 'Editar / Reenviar' : 'Continuar'}
+                  </button>
+                  <button onClick={() => duplicateCampaign(c.id)} title="Duplicar como campaña nueva"
+                    className="text-xs px-2 py-1.5 rounded-lg border font-medium hover:bg-gray-50" style={{ color: '#7c3aed', borderColor: '#ddd6fe' }}>
+                    📋
                   </button>
                   <button onClick={() => deleteCampaign(c.id)}
                     className="text-xs px-2 py-1.5 rounded-lg border font-medium hover:bg-red-50" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>

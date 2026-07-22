@@ -27,12 +27,14 @@ export async function POST(request: NextRequest) {
   }
   const button = buttonText?.trim() && buttonUrl?.trim() ? { text: buttonText.trim(), url: buttonUrl.trim() } : null
 
-  if (!subject?.trim() || !message?.trim()) {
-    return NextResponse.json({ error: 'El asunto y el mensaje son obligatorios.' }, { status: 400 })
-  }
-
   const imgCheck = validateCampaignImages(images)
   if (imgCheck.error) return NextResponse.json({ error: imgCheck.error }, { status: 400 })
+
+  // Se puede enviar con solo imágenes: el mensaje no es obligatorio si hay al
+  // menos una imagen (útil para volantes/flyers). El asunto sí se pide.
+  if (!subject?.trim() || (!message?.trim() && imgCheck.images.length === 0)) {
+    return NextResponse.json({ error: 'Escribe un asunto y al menos un mensaje o una imagen.' }, { status: 400 })
+  }
 
   const where = buildSegmentWhere(auth.agencyId, segment || {})
   const clients = await prisma.client.findMany({
@@ -54,12 +56,13 @@ export async function POST(request: NextRequest) {
   // Marca de la agencia (logo, colores, contacto) para dar identidad al correo.
   const brand = await getCampaignBrand(auth.agencyId, request.nextUrl.origin)
 
-  const result = await sendCampaign(auth.agencyId, capped, subject.trim(), message.trim(), brand, imgCheck.images, button)
+  const msg = (message || '').trim()
+  const result = await sendCampaign(auth.agencyId, capped, subject.trim(), msg, brand, imgCheck.images, button)
 
   // Guardar en el historial: actualiza la campaña editada o crea una nueva.
   const record = {
     subject: subject.trim(),
-    message: message.trim(),
+    message: msg,
     segment: JSON.stringify(segment || {}),
     images: imgCheck.images.length ? JSON.stringify(imgCheck.images) : null,
     buttonText: button?.text || null,
