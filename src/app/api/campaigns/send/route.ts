@@ -31,15 +31,17 @@ export async function POST(request: NextRequest) {
   const imgCheck = validateCampaignImages(images)
   if (imgCheck.error) return NextResponse.json({ error: imgCheck.error }, { status: 400 })
 
-  // Se puede enviar con solo imágenes: el mensaje no es obligatorio si hay al
-  // menos una imagen (útil para volantes/flyers). El asunto sí se pide.
-  if (!subject?.trim() || (!message?.trim() && imgCheck.images.length === 0)) {
-    return NextResponse.json({ error: 'Escribe un asunto y al menos un mensaje o una imagen.' }, { status: 400 })
+  // Basta con UNA de las tres: asunto, mensaje o imagen. Así se puede enviar un
+  // volante con solo una imagen (sin escribir nada); si falta el asunto, el
+  // correo usa el nombre de la agencia como asunto.
+  if (!subject?.trim() && !message?.trim() && imgCheck.images.length === 0) {
+    return NextResponse.json({ error: 'Agrega al menos un asunto, un mensaje o una imagen.' }, { status: 400 })
   }
 
   const msg = (message || '').trim()
+  const subj = (subject || '').trim()
   const baseRecord = {
-    subject: subject.trim(),
+    subject: subj,
     message: msg,
     segment: JSON.stringify(segment || {}),
     images: imgCheck.images.length ? JSON.stringify(imgCheck.images) : null,
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
   if (when && !isNaN(when.getTime()) && when.getTime() > Date.now() + 60_000) {
     const id = await upsertCampaign({ scheduledAt: when, sentAt: null })
     if (!id) return NextResponse.json({ error: 'Campaña no encontrada.' }, { status: 404 })
-    await logAudit(auth, { action: 'send', entity: 'campaign', entityId: id, entityLabel: subject.trim(), metadata: { programada: when.toISOString() } })
+    await logAudit(auth, { action: 'send', entity: 'campaign', entityId: id, entityLabel: subj || "(sin asunto)", metadata: { programada: when.toISOString() } })
     return NextResponse.json({ scheduled: true, scheduledAt: when.toISOString(), campaignId: id })
   }
 
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
 
   const brand = await getCampaignBrand(auth.agencyId, request.nextUrl.origin)
   const trackUrl = `${request.nextUrl.origin}/api/campaigns/track/${id}`
-  const result = await sendCampaign(auth.agencyId, capped, subject.trim(), msg, brand, imgCheck.images, button, trackUrl)
+  const result = await sendCampaign(auth.agencyId, capped, subj, msg, brand, imgCheck.images, button, trackUrl)
 
   await prisma.campaign.updateMany({
     where: { id, agencyId: auth.agencyId },
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
   })
 
   await logAudit(auth, {
-    action: 'send', entity: 'campaign', entityId: id, entityLabel: subject.trim(),
+    action: 'send', entity: 'campaign', entityId: id, entityLabel: subj || "(sin asunto)",
     metadata: { enviados: result.sent, fallidos: result.failed, segmento: segment || {} },
   })
 

@@ -208,7 +208,7 @@ export default function CampanasPage() {
 
   // ── Enviar / guardar / editar ───────────────────────────────────────────────
   async function send() {
-    if (!subject.trim() || (!message.trim() && images.length === 0)) { setResult('❌ Escribe un asunto y al menos un mensaje o una imagen.'); return }
+    if (!subject.trim() && !message.trim() && images.length === 0) { setResult('❌ Agrega al menos un asunto, un mensaje o una imagen.'); return }
     if (!preview || preview.withEmail === 0) { setResult('❌ Ningún cliente del segmento tiene email.'); return }
     const isScheduled = scheduledAt.trim() !== '' && new Date(scheduledAt).getTime() > Date.now()
     const confirmMsg = isScheduled
@@ -341,7 +341,7 @@ export default function CampanasPage() {
   }
 
   async function sendTest() {
-    if (!subject.trim() || (!message.trim() && images.length === 0)) { setResult('❌ Escribe un asunto y al menos un mensaje o una imagen.'); return }
+    if (!subject.trim() && !message.trim() && images.length === 0) { setResult('❌ Agrega al menos un asunto, un mensaje o una imagen.'); return }
     setTesting(true)
     setResult(null)
     try {
@@ -511,7 +511,7 @@ export default function CampanasPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
         <h2 className="font-bold text-base" style={{ color: '#10253f' }}>2. El mensaje</h2>
         <div>
-          <label className={LABEL}>Asunto (solo email)</label>
+          <label className={LABEL}>Asunto <span className="font-normal text-gray-400">(opcional; si lo dejas vacío se usa el nombre de tu agencia)</span></label>
           <input className={INPUT} value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ej. Ya viene la Inscripción Abierta 2027" />
         </div>
         <div>
@@ -597,12 +597,12 @@ export default function CampanasPage() {
           <span className="text-xs text-gray-400">Si eliges fecha, se enviará sola en ese momento.</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setShowPreview(true)} disabled={!subject.trim() || (!message.trim() && images.length === 0)}
+          <button onClick={() => setShowPreview(true)} disabled={!subject.trim() && !message.trim() && images.length === 0}
             className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
             style={{ color: '#10253f', borderColor: '#cbd5e1', background: '#fff' }}>
             👁 Vista previa
           </button>
-          <button onClick={sendTest} disabled={testing || !subject.trim() || (!message.trim() && images.length === 0)}
+          <button onClick={sendTest} disabled={testing || !subject.trim() && !message.trim() && images.length === 0}
             className="px-5 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50"
             style={{ color: '#7c3aed', borderColor: '#ddd6fe', background: '#faf5ff' }}>
             {testing ? 'Enviando prueba...' : '✉️ Enviar prueba a mí'}

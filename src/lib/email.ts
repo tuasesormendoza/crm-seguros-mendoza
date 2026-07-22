@@ -91,10 +91,13 @@ export async function sendCampaign(
   await Promise.all(recipients.map(async r => {
     try {
       const vars = campaignVarsFor(r, brand)
+      // Si la campaña no tiene asunto (ej. solo una imagen), se usa el nombre de
+      // la agencia para que el correo no llegue "sin asunto".
+      const subjectLine = renderCampaignSubject(subject, vars).trim() || brand.agencyName || 'Un mensaje para ti'
       await transporter.sendMail({
         from: cfg.from || cfg.user,
         to: r.email,
-        subject: renderCampaignSubject(subject, vars),
+        subject: subjectLine,
         html: renderCampaignHtml(body, vars, brand, imageSrcs, button, trackUrl),
         attachments,
       })

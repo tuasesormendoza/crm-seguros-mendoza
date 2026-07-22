@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
   }
   const imgCheck = validateCampaignImages(images)
   if (imgCheck.error) return NextResponse.json({ error: imgCheck.error }, { status: 400 })
-  if (!subject?.trim() || (!message?.trim() && imgCheck.images.length === 0)) {
-    return NextResponse.json({ error: 'Escribe un asunto y al menos un mensaje o una imagen.' }, { status: 400 })
+  if (!subject?.trim() && !message?.trim() && imgCheck.images.length === 0) {
+    return NextResponse.json({ error: 'Agrega al menos un asunto, un mensaje o una imagen.' }, { status: 400 })
   }
 
   const cfg = await getEmailConfig(auth.agencyId)
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   // Destinatario de muestra: tu propio email, con datos ficticios para que veas
   // cómo se resuelven las variables ({aseguradora}, {plan}, etc.).
   const sample = { email: cfg.to, name: 'María González', insurer: 'Ambetter', planName: 'Silver 5', state: 'FL' }
-  const result = await sendCampaign(auth.agencyId, [sample], `[PRUEBA] ${subject.trim()}`, (message || '').trim(), brand, imgCheck.images, button)
+  const result = await sendCampaign(auth.agencyId, [sample], `[PRUEBA] ${(subject || '').trim()}`, (message || '').trim(), brand, imgCheck.images, button)
 
   if (result.sent === 0) {
     return NextResponse.json({ error: result.errors[0] || 'No se pudo enviar la prueba.' }, { status: 400 })
