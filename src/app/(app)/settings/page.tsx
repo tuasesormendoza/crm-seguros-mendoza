@@ -5,6 +5,7 @@ import UserManagement from '@/components/settings/UserManagement'
 import LogoUploader from '@/components/settings/LogoUploader'
 import ColorSettings from '@/components/settings/ColorSettings'
 import GoogleCalendar from '@/components/settings/GoogleCalendar'
+import TwoFactorPanel from '@/components/settings/TwoFactorPanel'
 import { INPUT, LABEL, SECTION, TITLE, SaveBtn, type Settings } from '@/components/settings/shared'
 
 // Pestañas de Configuración: agrupan las secciones en categorías para una
@@ -753,6 +754,9 @@ export default function SettingsPage() {
       </>)}
 
       {tab === 'cuenta' && (<>
+      {/* ── Verificación en dos pasos (2FA) ────────────────────── */}
+      <TwoFactorPanel />
+
       {/* ── Cambiar Contraseña ────────────────────────────────── */}
       <div className={SECTION}>
         <h2 className={TITLE} style={{ color: '#10253f' }}>🔐 Seguridad — Cambiar Contraseña</h2>

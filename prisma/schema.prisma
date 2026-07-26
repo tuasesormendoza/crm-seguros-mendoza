@@ -507,6 +507,12 @@ model User {
   password  String
   role      String   @default("agent")   // admin, agent, assistant
   active    Boolean  @default(true)
+  // ── Verificación en dos pasos (TOTP: Google Authenticator y compatibles) ──
+  // El secreto se guarda CIFRADO (AES-256-GCM, ver src/lib/encrypt.ts) y los
+  // códigos de respaldo HASHEADOS (bcrypt) — nunca en texto plano.
+  totpSecret  String?
+  totpEnabled Boolean  @default(false)
+  backupCodes String?  // JSON con los hashes de los códigos de un solo uso
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   agency    Agency?  @relation(fields: [agencyId], references: [id])

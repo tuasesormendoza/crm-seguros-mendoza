@@ -81,6 +81,17 @@ const EXEMPTIONS = new Map<string, string>([
     'Chequeo de unicidad GLOBAL de email antes de crear (email es @unique en todo el sistema); solo revela "email ocupado".'],
   ['campaigns/track/[id]/route.ts :: campaign.updateMany',
     'Pixel público de apertura: solo incrementa openCount por id de campaña (cuid no adivinable); no lee ni expone datos, no cruza agencias.'],
+  // ── Verificación en dos pasos: siempre sobre la PROPIA cuenta del usuario ──
+  ['auth/2fa/setup/route.ts :: user.update',
+    'Guarda el secreto TOTP del PROPIO usuario (id tomado de su sesión o del paso intermedio del login); nunca de otra cuenta.'],
+  ['auth/2fa/activate/route.ts :: user.findUnique',
+    'Lee la PROPIA cuenta por el id de la sesión para activar su 2FA.'],
+  ['auth/2fa/activate/route.ts :: user.update',
+    'Activa el 2FA de la PROPIA cuenta (id de la sesión o del paso intermedio del login).'],
+  ['auth/2fa/status/route.ts :: user.findUnique',
+    'Devuelve el estado de 2FA de la PROPIA cuenta (auth.userId); no expone datos de otros.'],
+  ['users/[userId]/reset-2fa/route.ts :: user.update',
+    'Verificar-luego-actuar: user.findFirst({id, agencyId}) + 404 justo antes; solo un admin reinicia el 2FA de SU agencia.'],
 ])
 
 // ── Recolectar archivos route.ts ──────────────────────────────────────────────

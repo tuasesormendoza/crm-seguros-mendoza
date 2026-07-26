@@ -81,6 +81,15 @@ export default function UserManagement() {
     load()
   }
 
+  // Reinicia el 2FA de un usuario (p. ej. perdió el teléfono): en su próximo
+  // inicio de sesión tendrá que registrar el autenticador de nuevo.
+  async function reset2fa(u: User) {
+    if (!confirm(`¿Reiniciar la verificación en dos pasos de ${u.name}?\n\nTendrá que volver a escanear el código QR la próxima vez que entre.`)) return
+    const res = await fetch(`/api/users/${u.id}/reset-2fa`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    alert(res.ok ? `✅ Listo. ${u.name} deberá configurar su autenticador al entrar.` : (data.error || 'No se pudo reiniciar.'))
+  }
+
   async function deleteUser(u: User) {
     if (!confirm(`¿Eliminar al usuario ${u.name}?`)) return
     const res = await fetch(`/api/users/${u.id}`, { method: 'DELETE' })
@@ -202,6 +211,11 @@ export default function UserManagement() {
                   className="flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg border font-medium transition-colors"
                   style={{ color: u.active ? '#d97706' : '#059669', borderColor: u.active ? '#fde68a' : '#a7f3d0', background: u.active ? '#fef9c3' : '#d1fae5' }}>
                   {u.active ? '⏸ Desactivar' : '▶ Activar'}
+                </button>
+                <button onClick={() => reset2fa(u)} title="Reiniciar verificación en dos pasos (perdió el teléfono)"
+                  className="flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg border font-medium transition-colors hover:bg-purple-50"
+                  style={{ color: '#7c3aed', borderColor: '#ddd6fe' }}>
+                  🔐 Reiniciar 2FA
                 </button>
                 {users.length > 1 && (
                   <button onClick={() => deleteUser(u)}

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from '@/lib/rateLimit'
-import { logAudit } from '@/lib/audit'
+import { startPending } from '@/lib/twoFactor'
 
 function getIP(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -84,25 +84,21 @@ export async function POST(request: NextRequest) {
     }, { status: 401 })
   }
 
-  // ── Login successful ──────────────────────────────────────────────────────
+  // ── Contraseña correcta → falta el SEGUNDO PASO (2FA obligatorio) ─────────
+  // No se crea la sesión todavía: queda en estado intermedio (isLoggedIn=false),
+  // así el middleware sigue bloqueando el CRM hasta verificar el código.
   await clearAttempts(ip)
   const session = await getSession()
-  session.isLoggedIn = true
-  session.userId = user.id
-  session.email = user.email
-  session.name = user.name
-  session.role = user.role
-  session.agencyId = user.agencyId ?? undefined  // inquilino para aislamiento multi-tenant
-  await session.save()
 
-  if (user.agencyId) {
-    await logAudit(
-      { agencyId: user.agencyId, userId: user.id, name: user.name, email: user.email },
-      { action: 'login', entity: 'session', entityLabel: user.name, ip }
-    )
+  if (user.totpEnabled && user.totpSecret) {
+    await startPending(session, user.id, 'verify')
+    return NextResponse.json({ requires2fa: true, name: user.name })
   }
 
-  return NextResponse.json({ success: true, name: user.name, role: user.role })
+  // Aún no tiene el autenticador configurado: 2FA es OBLIGATORIO, así que se
+  // le exige registrarlo antes de entrar.
+  await startPending(session, user.id, 'enroll')
+  return NextResponse.json({ requiresEnroll: true, name: user.name })
 }
 
 export async function DELETE() {

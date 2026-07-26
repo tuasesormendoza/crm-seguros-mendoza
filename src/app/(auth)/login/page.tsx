@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import TwoFactorStep from '@/components/auth/TwoFactorStep'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -9,7 +10,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Paso del inicio de sesión: contraseña → segundo factor (verificar o registrar).
+  const [step, setStep] = useState<'password' | 'verify' | 'enroll'>('password')
   const router = useRouter()
+
+  function enter() {
+    router.push('/')
+    router.refresh()
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -21,11 +29,14 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     })
     setLoading(false)
+    const data = await res.json().catch(() => ({}))
     if (res.ok) {
-      router.push('/')
-      router.refresh()
+      // La contraseña es correcta, pero el 2FA es obligatorio: se pasa al
+      // segundo paso (verificar el código o registrar el autenticador).
+      if (data.requires2fa) { setStep('verify'); setPassword(''); return }
+      if (data.requiresEnroll) { setStep('enroll'); setPassword(''); return }
+      enter()
     } else {
-      const data = await res.json().catch(() => ({}))
       setError(data.error || 'Credenciales incorrectas')
     }
   }
@@ -101,6 +112,10 @@ export default function LoginPage() {
             boxShadow:'0 16px 48px rgba(var(--brand-800-rgb), 0.14), 0 1px 0 rgba(255,255,255,0.85) inset',
             padding:'2.25rem 2rem',
           }}>
+            {step !== 'password' ? (
+              <TwoFactorStep mode={step} onDone={enter} />
+            ) : (
+            <>
             <div style={{ marginBottom:'1.75rem' }}>
               <h2 style={{ fontSize:'1.6rem', fontWeight:800, color:'var(--brand-800)', marginBottom:'0.4rem' }}>Iniciar sesión</h2>
               <p style={{ color:'#64748b', fontSize:'0.875rem' }}>Ingresa tus credenciales para continuar</p>
@@ -164,6 +179,8 @@ export default function LoginPage() {
                 {loading ? 'Ingresando...' : 'Entrar al sistema →'}
               </button>
             </form>
+            </>
+            )}
           </div>
         </div>
       </div>
