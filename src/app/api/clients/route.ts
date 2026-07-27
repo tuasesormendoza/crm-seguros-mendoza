@@ -13,6 +13,7 @@ function parseClientData(d: Record<string, unknown>) {
     filesTaxes: d.filesTaxes != null ? Boolean(d.filesTaxes) : null,
     filingStatus: d.filingStatus as string || null,
     maritalStatus: d.maritalStatus as string || null,
+    migrationStatus: d.migrationStatus as string || null,
     employmentType: d.employmentType as string || null,
     email: d.email as string || null,
     phone: d.phone as string || null,

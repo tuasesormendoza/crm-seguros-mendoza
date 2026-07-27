@@ -358,7 +358,7 @@ interface Dependent { type: string; name: string; birthDate: string; ssn: string
 
 export interface FormData {
   fullName: string; ssn: string; birthDate: string; email: string; phone: string
-  filesTaxes: string; filingStatus: string; maritalStatus: string; employmentType: string
+  filesTaxes: string; filingStatus: string; maritalStatus: string; migrationStatus: string; employmentType: string
   address: string; aptSuite: string; city: string; zipCode: string; county: string; state: string
   contractDate: string; policyYear: string; coverageType: string; insurer: string
   affiliatesCount: string; planName: string; planCategory: string; planId: string
@@ -379,7 +379,7 @@ export interface FormData {
 
 interface InitialData {
   fullName?: string; ssn?: string; birthDate?: string; email?: string; phone?: string
-  filesTaxes?: boolean | null; filingStatus?: string; maritalStatus?: string; employmentType?: string
+  filesTaxes?: boolean | null; filingStatus?: string; maritalStatus?: string; migrationStatus?: string; employmentType?: string
   address?: string; aptSuite?: string; city?: string; zipCode?: string; county?: string; state?: string
   contractDate?: string; policyYear?: number | string; coverageType?: string; insurer?: string
   affiliatesCount?: number | string; planName?: string; planCategory?: string; planId?: string
@@ -463,6 +463,7 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
     filesTaxes: initialData?.filesTaxes != null ? String(initialData.filesTaxes) : '',
     filingStatus: initialData?.filingStatus || '',
     maritalStatus: initialData?.maritalStatus || '',
+    migrationStatus: initialData?.migrationStatus || '',
     employmentType: initialData?.employmentType || '',
     address: initialData?.address || '',
     aptSuite: initialData?.aptSuite || '',
@@ -682,6 +683,37 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
               <option>Unión libre</option>
               <option>Divorciado/a</option>
               <option>Viudo/a</option>
+            </select>
+          </div>
+
+          {/* Estatus migratorio — categorías estándar del Marketplace (afectan
+              la elegibilidad para ACA y Medicaid). */}
+          <div>
+            <label className={LABEL_CLASS}>Estatus Migratorio</label>
+            <select value={form.migrationStatus} onChange={e => setField('migrationStatus', e.target.value)} className={INPUT_CLASS}>
+              <option value="">Seleccionar...</option>
+              <optgroup label="Elegible para ACA">
+                <option>Ciudadano/a americano/a</option>
+                <option>Residente permanente (Green Card)</option>
+                <option>Asilo político</option>
+                <option>Refugiado/a</option>
+                <option>TPS (Estatus de Protección Temporal)</option>
+                <option>Parole humanitario</option>
+                <option>Visa U</option>
+                <option>Visa T (víctima de trata)</option>
+                <option>VAWA (víctima de violencia doméstica)</option>
+                <option>Permiso de trabajo (EAD)</option>
+                <option>Ajuste de estatus pendiente (I-485)</option>
+                <option>Cónyuge/hijo/a de ciudadano/a o residente</option>
+                <option>Visa de trabajo (H-1B, L-1, etc.)</option>
+                <option>Visa de estudiante (F-1, J-1)</option>
+              </optgroup>
+              <optgroup label="No elegible para ACA">
+                <option>DACA</option>
+                <option>Sin estatus / Indocumentado/a</option>
+              </optgroup>
+              <option>Otro</option>
+              <option>Prefiere no responder</option>
             </select>
           </div>
 

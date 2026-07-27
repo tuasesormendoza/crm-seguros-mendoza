@@ -36,6 +36,7 @@ model Client {
   filesTaxes           Boolean?  // ¿Declara impuestos?
   filingStatus         String?   // Soltero, Casado en conjunto, etc.
   maritalStatus        String?   // Estado civil
+  migrationStatus      String?   // Estatus migratorio (afecta elegibilidad ACA/Medicaid)
   employmentType       String?   // 1099 o W-2
   address              String?
   aptSuite             String?

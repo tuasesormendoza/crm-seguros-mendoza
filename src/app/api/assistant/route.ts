@@ -33,7 +33,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 • Hoy: citas de hoy, cumpleaños de la semana (botón de WhatsApp para felicitar), clientes con primera prima sin pagar y seguimientos pendientes.
 
 • Clientes: lista con buscador y filtros (estatus, aseguradora, estado, etiqueta, WN).
-  REGISTRAR UN CLIENTE: botón "+ Nuevo Cliente" (arriba a la derecha) → llenar Datos Personales, Dirección, Póliza ACA (aseguradora, plan, Precio ACA, Crédito Fiscal Otorgado), Dependientes (botón "+ Agregar dependiente"), Washington National si aplica, datos bancarios y portal → "Guardar".
+  REGISTRAR UN CLIENTE: botón "+ Nuevo Cliente" (arriba a la derecha) → llenar Datos Personales (incluye Estatus Migratorio con categorías del Marketplace: Ciudadano, Residente Permanente, Asilo, TPS, DACA, Sin estatus, etc.), Dirección, Póliza ACA (aseguradora, plan, Precio ACA, Crédito Fiscal Otorgado), Dependientes (botón "+ Agregar dependiente"), Washington National si aplica, datos bancarios y portal → "Guardar".
   VER/EDITAR: clic en el nombre del cliente → su perfil tiene botón Editar y estas secciones:
    - Citas Médicas: agenda la cita del cliente con su médico primario o especialista (fecha/hora, nombre del médico y dirección del consultorio). Cada cita trae un botón "💬 Confirmar por WhatsApp" que le envía al cliente la fecha, el médico y la dirección.
    - Actividades: registra interacciones — tipos: Nota, Llamada, Mensaje de Texto, WhatsApp, Email, Documento, Reunión, Otro.
@@ -221,7 +221,7 @@ async function toolDetalleCliente(agencyId: string, input: Record<string, unknow
       // Perfil COMPLETO excepto: ssn, bank* y portalPassword (nunca viajan al modelo)
       id: true, fullName: true, status: true, phone: true, email: true,
       address: true, aptSuite: true, city: true, zipCode: true, county: true, state: true,
-      birthDate: true, maritalStatus: true, employmentType: true, filesTaxes: true,
+      birthDate: true, maritalStatus: true, migrationStatus: true, employmentType: true, filesTaxes: true,
       filingStatus: true, annualIncome: true, preferredLanguage: true,
       insurer: true, planName: true, planCategory: true, planId: true, planNetwork: true,
       planDeductible: true, planMaxOOP: true, planPCP: true, planSpecialist: true,

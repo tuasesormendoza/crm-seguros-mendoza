@@ -68,7 +68,7 @@ export interface Client {
   fullName: string; ssn?: string | null; birthDate?: string | null
   email?: string | null; phone?: string | null
   filesTaxes?: boolean | null; filingStatus?: string | null
-  maritalStatus?: string | null; employmentType?: string | null
+  maritalStatus?: string | null; migrationStatus?: string | null; employmentType?: string | null
   address?: string | null; aptSuite?: string | null; city?: string | null; zipCode?: string | null
   county?: string | null; state?: string | null
   contractDate?: string | null; policyYear?: number | null

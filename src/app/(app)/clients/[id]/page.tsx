@@ -386,11 +386,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <InfoItem label="Condado" value={client.county} />
             </dl>
             {/* Fiscal & Employment */}
-            {(client.maritalStatus || client.employmentType || client.filesTaxes != null || client.annualIncome != null) && (
+            {(client.maritalStatus || client.migrationStatus || client.employmentType || client.filesTaxes != null || client.annualIncome != null) && (
               <div className="mt-4 pt-3 border-t border-gray-100">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Información Fiscal y Laboral</p>
                 <dl className="space-y-2">
                   {client.maritalStatus && <InfoItem label="Estado Civil" value={client.maritalStatus} />}
+                  {client.migrationStatus && <InfoItem label="Estatus Migratorio" value={client.migrationStatus} />}
                   {client.employmentType && <InfoItem label="Tipo de Pago" value={client.employmentType} />}
                   {client.annualIncome != null && (
                     <InfoItem label="Ingresos Anuales Ind./Familiar" value={formatCurrency(client.annualIncome)} />
