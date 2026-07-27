@@ -9,6 +9,7 @@ import ContactButtons from '@/components/ContactButtons'
 const PREDEFINED_TAGS = [
   'VIP', 'Necesita seguimiento', 'Problema de pago', 'Renovación próxima',
   'Cliente referido', 'Washington National', 'Documentos pendientes',
+  'Sin subsidio 2027',
 ]
 
 const TAG_COLORS: Record<string, string> = {
@@ -19,6 +20,7 @@ const TAG_COLORS: Record<string, string> = {
   'Cliente referido': '#10b981',
   'Washington National': '#3b82f6',
   'Documentos pendientes': '#6366f1',
+  'Sin subsidio 2027': '#dc2626',
 }
 
 const STATUS_COLOR: Record<string, string> = {

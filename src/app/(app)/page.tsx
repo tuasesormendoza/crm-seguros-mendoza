@@ -167,6 +167,21 @@ export default function Dashboard() {
   const [birthdayTemplate, setBirthdayTemplate] = useState('Hola {nombre}, ¡feliz cumpleaños! 🎂🎉 Que tengas un día muy especial. Con cariño, {agente}')
   const [agentName, setAgentName] = useState('Omar Mendoza')
   const [loadError, setLoadError] = useState(false)
+  const [tagging, setTagging] = useState(false)
+
+  // Etiqueta de una vez a todos los clientes que perderán el crédito fiscal,
+  // para poder filtrarlos después en la lista de Clientes.
+  async function tagAffected() {
+    setTagging(true)
+    try {
+      const res = await fetch('/api/clients/tag-subsidy', { method: 'POST' })
+      const d = await res.json()
+      alert(res.ok
+        ? `🏷️ Listo: ${d.tagged} cliente(s) etiquetados como "Sin subsidio 2027"${d.tagged < d.affected ? ` (${d.affected - d.tagged} ya la tenían).` : '.'}\n\nAhora puedes filtrarlos en Clientes por esa etiqueta.`
+        : (d.error || 'No se pudo etiquetar.'))
+    } catch { alert('No se pudo conectar con el servidor.') }
+    setTagging(false)
+  }
 
   useEffect(() => {
     fetch('/api/dashboard')
@@ -282,11 +297,18 @@ export default function Dashboard() {
               </p>
               <div className="flex flex-wrap gap-2 mt-2.5">
                 {!!data.losesSubsidyCount && (
-                  <Link href="/campanas"
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
-                    style={{ background: '#dc2626' }}>
-                    {data.losesSubsidyCount} cliente(s) perderán el subsidio → avisarles
-                  </Link>
+                  <>
+                    <Link href="/campanas"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
+                      style={{ background: '#dc2626' }}>
+                      {data.losesSubsidyCount} cliente(s) perderán el subsidio → avisarles
+                    </Link>
+                    <button onClick={tagAffected} disabled={tagging}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border disabled:opacity-50"
+                      style={{ color: '#991b1b', borderColor: '#fecaca', background: '#fff' }}>
+                      {tagging ? 'Etiquetando...' : '🏷️ Etiquetar a los afectados'}
+                    </button>
+                  </>
                 )}
                 {!!data.missingMigrationCount && (
                   <Link href="/clients"

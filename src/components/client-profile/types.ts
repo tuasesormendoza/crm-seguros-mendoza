@@ -8,6 +8,7 @@ export const PREDEFINED_TAGS = [
   { label: 'Cliente referido', color: '#10b981' },
   { label: 'Washington National', color: '#3b82f6' },
   { label: 'Documentos pendientes', color: '#6366f1' },
+  { label: 'Sin subsidio 2027', color: '#dc2626' },
 ]
 
 export function getTagColor(label: string): string {

@@ -13,6 +13,9 @@
 // Fecha en que entra en vigor la restricción.
 export const SUBSIDY_RULE_DATE = new Date(2027, 0, 1) // 1 de enero de 2027
 
+// Etiqueta que marca a los clientes afectados (visible en la lista y filtrable).
+export const SUBSIDY_TAG = 'Sin subsidio 2027'
+
 // Únicos estatus que seguirán calificando para el subsidio.
 export const SUBSIDY_ELIGIBLE_STATUSES = [
   'Ciudadano/a americano/a',
