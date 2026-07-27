@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { checkSubsidy, daysUntilRule } from '@/lib/subsidyEligibility'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,9 @@ function APTCInner() {
   const [zipcode, setZipcode] = useState('')
   const [state, setState] = useState('')
   const [clientName, setClientName] = useState('')
+  // Estatus migratorio del cliente: define si podrá recibir el crédito fiscal
+  // a partir del 01/01/2027 (ver src/lib/subsidyEligibility.ts).
+  const [clientMigration, setClientMigration] = useState<string | null>(null)
 
   // Result
   const [result, setResult] = useState<APTCResult | null>(null)
@@ -124,6 +128,7 @@ function APTCInner() {
     if (cid) {
       fetch(`/api/clients/${cid}`).then(r => r.json()).then(c => {
         setClientName(c.fullName || '')
+        setClientMigration(c.migrationStatus ?? null)
         if (c.annualIncome) setIncome(String(c.annualIncome))
         if (c.state) setState(c.state)
         if (c.zipCode) setZipcode(c.zipCode)
@@ -180,6 +185,7 @@ function APTCInner() {
 
   const SEL = 'w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2a6496] transition-colors bg-white'
   const fplRef = fpl1 + fplPer * (parseInt(household || '1') - 1)
+  const subsidyCheck = checkSubsidy(clientMigration)
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -347,6 +353,40 @@ function APTCInner() {
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Aviso: por su estatus migratorio NO recibirá el crédito fiscal
+                  desde el 01/01/2027, aunque su ingreso sí califique. */}
+              {subsidyCheck.losesSubsidy && (
+                <div className="rounded-2xl p-5" style={{ background: '#fef2f2', border: '2px solid #dc2626' }}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🚫</span>
+                    <div>
+                      <p className="font-bold" style={{ color: '#991b1b' }}>
+                        {subsidyCheck.ruleActive
+                          ? 'Este cliente NO recibe el crédito fiscal'
+                          : 'Desde el 01/01/2027 este cliente NO recibirá el crédito fiscal'}
+                      </p>
+                      <p className="text-sm mt-1" style={{ color: '#b91c1c' }}>
+                        Estatus migratorio: <strong>{clientMigration}</strong>. Puede inscribirse, pero pagará el precio completo:
+                      </p>
+                      <p className="text-lg font-extrabold mt-2" style={{ color: '#991b1b' }}>
+                        {fmt$(result.benchmarkMonthly)}/mes <span className="text-xs font-normal">(plan Silver de referencia, sin subsidio)</span>
+                      </p>
+                      {!subsidyCheck.ruleActive && (
+                        <p className="text-xs mt-1" style={{ color: '#b91c1c' }}>
+                          Hasta el 31/12/2026 sigue recibiendo el subsidio que se muestra abajo. Faltan {daysUntilRule()} días.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {subsidyCheck.unknown && clientName && (
+                <div className="rounded-2xl px-4 py-3 text-sm" style={{ background: '#fef9c3', border: '1px solid #fde68a', color: '#92400e' }}>
+                  📋 <strong>Falta el estatus migratorio de {clientName}.</strong> Desde el 01/01/2027 solo ciudadanos y residentes permanentes reciben el crédito fiscal — confírmalo para cotizar bien.
                 </div>
               )}
 

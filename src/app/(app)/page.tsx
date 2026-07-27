@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { daysUntilRule } from '@/lib/subsidyEligibility'
 import { formatDate } from '@/lib/utils'
 import { getMotivationalQuote } from '@/lib/motivationalQuotes'
 import LoadError from '@/components/LoadError'
@@ -62,6 +63,8 @@ interface DashboardData {
   pendingFirstPayment: { id: string; fullName: string; contractDate: string; insurer: string | null; daysElapsed: number }[]
   totalMonthly: number
   newClientsThisMonth: { id: string; fullName: string; insurer: string | null; planCategory: string | null; totalMonthly: number | null; contractDate: string; status: string | null }[]
+  losesSubsidyCount?: number      // pierden el crédito fiscal el 01/01/2027
+  missingMigrationCount?: number  // activos sin estatus migratorio registrado
 }
 
 function ReviewStageCard({ stage, count, clients }: ReviewStage) {
@@ -262,6 +265,39 @@ export default function Dashboard() {
             <p className="text-xs mt-0.5" style={{ color: '#92400e' }}>Faltan <strong>{aep.daysUntilStart} días</strong> · SEP disponible todo el año para eventos calificativos</p>
           </div>
           <div className="text-2xl font-bold shrink-0" style={{ color: 'var(--warning)' }}>{aep.daysUntilStart}d</div>
+        </div>
+      )}
+
+      {/* Cambio de elegibilidad del subsidio — 01/01/2027 */}
+      {(!!data.losesSubsidyCount || !!data.missingMigrationCount) && (
+        <div className="px-5 py-4 rounded-xl" style={{ background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '1px solid #fecaca' }}>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-xl" style={{ background: '#fee2e2' }}>🚫</div>
+            <div className="flex-1">
+              <p className="font-bold text-sm" style={{ color: '#991b1b' }}>
+                Cambio de subsidio ACA · 1 de enero de 2027 {daysUntilRule() > 0 && `· faltan ${daysUntilRule()} días`}
+              </p>
+              <p className="text-xs mt-1" style={{ color: '#b91c1c' }}>
+                Solo ciudadanos y residentes permanentes seguirán recibiendo el crédito fiscal; los demás podrán inscribirse pero pagarán precio completo.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2.5">
+                {!!data.losesSubsidyCount && (
+                  <Link href="/campanas"
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
+                    style={{ background: '#dc2626' }}>
+                    {data.losesSubsidyCount} cliente(s) perderán el subsidio → avisarles
+                  </Link>
+                )}
+                {!!data.missingMigrationCount && (
+                  <Link href="/clients"
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border"
+                    style={{ color: '#92400e', borderColor: '#fde68a', background: '#fef9c3' }}>
+                    {data.missingMigrationCount} sin estatus migratorio → completar
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

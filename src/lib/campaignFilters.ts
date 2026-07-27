@@ -2,6 +2,8 @@
 // parámetros de la UI. Compartido por /api/campaigns/recipients (previsualizar)
 // y /api/campaigns/send (enviar), para que ambos apunten al MISMO conjunto.
 
+import { SUBSIDY_ELIGIBLE_STATUSES } from '@/lib/subsidyEligibility'
+
 export interface SegmentParams {
   status?: string
   insurer?: string
@@ -14,6 +16,7 @@ export interface SegmentParams {
   renewalSoon?: string // días: '30' | '60' | '90' — renuevan dentro de ese rango
   noReview?: string    // 'si' — aún no dejaron reseña de Google
   birthdayMonth?: string // 'si' — cumplen años este mes (se filtra después, ver smartPostFilter)
+  losesSubsidy?: string  // 'si' — perderán el crédito fiscal el 01/01/2027 por su estatus migratorio
 }
 
 export function buildSegmentWhere(agencyId: string, p: SegmentParams) {
@@ -43,6 +46,12 @@ export function buildSegmentWhere(agencyId: string, p: SegmentParams) {
       p.missing === 'dental' ? { OR: [{ dentalInsurer: null }, { dentalInsurer: '' }] } : {},
       renewalFilter,
       p.noReview === 'si' ? { NOT: { googleReview: 'Realizada' } } : {},
+      // Perderán el crédito fiscal el 01/01/2027: tienen estatus migratorio
+      // registrado y NO es ciudadano ni residente permanente.
+      p.losesSubsidy === 'si' ? {
+        migrationStatus: { notIn: [...SUBSIDY_ELIGIBLE_STATUSES, 'Otro', 'Prefiere no responder'] },
+        NOT: { migrationStatus: null },
+      } : {},
     ],
   }
 }

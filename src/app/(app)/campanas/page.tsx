@@ -60,6 +60,12 @@ const TEMPLATES: { icon: string; name: string; subject: string; message: string;
     buttonText: 'Referir a alguien',
   },
   {
+    icon: '🚫', name: 'Cambio subsidio 2027',
+    subject: '{nombre}, un cambio importante en tu seguro para 2027',
+    message: 'Hola {nombre},\n\nQuiero informarte de un cambio importante que entra en vigor el **1 de enero de 2027**:\n\nA partir de esa fecha, solo los ciudadanos americanos y los residentes permanentes (Green Card) podrán recibir el crédito fiscal (subsidio) del Mercado de Salud. Las demás personas **sí pueden seguir inscribiéndose**, pero pagarán el precio completo del plan.\n\nQuiero ayudarte a prepararte con tiempo:\n- Revisar cómo te afecta según tu caso\n- Buscar el plan que mejor se ajuste a tu presupuesto\n- Ver otras opciones de cobertura disponibles\n\nAgenda unos minutos conmigo y lo vemos juntos, sin compromiso.',
+    buttonText: 'Quiero hablar contigo',
+  },
+  {
     icon: '📄', name: 'Documentos pendientes',
     subject: '{nombre}, necesitamos unos documentos',
     message: 'Hola {nombre},\n\nPara completar o mantener tu cobertura al día, necesito que me envíes algunos documentos. Es rápido y te ayudo en cada paso.\n\nResponde este correo o escríbeme por WhatsApp y te digo exactamente qué necesitamos.',
@@ -75,13 +81,14 @@ interface CampaignRow {
   openCount?: number; scheduledAt?: string | null
 }
 interface ClientOption { id: string; fullName: string }
-interface Segment { status: string; state: string; missing: string; clientId: string; renewalSoon: string; noReview: string; birthdayMonth: string }
+interface Segment { status: string; state: string; missing: string; clientId: string; renewalSoon: string; noReview: string; birthdayMonth: string; losesSubsidy: string }
 
 // Segmentos inteligentes (chips de un clic). Cada uno fija ciertos filtros.
 const SMART_SEGMENTS: { key: string; label: string; apply: Partial<Segment> }[] = [
   { key: 'renew60', label: '🔄 Renuevan en 60 días', apply: { renewalSoon: '60', status: '', birthdayMonth: '', noReview: '' } },
   { key: 'bday', label: '🎂 Cumplen este mes', apply: { birthdayMonth: 'si', status: 'Activo', renewalSoon: '', noReview: '' } },
   { key: 'noreview', label: '⭐ Sin reseña de Google', apply: { noReview: 'si', status: 'Activo', renewalSoon: '', birthdayMonth: '' } },
+  { key: 'subsidy27', label: '🚫 Pierden subsidio 2027', apply: { losesSubsidy: 'si', status: 'Activo', renewalSoon: '', birthdayMonth: '', noReview: '' } },
 ]
 
 const STATUSES = ['Activo', 'Pendiente', 'Cancelado', 'Con otro agente']
@@ -90,7 +97,7 @@ const SPECIAL = [
   { key: 'dental', label: 'Solo los que NO tienen plan dental' },
   { key: 'wn', label: 'Solo los que NO tienen seguro suplementario' },
 ]
-const EMPTY_SEGMENT: Segment = { status: 'Activo', state: '', missing: '', clientId: '', renewalSoon: '', noReview: '', birthdayMonth: '' }
+const EMPTY_SEGMENT: Segment = { status: 'Activo', state: '', missing: '', clientId: '', renewalSoon: '', noReview: '', birthdayMonth: '', losesSubsidy: '' }
 
 const INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88] bg-white'
 const LABEL = 'block text-xs font-semibold text-gray-600 mb-1'
@@ -166,6 +173,7 @@ export default function CampanasPage() {
       if (segment.renewalSoon) params.set('renewalSoon', segment.renewalSoon)
       if (segment.noReview) params.set('noReview', segment.noReview)
       if (segment.birthdayMonth) params.set('birthdayMonth', segment.birthdayMonth)
+      if (segment.losesSubsidy) params.set('losesSubsidy', segment.losesSubsidy)
     }
     fetch(`/api/campaigns/recipients?${params}`)
       .then(r => r.json())
@@ -275,7 +283,7 @@ export default function CampanasPage() {
     setButtonUrl(c.buttonUrl || '')
     try {
       const seg = JSON.parse(c.segment || '{}')
-      const next: Segment = { status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '', renewalSoon: seg.renewalSoon || '', noReview: seg.noReview || '', birthdayMonth: seg.birthdayMonth || '' }
+      const next: Segment = { status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '', renewalSoon: seg.renewalSoon || '', noReview: seg.noReview || '', birthdayMonth: seg.birthdayMonth || '', losesSubsidy: seg.losesSubsidy || '' }
       setSegment(next)
       if (next.clientId) {
         const found = clients.find(cl => cl.id === next.clientId)
@@ -300,7 +308,7 @@ export default function CampanasPage() {
     setButtonUrl(c.buttonUrl || '')
     try {
       const seg = JSON.parse(c.segment || '{}')
-      setSegment({ status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '', renewalSoon: seg.renewalSoon || '', noReview: seg.noReview || '', birthdayMonth: seg.birthdayMonth || '' })
+      setSegment({ status: seg.status || '', state: seg.state || '', missing: seg.missing || '', clientId: seg.clientId || '', renewalSoon: seg.renewalSoon || '', noReview: seg.noReview || '', birthdayMonth: seg.birthdayMonth || '', losesSubsidy: seg.losesSubsidy || '' })
       setSelectedClient(seg.clientId ? (clients.find(cl => cl.id === seg.clientId) || { id: seg.clientId, fullName: '(cliente del historial)' }) : null)
     } catch { /* segmento ilegible */ }
     try { setImages(c.images ? JSON.parse(c.images) : []) } catch { setImages([]) }
@@ -469,10 +477,11 @@ export default function CampanasPage() {
             const active = (sm.key === 'renew60' && segment.renewalSoon === '60')
               || (sm.key === 'bday' && segment.birthdayMonth === 'si')
               || (sm.key === 'noreview' && segment.noReview === 'si')
+              || (sm.key === 'subsidy27' && segment.losesSubsidy === 'si')
             return (
               <button key={sm.key} type="button"
                 onClick={() => setSegment(s => active
-                  ? { ...s, renewalSoon: '', noReview: '', birthdayMonth: '' }
+                  ? { ...s, renewalSoon: '', noReview: '', birthdayMonth: '', losesSubsidy: '' }
                   : { ...s, ...sm.apply, clientId: '' })}
                 className="text-xs px-3 py-1.5 rounded-full border font-medium transition-colors"
                 style={active ? { background: '#10253f', color: '#fff', borderColor: '#10253f' } : { color: '#475569', borderColor: '#cbd5e1' }}>

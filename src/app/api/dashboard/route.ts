@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
+import { losesSubsidyWhere } from '@/lib/subsidyEligibility'
 
 export async function GET() {
   const auth = await getAuth()
@@ -181,7 +182,18 @@ export async function GET() {
     daysElapsed: Math.floor((today.getTime() - new Date(c.contractDate!).getTime()) / (1000 * 60 * 60 * 24)),
   }))
 
+  // Clientes activos afectados por la regla del 01/01/2027 (pierden el crédito
+  // fiscal por su estatus migratorio) y los que aún no tienen el dato.
+  const [losesSubsidyCount, missingMigrationCount] = await Promise.all([
+    prisma.client.count({ where: losesSubsidyWhere(auth.agencyId) }),
+    prisma.client.count({
+      where: { agencyId: auth.agencyId, status: 'Activo', OR: [{ migrationStatus: null }, { migrationStatus: '' }] },
+    }),
+  ])
+
   return NextResponse.json({
+    losesSubsidyCount,
+    missingMigrationCount,
     totalPolicies,
     activeClients,
     cancelledClients,

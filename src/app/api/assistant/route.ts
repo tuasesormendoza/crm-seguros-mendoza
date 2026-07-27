@@ -26,6 +26,10 @@ const MAX_HISTORY = 12
 // Cuando el usuario pregunta CÓMO hacer algo, el asistente responde con los
 // nombres exactos de secciones, botones y pasos según esta guía.
 const CRM_GUIDE = `
+REGLA IMPORTANTE DEL NEGOCIO — SUBSIDIO ACA DESDE EL 01/01/2027:
+A partir del 1 de enero de 2027, SOLO los ciudadanos americanos y los residentes permanentes (Green Card) califican para el crédito fiscal (APTC/subsidio). Todos los demás estatus migratorios (Asilo, Refugiado, TPS, Parole, Visa U/T, VAWA, EAD, DACA, sin estatus, visas de trabajo/estudiante, etc.) PUEDEN inscribirse en un plan del Mercado, pero pagan el PRECIO COMPLETO, sin subsidio.
+El CRM avisa de esto automáticamente: en el perfil del cliente (banner rojo si pierde el subsidio, amarillo si falta registrar su estatus migratorio), en la Calculadora APTC (muestra el precio completo que pagaría), en el Dashboard (cuántos clientes se ven afectados) y en Campañas (segmento rápido "🚫 Pierden subsidio 2027" + plantilla "Cambio subsidio 2027" para avisarles). Si el agente pregunta por esto, explícale la regla y recomiéndale usar ese segmento para contactar a los afectados con tiempo.
+
 GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y botones al explicar cómo hacer algo:
 
 • Dashboard (inicio): KPIs del negocio, barras de objetivos de producción y alertas.

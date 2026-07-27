@@ -13,6 +13,7 @@ import SherpaLink from '@/components/client-profile/SherpaLink'
 import PlanBenefitsSection from '@/components/client-profile/PlanBenefitsSection'
 import GoogleReviewTimeline from '@/components/client-profile/GoogleReviewTimeline'
 import { InfoItem, CopyButton, Section } from '@/components/client-profile/ui'
+import { checkSubsidy, daysUntilRule } from '@/lib/subsidyEligibility'
 import { PREDEFINED_TAGS, getTagColor, STATUS_COLORS, APPT_STATUS_COLORS, INSURER_HISTORY_OPTIONS, parseList, parseWn, type Client, type Appointment, type PolicyHistoryEntry, type InsurerHistoryEntry, type SurveyResponse, type WnPolicy } from '@/components/client-profile/types'
 
 // ── Main page ────────────────────────────────────────────────────────────────
@@ -341,6 +342,29 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </button>
         </div>
       </div>
+
+      {/* Aviso de elegibilidad del subsidio (regla del 01/01/2027) */}
+      {(() => {
+        const sub = checkSubsidy(client.migrationStatus)
+        if (sub.keepsSubsidy) return null
+        if (sub.losesSubsidy) return (
+          <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
+            <strong>⚠️ {sub.ruleActive ? 'No califica para el crédito fiscal (APTC).' : 'Perderá el crédito fiscal el 01/01/2027.'}</strong>
+            <span className="block text-xs mt-0.5" style={{ color: '#b91c1c' }}>
+              Estatus: {client.migrationStatus}. Podrá inscribirse, pero pagará el <strong>precio completo</strong> del plan.
+              {!sub.ruleActive && ` Faltan ${daysUntilRule()} días — conviene avisarle y preparar el presupuesto.`}
+            </span>
+          </div>
+        )
+        return (
+          <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#fef9c3', border: '1px solid #fde68a', color: '#92400e' }}>
+            <strong>📋 Falta registrar el estatus migratorio.</strong>
+            <span className="block text-xs mt-0.5">
+              Desde el 01/01/2027 solo ciudadanos y residentes permanentes califican para el crédito fiscal. Pregúntale al cliente y regístralo en <em>Editar</em>.
+            </span>
+          </div>
+        )
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left */}

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     renewalSoon: sp.get('renewalSoon') || undefined,
     noReview: sp.get('noReview') || undefined,
     birthdayMonth: sp.get('birthdayMonth') || undefined,
+    losesSubsidy: sp.get('losesSubsidy') || undefined,
   }
   const where = buildSegmentWhere(auth.agencyId, params)
 
