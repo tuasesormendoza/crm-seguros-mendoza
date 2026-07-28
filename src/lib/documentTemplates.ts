@@ -9,6 +9,7 @@ export const TEMPLATES = [
   { id: 'first_payment', name: 'Recordatorio Primer Pago', icon: '💳', desc: 'Recordatorio de pago de primera prima' },
   { id: 'wn_intro', name: 'Presentación Washington National', icon: '🛡️', desc: 'Introducción a los beneficios de Washington National' },
   { id: 'farewell', name: 'Carta de Despedida', icon: '🤝', desc: 'Para clientes que continuaron con otro agente — agradecimiento y encuesta de satisfacción' },
+  { id: 'employer_coverage', name: 'Carta — Seguro por Trabajo', icon: '💼', desc: 'Para clientes que se van porque su trabajo les da seguro — felicitación, aviso de cancelar el Marketplace y encuesta' },
 ]
 
 export interface Client {
@@ -735,6 +736,197 @@ Recuerde que mis puertas siempre estarán abiertas para usted. ¡Fue un gusto ac
 Con cariño,
 *${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}
 🌐 www.tuasesormendoza.com`
+
+    return { html, text, whatsapp }
+  }
+
+  // ── Carta para clientes que se van con el seguro de su TRABAJO ─────────────
+  // Mismo diseño que la carta de despedida, pero en tono de felicitación y con
+  // el aviso clave: cancelar el plan del Mercado para no tener que devolver el
+  // crédito fiscal al declarar impuestos.
+  if (templateId === 'employer_coverage') {
+    const agentWA_e = agent.agentWhatsApp || ''
+    const waLink_e = agentWA_e ? `https://wa.me/${agentWA_e}` : ''
+    const website_e = agent.cardWebsite || 'www.tuasesormendoza.com'
+    const surveyUrl_e = `${appUrl || ''}/encuesta/${client.id}`
+    const firstName_e = client.fullName.split(' ')[0]
+    const hasWN_e = !!client.wnPolicies && client.wnPolicies.includes('"type"')
+
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:auto;padding:0;color:#1e293b;line-height:1.75">
+
+      <!-- Gradient header — igual que carta de despedida -->
+      <div style="background:linear-gradient(135deg,#10253f 0%,#1e4a6e 60%,#0891b2 100%);padding:32px 36px 28px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" alt="Logo" style="max-height:50px;max-width:180px;object-fit:contain;display:block;margin-bottom:6px">` : ''}
+            <div style="color:#ffffff;font-size:16px;font-weight:700">${agentName}</div>
+            <div style="color:rgba(255,255,255,.65);font-size:11px">Agente Autorizado de Seguros de Salud${agentNPN ? ` · NPN: ${agentNPN}` : ''}</div>
+          </div>
+          <div style="text-align:right;color:rgba(255,255,255,.6);font-size:12px">${today}</div>
+        </div>
+      </div>
+
+      <!-- Banner -->
+      <div style="background:#305a72;padding:10px 36px;text-align:center">
+        <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700">
+          ¡FELICITACIONES POR SU NUEVO SEGURO! · AQUÍ ESTARÉ CUANDO ME NECESITE
+        </p>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:36px;background:#ffffff">
+
+        <p style="font-size:16px;margin-bottom:8px">Estimado/a <strong style="color:#10253f">${client.fullName}</strong>,</p>
+
+        <p style="font-size:14px;margin-bottom:14px">
+          ¡Qué buena noticia! Me alegra muchísimo saber que ahora cuenta con un seguro de salud
+          a través de su trabajo. Eso habla muy bien de su esfuerzo, y me da mucha tranquilidad
+          saber que usted y su familia seguirán protegidos.
+        </p>
+
+        <p style="font-size:14px;margin-bottom:20px">
+          Fue un verdadero privilegio haberle acompañado durante este tiempo. Antes de cerrar su
+          póliza del Mercado de Salud, quiero asegurarme de que la transición sea perfecta y de que
+          <strong style="color:#10253f">no tenga ninguna sorpresa al declarar sus impuestos</strong>.
+        </p>
+
+        <!-- Aviso importante: cancelar el Marketplace -->
+        <div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:12px;padding:22px;margin:20px 0">
+          <p style="color:#92400e;font-size:14px;font-weight:700;margin:0 0 10px">
+            ⚠️ Muy importante: hay que cancelar el plan del Mercado
+          </p>
+          <p style="color:#92400e;font-size:13px;margin:0 0 12px;line-height:1.65">
+            Si su plan del Mercado sigue activo mientras ya tiene el seguro del trabajo, el gobierno
+            continuará pagando el crédito fiscal (subsidio) — y ese dinero
+            <strong>tendría que devolverlo</strong> cuando declare sus impuestos. Para evitarlo:
+          </p>
+          <ul style="color:#92400e;font-size:13px;margin:0;padding-left:20px;line-height:1.8">
+            <li>Confírmeme <strong>la fecha exacta</strong> en que empieza su cobertura del trabajo.</li>
+            <li>Yo me encargo de cancelar su plan del Mercado justo para esa fecha.</li>
+            <li>Así no queda ningún día sin cobertura, ni pagando de más.</li>
+          </ul>
+          <p style="color:#92400e;font-size:13px;margin:12px 0 0;line-height:1.65">
+            <strong>No cancele por su cuenta sin avisarme</strong> — si lo hacemos juntos, nos aseguramos
+            de que las fechas calcen bien.
+          </p>
+        </div>
+
+        ${hasWN_e ? `
+        <!-- Coberturas que puede conservar -->
+        <div style="background:#f0fdf4;border:1.5px solid #a7f3d0;border-radius:12px;padding:20px;margin:20px 0">
+          <p style="color:#065f46;font-size:14px;font-weight:700;margin:0 0 8px">
+            ✅ Sus pólizas complementarias siguen siendo suyas
+          </p>
+          <p style="color:#047857;font-size:13px;margin:0;line-height:1.65">
+            Su cobertura suplementaria (accidentes, hospitalización, enfermedades graves) <strong>no depende
+            de su trabajo</strong>: puede conservarla tal como está. De hecho, complementa muy bien el seguro
+            del empleo, porque cubre los gastos que la póliza del trabajo no paga (deducibles, copagos,
+            gastos diarios). Mi recomendación es mantenerla.
+          </p>
+        </div>` : ''}
+
+        <p style="font-size:14px;margin-bottom:20px">
+          Y algo que quiero que tenga muy presente: <strong style="color:#10253f">si en algún momento deja
+          ese trabajo o le quitan el beneficio</strong>, eso le da derecho a un Período Especial de
+          Inscripción — puede volver al Mercado de Salud sin esperar a fin de año. Solo escríbame y
+          lo resolvemos de inmediato.
+        </p>
+
+        <!-- Survey CTA -->
+        <div style="background:#f0f7fb;border:1.5px solid #b8d4e8;border-radius:12px;padding:24px;margin:20px 0;text-align:center">
+          <p style="color:#10253f;font-size:14px;font-weight:700;margin:0 0 6px">
+            ⭐ Encuesta de satisfacción
+          </p>
+          <p style="color:#64748b;font-size:13px;margin:0 0 18px;line-height:1.6">
+            Antes de despedirnos, ¿me regala un minuto? Califique mi servicio del 1 al 5, indique si
+            me recomendaría y deje cualquier comentario que desee compartir.
+          </p>
+          <a href="${surveyUrl_e}"
+            style="display:inline-block;background:linear-gradient(135deg,#10253f,#0891b2);color:#ffffff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">
+            Completar encuesta →
+          </a>
+          <p style="color:#94a3b8;font-size:11px;margin:14px 0 0">Sus respuestas son confidenciales.</p>
+        </div>
+
+        <!-- Closing -->
+        <p style="font-size:14px;margin-top:20px;color:#475569">
+          Gracias de corazón por la confianza que depositó en mí. Aunque ahora su seguro venga del trabajo,
+          siga contando conmigo para cualquier duda sobre su cobertura — y si conoce a algún familiar o
+          amigo que necesite orientación, me encantaría atenderlo con el mismo cariño con el que le atendí
+          a usted. ¡Le deseo mucho éxito en esta nueva etapa!
+        </p>
+
+        <!-- Signature -->
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid #e2e8f0">
+          <p style="margin:0 0 2px;font-size:13px;color:#64748b">Con mucho aprecio y toda mi admiración,</p>
+          <p style="margin:6px 0 2px;font-size:16px;font-weight:bold;color:#10253f">${agentName}</p>
+          <p style="margin:0;font-size:12px;color:#94a3b8">Agente Autorizado de Seguros de Salud${agentNPN ? ` · NPN: ${agentNPN}` : ''}</p>
+          ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
+          ${waLink_e ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink_e}" style="color:#25d366;font-weight:700">💬 WhatsApp</a>${agentPhone ? ` · ${agentPhone}` : ''}</p>` : ''}
+          ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
+          <p style="margin:4px 0;font-size:13px">🌐 <a href="https://${website_e.replace(/^https?:\/\//, '')}" style="color:#2a6496">${website_e}</a></p>
+        </div>
+
+      </div><!-- end body -->
+
+      <!-- Footer oscuro — igual que despedida -->
+      <div style="background:#10253f;padding:14px 36px;text-align:center">
+        <p style="color:rgba(255,255,255,.45);font-size:11px;margin:0">
+          CRM Agentes de Seguros · ${today} · Documento de carácter confidencial.
+        </p>
+      </div>
+    </div>`
+
+    const text = `Estimado/a ${client.fullName},
+
+¡Qué buena noticia! Me alegra saber que ahora cuenta con un seguro de salud a través de su trabajo.
+
+IMPORTANTE — Hay que cancelar su plan del Mercado:
+Si su plan del Mercado sigue activo mientras ya tiene el seguro del trabajo, el gobierno seguirá pagando el crédito fiscal (subsidio) y ese dinero tendría que devolverlo al declarar impuestos.
+
+Para evitarlo:
+- Confírmeme la fecha exacta en que empieza su cobertura del trabajo.
+- Yo cancelo su plan del Mercado justo para esa fecha.
+- Así no queda ningún día sin cobertura ni pagando de más.
+
+No cancele por su cuenta sin avisarme: si lo hacemos juntos nos aseguramos de que las fechas calcen bien.
+${hasWN_e ? `
+Sus pólizas complementarias (accidentes, hospitalización, enfermedades graves) NO dependen de su trabajo: puede conservarlas y complementan muy bien el seguro del empleo.
+` : ''}
+Y recuerde: si en algún momento deja ese trabajo o le quitan el beneficio, tiene derecho a un Período Especial de Inscripción para volver al Mercado sin esperar a fin de año. Solo escríbame.
+
+Antes de despedirnos, ¿me regala un minuto para contarme su experiencia?
+👉 ${surveyUrl_e}
+
+Gracias de corazón por su confianza. ¡Mucho éxito en esta nueva etapa!
+
+Con mucho aprecio,
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}
+🌐 ${website_e}`
+
+    const whatsapp = `💼 *¡Felicitaciones ${firstName_e}!*
+
+Me alegra mucho saber que ahora tiene seguro de salud por su trabajo. 🎉
+
+⚠️ *Algo muy importante:* hay que cancelar su plan del Mercado. Si se queda activo mientras ya tiene el del trabajo, el gobierno sigue pagando el subsidio y *tendría que devolver ese dinero* al declarar impuestos.
+
+Para evitarlo:
+✅ Dígame la fecha exacta en que empieza su seguro del trabajo
+✅ Yo cancelo el del Mercado justo para esa fecha
+✅ Así no queda ni un día sin cobertura
+${hasWN_e ? `
+✅ Sus pólizas complementarias NO dependen del trabajo — puede conservarlas, complementan muy bien el seguro del empleo.
+` : ''}
+_Por favor no cancele por su cuenta sin avisarme._
+
+Y recuerde: si algún día deja ese trabajo, puede volver al Mercado de inmediato (Período Especial de Inscripción). Aquí estaré.
+
+¿Me regala un minuto para contarme su experiencia?
+👉 ${surveyUrl_e}
+
+¡Gracias por su confianza y mucho éxito!
+*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}
+🌐 ${website_e}`
 
     return { html, text, whatsapp }
   }
