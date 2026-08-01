@@ -132,6 +132,9 @@ export default function PipelinePage() {
     fullName: '', phone: '', email: '', state: '', source: '', notes: '',
     referredByClientId: '', referredByName: '',
   })
+  // Si tiene valor, el modal del formulario está EDITANDO ese prospecto
+  // (en vez de crear uno nuevo).
+  const [editingProspectId, setEditingProspectId] = useState<string | null>(null)
 
   // ── One-Call Close flow state ───────────────────────────────────────────────
   const [combatModal, setCombatModal] = useState<Prospect | null>(null)
@@ -158,12 +161,27 @@ export default function PipelinePage() {
     setForm({ fullName: '', phone: '', email: '', state: '', source: '', notes: '', referredByClientId: '', referredByName: '' })
     setClientSearch('')
     setShowClientDropdown(false)
+    setEditingProspectId(null)
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  // Abre el mismo modal en modo EDICIÓN, precargado con los datos del prospecto.
+  function openEdit(p: Prospect) {
+    setForm({
+      fullName: p.fullName || '', phone: p.phone || '', email: p.email || '',
+      state: p.state || '', source: p.source || '', notes: p.notes || '',
+      referredByClientId: p.referredByClientId || '', referredByName: p.referredByName || '',
+    })
+    setClientSearch('')
+    setShowClientDropdown(false)
+    setEditingProspectId(p.id)
+    setShowForm(true)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    await fetch('/api/prospects', {
-      method: 'POST',
+    const editing = editingProspectId
+    await fetch(editing ? `/api/prospects/${editing}` : '/api/prospects', {
+      method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
@@ -235,8 +253,10 @@ export default function PipelinePage() {
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="font-bold text-lg mb-4" style={{ color: '#10253f' }}>Nuevo Prospecto</h2>
-            <form onSubmit={handleCreate} className="space-y-3">
+            <h2 className="font-bold text-lg mb-4" style={{ color: '#10253f' }}>
+              {editingProspectId ? 'Editar Prospecto' : 'Nuevo Prospecto'}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-3">
               <input className={INPUT} placeholder="Nombre completo *" required
                 value={form.fullName} onChange={e => setF('fullName', e.target.value)} />
               <input className={INPUT} placeholder="Teléfono"
@@ -322,7 +342,7 @@ export default function PipelinePage() {
                 <button type="submit"
                   className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
                   style={{ background: '#305a72' }}>
-                  Guardar
+                  {editingProspectId ? 'Guardar cambios' : 'Guardar'}
                 </button>
                 <button type="button" onClick={() => { resetForm(); setShowForm(false) }}
                   className="flex-1 py-2 rounded-lg font-semibold text-sm border border-gray-300">
@@ -630,6 +650,11 @@ export default function PipelinePage() {
                               style={{ background: '#25d366' }}>
                               💬 Recordar
                             </button>
+                            <button onClick={() => openEdit(p)} title="Editar datos del prospecto"
+                              className="text-xs px-2 py-1.5 rounded-lg text-white font-medium"
+                              style={{ background: '#0891b2' }}>
+                              ✏️
+                            </button>
                             <button onClick={() => reactivate(p.id)}
                               className="text-xs px-2 py-1.5 rounded-lg font-semibold"
                               style={{ background: '#dbeafe', color: '#1e40af' }}
@@ -649,6 +674,11 @@ export default function PipelinePage() {
                               style={{ background: '#193c5c' }}>
                               🔥 Modo Combate
                             </button>
+                            <button onClick={() => openEdit(p)} title="Editar datos del prospecto"
+                              className="text-xs px-2 py-1.5 rounded-lg text-white font-medium"
+                              style={{ background: '#0891b2' }}>
+                              ✏️
+                            </button>
                             <button onClick={() => setEditId(p.id)}
                               className="text-xs px-2 py-1.5 rounded-lg text-white font-medium"
                               style={{ background: '#507b88' }}>
@@ -662,6 +692,11 @@ export default function PipelinePage() {
                           </>
                         ) : (
                           <>
+                            <button onClick={() => openEdit(p)} title="Editar datos del prospecto"
+                              className="text-xs px-2 py-1 rounded-lg text-white font-medium"
+                              style={{ background: '#0891b2' }}>
+                              ✏️ Editar
+                            </button>
                             <button onClick={() => setEditId(p.id)}
                               className="text-xs px-2 py-1 rounded-lg text-white font-medium"
                               style={{ background: '#507b88' }}>
