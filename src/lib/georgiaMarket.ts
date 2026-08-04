@@ -22,6 +22,8 @@ export interface GaPlan {
   deductible: number | null
   moop: number | null
   hsaEligible?: boolean
+  /** Clave del área de servicio ("issuerId|serviceAreaId") para filtrar por condado. */
+  sa?: string
   primaryCare?: string | null
   specialist?: string | null
   urgentCare?: string | null
@@ -32,6 +34,8 @@ export interface GaPlan {
 export interface GaPayload {
   plans: GaPlan[]
   rates: Record<string, Record<string, number>>  // edad → planId → tarifa
+  // "issuerId|serviceAreaId" → "ALL" (todo el estado) o lista de FIPS de condado.
+  serviceAreas?: Record<string, 'ALL' | string[]>
 }
 
 // Condado ("Fulton County", "fulton") → área de tarifa 1..16.
@@ -92,11 +96,25 @@ export const HEALTH_METAL_LEVELS = new Set([
   'Bronze', 'Expanded Bronze', 'Silver', 'Gold', 'Platinum', 'Catastrophic',
 ])
 
+/**
+ * ¿El plan se vende en ese condado? Muchos planes existen en un área de tarifa
+ * pero solo cubren algunos de sus condados. Si no hay datos de área de servicio
+ * se asume que sí (no se descarta nada por falta de información).
+ */
+export function planCoversCounty(payload: GaPayload, plan: GaPlan, countyFips?: string | null): boolean {
+  if (!countyFips || !payload.serviceAreas || !plan.sa) return true
+  const area = payload.serviceAreas[plan.sa]
+  if (!area) return true
+  return area === 'ALL' || area.includes(countyFips)
+}
+
 // Calcula el SLCSP y el precio de cada plan para el hogar indicado.
-export function quoteGeorgia(payload: GaPayload, ages: number[]): GaQuote {
+// `countyFips` limita la cotización a los planes que se venden en ese condado.
+export function quoteGeorgia(payload: GaPayload, ages: number[], countyFips?: string | null): GaQuote {
   const priced: (GaPlan & { premium: number })[] = []
   for (const plan of payload.plans) {
     if (!HEALTH_METAL_LEVELS.has(plan.metalLevel)) continue   // descarta dentales
+    if (!planCoversCounty(payload, plan, countyFips)) continue // no se vende ahí
     const premium = householdPremium(payload, plan.id, ages)
     if (premium != null && premium > 0) priced.push({ ...plan, premium })
   }

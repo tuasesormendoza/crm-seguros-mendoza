@@ -107,6 +107,29 @@ test('los planes DENTALES quedan fuera de la cotización médica', () => {
   assert.strictEqual(q.slcspMonthly, 440)  // el dental tampoco altera el SLCSP
 })
 
+test('solo se cotizan los planes que SE VENDEN en el condado del cliente', () => {
+  const conSa: GaPayload = {
+    plans: [
+      { ...payload.plans[0], sa: 'ISS1|SA_TODO' },      // Silver A — todo el estado
+      { ...payload.plans[1], sa: 'ISS2|SA_LIMITADA' },  // Silver B — solo otro condado
+      { ...payload.plans[2], sa: 'ISS3|SA_AQUI' },      // Silver C — sí cubre el condado
+    ],
+    rates: { '40': { P_SILVER_A: 400, P_SILVER_B: 440, P_SILVER_C: 480 } },
+    serviceAreas: {
+      'ISS1|SA_TODO': 'ALL',
+      'ISS2|SA_LIMITADA': ['13999'],
+      'ISS3|SA_AQUI': ['13157', '13013'],
+    },
+  }
+  // En el condado 13157 el Silver B no se vende → el SLCSP pasa a ser el C.
+  const q = quoteGeorgia(conSa, [40], '13157')
+  assert.strictEqual(q.plans.length, 2)
+  assert.ok(!q.plans.some(p => p.id === 'P_SILVER_B'))
+  assert.strictEqual(q.slcspMonthly, 480)
+  // Sin indicar condado no se descarta nada (no se asume por falta de dato).
+  assert.strictEqual(quoteGeorgia(conSa, [40]).plans.length, 3)
+})
+
 test('parsePayload acepta datos válidos y rechaza basura', () => {
   assert.ok(parsePayload(JSON.stringify(payload)))
   assert.strictEqual(parsePayload('no es json'), null)

@@ -82,7 +82,7 @@ async function discoverFiles(year) {
     const rel = matches[matches.length - 1]
     return rel.startsWith('http') ? rel : BASE + rel
   }
-  return { rate: pick('RATE'), plan: pick('PLAN'), bencs: pick('BENCS') }
+  return { rate: pick('RATE'), plan: pick('PLAN'), bencs: pick('BENCS'), sa: pick('SA') }
 }
 
 // Nombre del beneficio en el PUF → clave que usa el CRM.
@@ -119,11 +119,29 @@ async function main() {
       `Revisa si ya se publicaron (rate=${files.rate}, plan=${files.plan}).`)
   }
 
-  const [planCsv, rateCsv, bencsCsv] = await Promise.all([
+  const [planCsv, rateCsv, bencsCsv, saCsv] = await Promise.all([
     fetchText(files.plan, 'PLAN-PUF (planes)'),
     fetchText(files.rate, 'RATE-PUF (tarifas)'),
     files.bencs ? fetchText(files.bencs, 'BENCS-PUF (copagos)') : Promise.resolve(''),
+    files.sa ? fetchText(files.sa, 'SA-PUF (áreas de servicio)') : Promise.resolve(''),
   ])
+
+  // ── Áreas de servicio: qué condados cubre realmente cada plan ──────────────
+  // Muchos planes existen en un área de tarifa pero NO se venden en todos sus
+  // condados. Sin esto se cotizarían planes que el cliente no puede comprar.
+  const serviceAreas = {}   // "issuerId|saId" → "ALL" | [FIPS de condados]
+  if (saCsv) {
+    const tmp = new Map()
+    for (const r of parseCsv(saCsv)) {
+      const key = `${r.IssuerId}|${r.ServiceAreaId}`
+      const d = tmp.get(key) || { entire: false, counties: new Set() }
+      if (/^yes$/i.test(r.CoverEntireState || '')) d.entire = true
+      if ((r.County || '').trim()) d.counties.add(r.County.trim())
+      tmp.set(key, d)
+    }
+    for (const [k, d] of tmp) serviceAreas[k] = d.entire ? 'ALL' : [...d.counties]
+    console.log(`   ✔ ${Object.keys(serviceAreas).length} áreas de servicio`)
+  }
 
   // ── Planes: se usa la variante estándar (-01), que es el plan sin CSR ──────
   console.log('\n   Procesando planes...')
@@ -150,6 +168,7 @@ async function main() {
       deductible: money(r.TEHBDedInnTier1Individual ?? r.MEHBDedInnTier1Individual),
       moop: money(r.TEHBInnTier1IndividualMOOP ?? r.MEHBInnTier1IndividualMOOP),
       hsaEligible: /hsa/i.test(r.HSAEligible || '') || /^yes$/i.test(r.HSAEligible || ''),
+      sa: `${r.IssuerId}|${r.ServiceAreaId || ''}`,   // para filtrar por condado
     })
   }
   console.log(`   ✔ ${plans.size} planes de salud (${dentalSkipped} dentales/otros descartados)`)
@@ -195,7 +214,10 @@ async function main() {
   let saved = 0
   for (const [area, data] of [...byArea.entries()].sort((a, b) => a[0] - b[0])) {
     const areaPlans = [...data.plans].map(id => plans.get(id)).filter(Boolean)
-    const payload = JSON.stringify({ plans: areaPlans, rates: data.rates })
+    // Solo se guardan las áreas de servicio de los planes de esta área.
+    const usedSa = {}
+    for (const p of areaPlans) if (p.sa && serviceAreas[p.sa]) usedSa[p.sa] = serviceAreas[p.sa]
+    const payload = JSON.stringify({ plans: areaPlans, rates: data.rates, serviceAreas: usedSa })
     await prisma.georgiaMarketData.upsert({
       where: { year_ratingArea: { year: YEAR, ratingArea: area } },
       update: { payload },

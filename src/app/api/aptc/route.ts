@@ -4,25 +4,11 @@ import { getAuth } from '@/lib/auth'
 import { getPlatformSettings } from '@/lib/platform'
 import { getStateMarketplace, isMedicaidExpansionState, stateCode } from '@/lib/marketplaces'
 import { ratingAreaForCounty, quoteGeorgia, parsePayload } from '@/lib/georgiaMarket'
+import { applicablePercentage, expectedMonthlyContribution, hasSubsidyCliff } from '@/lib/aptcSchedule'
 
-// ── FPL applicable percentage table (IRS) ─────────────────────────────────────
-const APPLICABLE_PCT: [number, number, number][] = [
-  [0,    100,  0],     // Medicaid range — no APTC
-  [100,  133,  0],
-  [133,  150,  0],
-  [150,  200,  2],
-  [200,  250,  4],
-  [250,  300,  6],
-  [300,  400,  8.5],
-  [400, 9999,  8.5],   // Rescue Plan Act extension
-]
-
-function getApplicablePct(fplPct: number): number {
-  for (const [min, max, pct] of APPLICABLE_PCT) {
-    if (fplPct >= min && fplPct < max) return pct
-  }
-  return 8.5
-}
+// La tabla de porcentaje aplicable (IRS) vive en src/lib/aptcSchedule.ts, con
+// pruebas. Ojo: los subsidios mejorados (ARPA/IRA) expiraron el 01/01/2026 —
+// desde 2026 el cliente aporta más y vuelve el precipicio del 400% del FPL.
 
 export async function POST(request: NextRequest) {
   const auth = await getAuth()
@@ -51,11 +37,11 @@ export async function POST(request: NextRequest) {
   const clientAge = parseInt(age)
 
   // ── FPL calculation ──────────────────────────────────────────────────────────
+  const yearNum = parseInt(String(planYear), 10) || new Date().getFullYear()
   const fplThreshold = fpl1 + fplPer * (size - 1)
   const fplPct = (annualIncome / fplThreshold) * 100
-  const applicablePct = getApplicablePct(fplPct)
-  const maxClientPayYear = annualIncome * (applicablePct / 100)
-  const maxClientPayMonth = maxClientPayYear / 12
+  const applicablePct = applicablePercentage(fplPct, yearNum) ?? 0
+  const maxClientPayMonth = expectedMonthlyContribution(annualIncome, fplPct, yearNum) ?? 0
 
   // ── Eligibility checks ───────────────────────────────────────────────────────
   // Por debajo del 100% del FPL no hay subsidio. En estados que SÍ expandieron
@@ -66,7 +52,9 @@ export async function POST(request: NextRequest) {
   const belowFpl = fplPct > 0 && fplPct < 100
   const qualifiesMedicaid = belowFpl && expansion
   const coverageGap = belowFpl && !expansion
-  const qualifiesAPTC = fplPct >= 100
+  // Desde 2026 vuelve el precipicio: por encima del 400% del FPL no hay crédito.
+  const aboveCliff = hasSubsidyCliff(yearNum) && fplPct >= 400
+  const qualifiesAPTC = fplPct >= 100 && !aboveCliff
   const qualifiesCSR = fplPct >= 100 && fplPct <= 250
 
   // ── Mercado del estado ───────────────────────────────────────────────────────
@@ -100,6 +88,7 @@ export async function POST(request: NextRequest) {
     try {
       // ZIP → condado: el endpoint geográfico de CMS sí responde para Georgia.
       let county = ''
+      let countyFips = ''
       if (cmsApiKey) {
         const cr = await fetch(
           `https://marketplace.api.healthcare.gov/api/v1/counties/by/zip/${String(zipcode).trim()}?apikey=${cmsApiKey}`,
@@ -108,7 +97,10 @@ export async function POST(request: NextRequest) {
         if (cr?.ok) {
           const cd = await cr.json()
           const counties = cd.counties || cd
-          if (Array.isArray(counties) && counties.length) county = counties[0].name || ''
+          if (Array.isArray(counties) && counties.length) {
+            county = counties[0].name || ''
+            countyFips = counties[0].fips || ''
+          }
         }
       }
 
@@ -130,7 +122,7 @@ export async function POST(request: NextRequest) {
             ? ages.map((a: number) => parseInt(String(a), 10) || clientAge)
             : Array.from({ length: size }, () => clientAge)
 
-          const quote = quoteGeorgia(payload, memberAges)
+          const quote = quoteGeorgia(payload, memberAges, countyFips)
           if (quote.slcspMonthly == null) {
             cmsError = `No se encontraron planes Silver en el área de tarifa ${area} de Georgia.`
           } else {

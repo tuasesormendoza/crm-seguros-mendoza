@@ -311,11 +311,19 @@ function APTCInner() {
                   🏛️ {state.toUpperCase()} usa su propio mercado: {marketplace.name}
                 </p>
                 {isGeorgia ? (
-                  <p className="text-xs mt-1" style={{ color: '#047857' }}>
-                    ✅ <strong>Cotización automática activada.</strong> El CRM tiene cargados los planes y
-                    tarifas oficiales de Georgia Access, así que calcula el precio exacto por ZIP igual que
-                    en los estados del Mercado federal. Solo llena los datos y presiona Calcular.
-                  </p>
+                  <>
+                    <p className="text-xs mt-1" style={{ color: '#047857' }}>
+                      ✅ <strong>Cotización automática activada.</strong> El CRM tiene cargados los planes y
+                      tarifas oficiales de Georgia Access, así que calcula el precio por ZIP igual que en los
+                      estados del Mercado federal. Solo llena los datos y presiona Calcular.
+                    </p>
+                    <p className="text-xs mt-1.5" style={{ color: '#059669' }}>
+                      ℹ️ Las tarifas salen del archivo oficial que publica el estado. Georgia Access puede
+                      mostrar un precio con una pequeña diferencia si la aseguradora lo enmendó después de esa
+                      publicación — <strong>confirma el precio final en georgiaaccess.gov antes de inscribir</strong>.
+                      Si quieres, escribe abajo el SLCSP exacto que veas ahí y el cálculo se ajusta.
+                    </p>
+                  </>
                 ) : (
                   <p className="text-xs mt-1" style={{ color: '#1e4a6e' }}>
                     Este estado no cotiza en cuidadodesalud.gov, así que los precios no vienen automáticos.
