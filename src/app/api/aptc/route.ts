@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
 import { getPlatformSettings } from '@/lib/platform'
+import { getStateMarketplace, isMedicaidExpansionState } from '@/lib/marketplaces'
 
 // ── FPL applicable percentage table (IRS) ─────────────────────────────────────
 const APPLICABLE_PCT: [number, number, number][] = [
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   const auth = await getAuth()
   if (auth instanceof NextResponse) return auth
 
-  const { zipcode, income, householdSize, age, ages, year, state } = await request.json()
+  const { zipcode, income, householdSize, age, ages, year, state, benchmarkOverride } = await request.json()
 
   if (!zipcode || !income || !age) {
     return NextResponse.json({ error: 'ZIP code, ingreso y edad son requeridos' }, { status: 400 })
@@ -56,9 +57,25 @@ export async function POST(request: NextRequest) {
   const maxClientPayMonth = maxClientPayYear / 12
 
   // ── Eligibility checks ───────────────────────────────────────────────────────
-  const qualifiesMedicaid = fplPct > 0 && fplPct < 100
+  // Por debajo del 100% del FPL no hay subsidio. En estados que SÍ expandieron
+  // Medicaid, esa persona normalmente califica para Medicaid; en los que NO
+  // (Georgia, Florida, Texas…) cae en la "brecha de cobertura" — es una
+  // diferencia importante que cambia lo que se le dice al cliente.
+  const expansion = isMedicaidExpansionState(state)
+  const belowFpl = fplPct > 0 && fplPct < 100
+  const qualifiesMedicaid = belowFpl && expansion
+  const coverageGap = belowFpl && !expansion
   const qualifiesAPTC = fplPct >= 100
   const qualifiesCSR = fplPct >= 100 && fplPct <= 250
+
+  // ── Mercado del estado ───────────────────────────────────────────────────────
+  // Los estados con mercado PROPIO (ej. Georgia Access) no están en la API
+  // federal de CMS: no se la consulta y el precio de referencia lo ingresa el
+  // agente desde el sitio del estado (benchmarkOverride).
+  const stateMarketplace = getStateMarketplace(state)
+  const manualBenchmark = benchmarkOverride != null && benchmarkOverride !== ''
+    ? parseFloat(String(benchmarkOverride))
+    : null
 
   // ── CMS API call for exact SLCSP ─────────────────────────────────────────────
   let slcspMonthly: number | null = null
@@ -75,7 +92,7 @@ export async function POST(request: NextRequest) {
   let cmsError: string | null = null
   let dataSource = 'estimated'
 
-  if (cmsApiKey && qualifiesAPTC) {
+  if (cmsApiKey && qualifiesAPTC && !stateMarketplace) {
     try {
       // Step 1: Get county FIPS from ZIP code (required by CMS API)
       let countyFips = ''
@@ -286,6 +303,12 @@ export async function POST(request: NextRequest) {
     return NATIONAL_AVG_SILVER[c]
   }
 
+  // Precio del plan de referencia: 1) el que el agente copió del mercado estatal,
+  // 2) el exacto de CMS, o 3) un estimado por edad.
+  if (manualBenchmark != null && !isNaN(manualBenchmark) && manualBenchmark > 0) {
+    slcspMonthly = manualBenchmark
+    dataSource = 'state_manual'
+  }
   const benchmarkMonthly = slcspMonthly ?? avgSilver(clientAge)
 
   // Prefer CMS's own post-credit price (premium_w_credit) — it's computed with
@@ -328,6 +351,8 @@ export async function POST(request: NextRequest) {
     fplThreshold, fplPct: Math.round(fplPct * 10) / 10,
     // Eligibility
     qualifiesMedicaid, qualifiesAPTC, qualifiesCSR,
+    coverageGap,                          // bajo 100% FPL en estado sin expansión de Medicaid
+    stateMarketplace,                     // mercado propio del estado (null = Mercado federal)
     applicablePct,
     maxClientPayMonth: Math.round(maxClientPayMonth * 100) / 100,
     // SLCSP

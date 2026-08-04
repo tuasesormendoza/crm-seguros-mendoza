@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { checkSubsidy, daysUntilRule } from '@/lib/subsidyEligibility'
+import { getStateMarketplace } from '@/lib/marketplaces'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,9 +12,11 @@ interface APTCResult {
   zipcode: string; income: number; householdSize: number; age: number; year: string; state: string
   fplThreshold: number; fplPct: number
   qualifiesMedicaid: boolean; qualifiesAPTC: boolean; qualifiesCSR: boolean
+  coverageGap?: boolean
+  stateMarketplace?: { code: string; name: string; url: string } | null
   applicablePct: number; maxClientPayMonth: number
   slcspMonthly: number | null; slcspPlanName: string | null
-  benchmarkMonthly: number; dataSource: 'cms_exact' | 'cms_single' | 'estimated'
+  benchmarkMonthly: number; dataSource: 'cms_exact' | 'cms_single' | 'state_manual' | 'estimated'
   subsidyMonth: number; clientPaysMonth: number; subsidyYear: number
   bestPlans: {
     id: string; name: string; issuer: string | null; metalLevel: string; type: string
@@ -48,6 +51,13 @@ function DataSourceBadge({ source }: { source: APTCResult['dataSource'] }) {
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
       style={{ background: '#dbeafe', color: '#1e40af' }}>
       ℹ️ Un solo plan Silver en área — CMS API
+    </span>
+  )
+  // Precio copiado a mano desde el mercado del estado (ej. Georgia Access).
+  if (source === 'state_manual') return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+      style={{ background: '#d1fae5', color: '#065f46' }}>
+      ✅ Precio del mercado estatal
     </span>
   )
   return (
@@ -106,6 +116,9 @@ function APTCInner() {
   // Estatus migratorio del cliente: define si podrá recibir el crédito fiscal
   // a partir del 01/01/2027 (ver src/lib/subsidyEligibility.ts).
   const [clientMigration, setClientMigration] = useState<string | null>(null)
+  // Precio mensual del plan Silver de referencia (SLCSP) copiado del mercado
+  // del estado — solo se usa en estados con mercado propio.
+  const [benchmarkOverride, setBenchmarkOverride] = useState('')
 
   // Result
   const [result, setResult] = useState<APTCResult | null>(null)
@@ -161,6 +174,7 @@ function APTCInner() {
           householdSize: parseInt(household), age: parseInt(age),
           ages: [parseInt(age), ...otherAges.map(a => parseInt(a) || 18)],
           year: fplYear, state,
+          benchmarkOverride: marketplace ? benchmarkOverride : undefined,
         }),
       })
       const data = await res.json()
@@ -186,6 +200,9 @@ function APTCInner() {
   const SEL = 'w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2a6496] transition-colors bg-white'
   const fplRef = fpl1 + fplPer * (parseInt(household || '1') - 1)
   const subsidyCheck = checkSubsidy(clientMigration)
+  // Estados con mercado propio (ej. Georgia Access): la API federal no tiene sus
+  // planes, así que el precio de referencia se copia del sitio del estado.
+  const marketplace = getStateMarketplace(state)
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -273,6 +290,41 @@ function APTCInner() {
                 placeholder="FL" className={SEL} />
             </InputField>
 
+            {/* Estados con mercado PROPIO (ej. Georgia Access): el Mercado
+                federal no tiene sus planes, así que el precio de referencia se
+                copia del sitio del estado para obtener el cálculo exacto. */}
+            {marketplace && (
+              <div className="rounded-xl p-4" style={{ background: '#f0f7fb', border: '1.5px solid #b8d4e8' }}>
+                <p className="text-sm font-bold" style={{ color: '#10253f' }}>
+                  🏛️ {state.toUpperCase()} usa su propio mercado: {marketplace.name}
+                </p>
+                <p className="text-xs mt-1" style={{ color: '#1e4a6e' }}>
+                  Este estado no cotiza en cuidadodesalud.gov, así que los precios no vienen automáticos.
+                  Busca el <strong>plan Silver de referencia (el 2º más barato)</strong> en{' '}
+                  <a href={marketplace.url} target="_blank" rel="noopener noreferrer" className="underline font-semibold">
+                    {marketplace.url.replace('https://', '')} ↗
+                  </a>{' '}
+                  y escribe aquí su precio mensual <strong>sin subsidio</strong>.
+                </p>
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#10253f' }}>
+                    Precio del plan Silver de referencia ($/mes)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                    <input type="number" min="0" step="0.01" value={benchmarkOverride}
+                      onChange={e => setBenchmarkOverride(e.target.value)}
+                      placeholder="Ej. 612.45" className={SEL + ' pl-6'} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {benchmarkOverride
+                      ? '✅ Se usará este precio para un cálculo exacto.'
+                      : 'Si lo dejas vacío, el cálculo será un estimado por edad (menos preciso).'}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                 ⚠️ {error}
@@ -337,6 +389,27 @@ function APTCInner() {
                   {result.cmsError.includes('API Key') && isOwner && (
                     <Link href="/settings" className="ml-2 underline font-semibold">Configurar →</Link>
                   )}
+                </div>
+              )}
+
+              {/* Brecha de cobertura: bajo 100% del FPL en un estado que NO
+                  expandió Medicaid (Georgia, Florida, Texas…). No califica ni
+                  para Medicaid ni para el subsidio. */}
+              {result.coverageGap && (
+                <div className="rounded-2xl p-5" style={{ background: '#fef2f2', border: '2px solid #dc2626' }}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">⚠️</span>
+                    <div>
+                      <p className="font-bold" style={{ color: '#991b1b' }}>Brecha de cobertura</p>
+                      <p className="text-sm mt-0.5" style={{ color: '#b91c1c' }}>
+                        Ingreso al <strong>{result.fplPct.toFixed(0)}% del FPL</strong> — por debajo del 100%.
+                        {result.state ? ` ${result.state.toUpperCase()}` : ' Este estado'} no expandió Medicaid, así que
+                        normalmente <strong>no califica para el subsidio ni para Medicaid</strong>.
+                        Revisa si aplica por otra vía (embarazo, discapacidad, hijos menores) o si el ingreso
+                        proyectado del año puede llegar al 100% del FPL ({fmt$(fplRef)}/año).
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -417,7 +490,7 @@ function APTCInner() {
                   {[
                     { label: '% del FPL', value: `${result.fplPct.toFixed(0)}%`, color: '#10253f', bg: '#f0f7fb' },
                     { label: 'Subsidio APTC/mes', value: fmt$(result.subsidyMonth), color: '#059669', bg: '#d1fae5',
-                      sub: result.dataSource === 'cms_exact' ? 'Dato exacto CMS' : 'Estimado' },
+                      sub: result.dataSource === 'cms_exact' ? 'Dato exacto CMS' : result.dataSource === 'state_manual' ? 'Precio del estado' : 'Estimado' },
                     { label: 'Cliente pagaría/mes', value: fmt$c(result.clientPaysMonth), color: '#2a6496', bg: '#dbeafe',
                       sub: `Por plan Silver` },
                   ].map(card => (
@@ -446,8 +519,8 @@ function APTCInner() {
                           ? `SLCSP (${result.slcspPlanName.slice(0, 35)}...)`
                           : 'Plan Silver referencia (SLCSP)',
                         value: `${fmt$c(result.benchmarkMonthly)}/mes`,
-                        highlight: result.dataSource === 'cms_exact',
-                        note: result.dataSource === 'cms_exact' ? '✅ Dato real CMS' : result.dataSource === 'cms_single' ? 'ℹ️ Único plan Silver' : '⚠️ Estimado',
+                        highlight: result.dataSource === 'cms_exact' || result.dataSource === 'state_manual',
+                        note: result.dataSource === 'cms_exact' ? '✅ Dato real CMS' : result.dataSource === 'state_manual' ? '✅ Precio del mercado estatal' : result.dataSource === 'cms_single' ? 'ℹ️ Único plan Silver' : '⚠️ Estimado',
                       },
                       { label: '🟢 Subsidio APTC mensual', value: fmt$c(result.subsidyMonth), highlight: true },
                       { label: '🔵 Cliente pagaría por plan Silver', value: fmt$c(result.clientPaysMonth), highlight: true },
@@ -541,9 +614,13 @@ function APTCInner() {
                   <p className="text-xs text-gray-400 flex-1 min-w-48">
                     {result.dataSource === 'cms_exact'
                       ? `✅ Basado en planes reales del Marketplace en ZIP ${result.zipcode}`
-                      : (isOwner
-                          ? '⚠️ Estimación con promedios nacionales. Agrega CMS API Key para datos exactos por ZIP.'
-                          : '⚠️ Estimación con promedios nacionales.')}
+                      : result.dataSource === 'state_manual'
+                        ? `✅ Calculado con el precio de referencia de ${result.stateMarketplace?.name || 'el mercado del estado'}`
+                        : result.stateMarketplace
+                          ? `⚠️ Estimación por edad. Para el cálculo exacto, copia el precio del plan Silver de referencia desde ${result.stateMarketplace.name}.`
+                          : (isOwner
+                              ? '⚠️ Estimación con promedios nacionales. Agrega CMS API Key para datos exactos por ZIP.'
+                              : '⚠️ Estimación con promedios nacionales.')}
                   </p>
                   <div className="flex gap-2 shrink-0 flex-wrap">
                     {clientId && (

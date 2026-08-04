@@ -72,7 +72,9 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 
 • Tarjeta Plan: genera una tarjeta-resumen del plan a partir del brochure PDF usando IA. Pasos: subir el PDF → verificar los datos (incluye "Vigencia — Desde/Hasta", que sale en formato MM/DD/YY) → generar. En el último paso puedes "📱 Enviar por WhatsApp" directo al cliente (en el teléfono adjunta la imagen sola; en computadora la descarga y abre WhatsApp), "Descargar PNG", "Imprimir", cambiar idioma ES/EN y, si vienes desde la ficha de un cliente, "Guardar tarjeta + datos en el perfil". La tarjeta muestra el LOGO de la agencia (o su nombre si no hay logo) y su web/colores — todo se configura en Configuración → Marca → Tarjeta de Plan.
 
-• Calc. APTC: calcula el crédito fiscal según ingreso anual y tamaño de familia (los valores FPL se actualizan cada enero en Configuración → Cálculos y AI).
+• Calc. APTC: calcula el crédito fiscal según ingreso anual, tamaño de familia y edades (los valores FPL se actualizan cada enero en Configuración → Cálculos y AI).
+  ESTADOS CON MERCADO PROPIO: Georgia (Georgia Access, georgiaaccess.gov) y otros como California, Nueva York, Pennsylvania… NO cotizan en cuidadodesalud.gov, así que sus precios no llegan automáticos. Al escribir el estado (ej. "GA"), la calculadora lo detecta sola y muestra un panel con el enlace al mercado del estado y un campo para escribir el precio mensual del "plan Silver de referencia" (el 2º Silver más barato, sin subsidio). Con ese precio el cálculo del subsidio es EXACTO; si se deja vacío, da un estimado por edad. El cálculo del subsidio es federal e idéntico en todos los estados.
+  BRECHA DE COBERTURA: en estados que NO expandieron Medicaid (Georgia, Florida, Texas…), quien está por debajo del 100% del FPL normalmente no califica ni para Medicaid ni para el subsidio — la calculadora lo avisa en rojo como "Brecha de cobertura" (no dice "califica para Medicaid", que sería incorrecto ahí).
 
 • Documentos: elegir cliente + plantilla → genera la carta personalizada → enviar por Email (con el logo de la agencia) o WhatsApp.
 
