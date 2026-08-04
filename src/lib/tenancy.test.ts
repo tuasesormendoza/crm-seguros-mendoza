@@ -41,6 +41,10 @@ const PUBLIC_ROUTES = new Set([
 const TENANTLESS_MODELS = new Set([
   'loginAttempt', // keyed por identifier (email/IP) — es pre-autenticación
   'agency',       // el propio registro del inquilino
+  // Tarifas y planes PÚBLICOS del mercado de Georgia (importados de los archivos
+  // oficiales del estado). No pertenecen a ninguna agencia: son los mismos datos
+  // para todas, igual que los precios que devuelve la API federal de CMS.
+  'georgiaMarketData',
 ])
 
 // ── Exenciones puntuales: "ruta :: modelo.método" → razón ────────────────────

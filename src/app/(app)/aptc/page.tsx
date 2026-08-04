@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { checkSubsidy, daysUntilRule } from '@/lib/subsidyEligibility'
-import { getStateMarketplace } from '@/lib/marketplaces'
+import { getStateMarketplace, stateCode } from '@/lib/marketplaces'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,7 +16,7 @@ interface APTCResult {
   stateMarketplace?: { code: string; name: string; url: string } | null
   applicablePct: number; maxClientPayMonth: number
   slcspMonthly: number | null; slcspPlanName: string | null
-  benchmarkMonthly: number; dataSource: 'cms_exact' | 'cms_single' | 'state_manual' | 'estimated'
+  benchmarkMonthly: number; dataSource: 'cms_exact' | 'cms_single' | 'georgia_access' | 'state_manual' | 'estimated'
   subsidyMonth: number; clientPaysMonth: number; subsidyYear: number
   bestPlans: {
     id: string; name: string; issuer: string | null; metalLevel: string; type: string
@@ -53,7 +53,14 @@ function DataSourceBadge({ source }: { source: APTCResult['dataSource'] }) {
       ℹ️ Un solo plan Silver en área — CMS API
     </span>
   )
-  // Precio copiado a mano desde el mercado del estado (ej. Georgia Access).
+  // Calculado con los planes y tarifas oficiales de Georgia Access.
+  if (source === 'georgia_access') return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+      style={{ background: '#d1fae5', color: '#065f46' }}>
+      ✅ Dato exacto — Georgia Access
+    </span>
+  )
+  // Precio copiado a mano desde el mercado del estado.
   if (source === 'state_manual') return (
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
       style={{ background: '#d1fae5', color: '#065f46' }}>
@@ -203,6 +210,8 @@ function APTCInner() {
   // Estados con mercado propio (ej. Georgia Access): la API federal no tiene sus
   // planes, así que el precio de referencia se copia del sitio del estado.
   const marketplace = getStateMarketplace(state)
+  // Georgia ya tiene los datos oficiales cargados en el CRM → cotiza automático.
+  const isGeorgia = stateCode(state) === 'GA'
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -294,21 +303,33 @@ function APTCInner() {
                 federal no tiene sus planes, así que el precio de referencia se
                 copia del sitio del estado para obtener el cálculo exacto. */}
             {marketplace && (
-              <div className="rounded-xl p-4" style={{ background: '#f0f7fb', border: '1.5px solid #b8d4e8' }}>
-                <p className="text-sm font-bold" style={{ color: '#10253f' }}>
+              <div className="rounded-xl p-4" style={{
+                background: isGeorgia ? '#f0fdf4' : '#f0f7fb',
+                border: `1.5px solid ${isGeorgia ? '#a7f3d0' : '#b8d4e8'}`,
+              }}>
+                <p className="text-sm font-bold" style={{ color: isGeorgia ? '#065f46' : '#10253f' }}>
                   🏛️ {state.toUpperCase()} usa su propio mercado: {marketplace.name}
                 </p>
-                <p className="text-xs mt-1" style={{ color: '#1e4a6e' }}>
-                  Este estado no cotiza en cuidadodesalud.gov, así que los precios no vienen automáticos.
-                  Busca el <strong>plan Silver de referencia (el 2º más barato)</strong> en{' '}
-                  <a href={marketplace.url} target="_blank" rel="noopener noreferrer" className="underline font-semibold">
-                    {marketplace.url.replace('https://', '')} ↗
-                  </a>{' '}
-                  y escribe aquí su precio mensual <strong>sin subsidio</strong>.
-                </p>
+                {isGeorgia ? (
+                  <p className="text-xs mt-1" style={{ color: '#047857' }}>
+                    ✅ <strong>Cotización automática activada.</strong> El CRM tiene cargados los planes y
+                    tarifas oficiales de Georgia Access, así que calcula el precio exacto por ZIP igual que
+                    en los estados del Mercado federal. Solo llena los datos y presiona Calcular.
+                  </p>
+                ) : (
+                  <p className="text-xs mt-1" style={{ color: '#1e4a6e' }}>
+                    Este estado no cotiza en cuidadodesalud.gov, así que los precios no vienen automáticos.
+                    Busca el <strong>plan Silver de referencia (el 2º más barato)</strong> en{' '}
+                    <a href={marketplace.url} target="_blank" rel="noopener noreferrer" className="underline font-semibold">
+                      {marketplace.url.replace('https://', '')} ↗
+                    </a>{' '}
+                    y escribe aquí su precio mensual <strong>sin subsidio</strong>.
+                  </p>
+                )}
                 <div className="mt-3">
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#10253f' }}>
                     Precio del plan Silver de referencia ($/mes)
+                    {isGeorgia && <span className="font-normal text-gray-400"> — opcional, solo para forzar otro precio</span>}
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
@@ -318,8 +339,10 @@ function APTCInner() {
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
                     {benchmarkOverride
-                      ? '✅ Se usará este precio para un cálculo exacto.'
-                      : 'Si lo dejas vacío, el cálculo será un estimado por edad (menos preciso).'}
+                      ? '✅ Se usará este precio en lugar del automático.'
+                      : isGeorgia
+                        ? 'Déjalo vacío: el CRM usa el precio oficial de Georgia Access.'
+                        : 'Si lo dejas vacío, el cálculo será un estimado por edad (menos preciso).'}
                   </p>
                 </div>
               </div>
@@ -490,7 +513,7 @@ function APTCInner() {
                   {[
                     { label: '% del FPL', value: `${result.fplPct.toFixed(0)}%`, color: '#10253f', bg: '#f0f7fb' },
                     { label: 'Subsidio APTC/mes', value: fmt$(result.subsidyMonth), color: '#059669', bg: '#d1fae5',
-                      sub: result.dataSource === 'cms_exact' ? 'Dato exacto CMS' : result.dataSource === 'state_manual' ? 'Precio del estado' : 'Estimado' },
+                      sub: result.dataSource === 'cms_exact' ? 'Dato exacto CMS' : result.dataSource === 'georgia_access' ? 'Georgia Access' : result.dataSource === 'state_manual' ? 'Precio del estado' : 'Estimado' },
                     { label: 'Cliente pagaría/mes', value: fmt$c(result.clientPaysMonth), color: '#2a6496', bg: '#dbeafe',
                       sub: `Por plan Silver` },
                   ].map(card => (
@@ -519,8 +542,8 @@ function APTCInner() {
                           ? `SLCSP (${result.slcspPlanName.slice(0, 35)}...)`
                           : 'Plan Silver referencia (SLCSP)',
                         value: `${fmt$c(result.benchmarkMonthly)}/mes`,
-                        highlight: result.dataSource === 'cms_exact' || result.dataSource === 'state_manual',
-                        note: result.dataSource === 'cms_exact' ? '✅ Dato real CMS' : result.dataSource === 'state_manual' ? '✅ Precio del mercado estatal' : result.dataSource === 'cms_single' ? 'ℹ️ Único plan Silver' : '⚠️ Estimado',
+                        highlight: result.dataSource === 'cms_exact' || result.dataSource === 'georgia_access' || result.dataSource === 'state_manual',
+                        note: result.dataSource === 'cms_exact' ? '✅ Dato real CMS' : result.dataSource === 'georgia_access' ? '✅ Dato real Georgia Access' : result.dataSource === 'state_manual' ? '✅ Precio del mercado estatal' : result.dataSource === 'cms_single' ? 'ℹ️ Único plan Silver' : '⚠️ Estimado',
                       },
                       { label: '🟢 Subsidio APTC mensual', value: fmt$c(result.subsidyMonth), highlight: true },
                       { label: '🔵 Cliente pagaría por plan Silver', value: fmt$c(result.clientPaysMonth), highlight: true },
@@ -614,6 +637,8 @@ function APTCInner() {
                   <p className="text-xs text-gray-400 flex-1 min-w-48">
                     {result.dataSource === 'cms_exact'
                       ? `✅ Basado en planes reales del Marketplace en ZIP ${result.zipcode}`
+                      : result.dataSource === 'georgia_access'
+                        ? `✅ Basado en los planes oficiales de Georgia Access para el ZIP ${result.zipcode}`
                       : result.dataSource === 'state_manual'
                         ? `✅ Calculado con el precio de referencia de ${result.stateMarketplace?.name || 'el mercado del estado'}`
                         : result.stateMarketplace

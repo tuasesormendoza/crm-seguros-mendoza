@@ -302,6 +302,23 @@ model Automation {
   @@index([agencyId])
 }
 
+// Datos del mercado de Georgia (Georgia Access) por área de tarifa.
+// Georgia no está en la API federal de CMS, así que sus planes y precios se
+// importan de los archivos públicos oficiales (PUF) con scripts/import-georgia.mjs
+// y se guardan aquí ya procesados: una fila por (año, área) con el listado de
+// planes y sus tarifas por edad. Son datos PÚBLICOS del estado, no de ninguna
+// agencia — por eso la tabla no lleva agencyId.
+model GeorgiaMarketData {
+  id         String   @id @default(cuid())
+  year       Int
+  ratingArea Int      // 1..16
+  payload    String   // JSON: { plans: [...], rates: { "<edad>": { "<planId>": tarifa } } }
+  updatedAt  DateTime @updatedAt
+
+  @@unique([year, ratingArea])
+  @@index([year])
+}
+
 model CommissionRate {
   id                   String   @id @default(cuid())
   agencyId             String?

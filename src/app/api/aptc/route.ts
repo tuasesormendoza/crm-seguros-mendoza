@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
 import { getPlatformSettings } from '@/lib/platform'
-import { getStateMarketplace, isMedicaidExpansionState } from '@/lib/marketplaces'
+import { getStateMarketplace, isMedicaidExpansionState, stateCode } from '@/lib/marketplaces'
+import { ratingAreaForCounty, quoteGeorgia, parsePayload } from '@/lib/georgiaMarket'
 
 // ── FPL applicable percentage table (IRS) ─────────────────────────────────────
 const APPLICABLE_PCT: [number, number, number][] = [
@@ -91,6 +92,79 @@ export async function POST(request: NextRequest) {
   }[] = []
   let cmsError: string | null = null
   let dataSource = 'estimated'
+
+  // ── GEORGIA (Georgia Access) ────────────────────────────────────────────────
+  // No está en la API federal: los planes y tarifas se importan de los archivos
+  // oficiales del estado (ver scripts/import-georgia.mjs) y se calculan aquí.
+  if (stateCode(state) === 'GA' && qualifiesAPTC) {
+    try {
+      // ZIP → condado: el endpoint geográfico de CMS sí responde para Georgia.
+      let county = ''
+      if (cmsApiKey) {
+        const cr = await fetch(
+          `https://marketplace.api.healthcare.gov/api/v1/counties/by/zip/${String(zipcode).trim()}?apikey=${cmsApiKey}`,
+          { signal: AbortSignal.timeout(6000) },
+        ).catch(() => null)
+        if (cr?.ok) {
+          const cd = await cr.json()
+          const counties = cd.counties || cd
+          if (Array.isArray(counties) && counties.length) county = counties[0].name || ''
+        }
+      }
+
+      const area = ratingAreaForCounty(county)
+      if (!area) {
+        cmsError = county
+          ? `No se pudo ubicar el condado "${county}" en las áreas de tarifa de Georgia.`
+          : `No se pudo determinar el condado del ZIP ${zipcode}. Verifica el código postal.`
+      } else {
+        const row = await prisma.georgiaMarketData.findUnique({
+          where: { year_ratingArea: { year: parseInt(String(planYear), 10), ratingArea: area } },
+          select: { payload: true },
+        })
+        const payload = row ? parsePayload(row.payload) : null
+        if (!payload) {
+          cmsError = `Aún no hay tarifas de Georgia cargadas para ${planYear}. El administrador debe importarlas.`
+        } else {
+          const memberAges: number[] = Array.isArray(ages) && ages.length
+            ? ages.map((a: number) => parseInt(String(a), 10) || clientAge)
+            : Array.from({ length: size }, () => clientAge)
+
+          const quote = quoteGeorgia(payload, memberAges)
+          if (quote.slcspMonthly == null) {
+            cmsError = `No se encontraron planes Silver en el área de tarifa ${area} de Georgia.`
+          } else {
+            slcspMonthly = quote.slcspMonthly
+            slcspPlanName = quote.slcspPlanName
+            dataSource = 'georgia_access'
+
+            // El subsidio se calcula con la regla federal y se aplica a cada plan.
+            const expected = maxClientPayMonth
+            const subsidy = Math.max(0, quote.slcspMonthly - expected)
+            bestPlans = quote.plans
+              .map(p => {
+                const premiumWCredit = Math.max(0, Math.round((p.premium - subsidy) * 100) / 100)
+                return {
+                  id: p.id, name: p.name, issuer: p.issuer, metalLevel: p.metalLevel, type: p.type,
+                  premium: p.premium, premiumWCredit,
+                  deductible: p.deductible, moop: p.moop, hsaEligible: !!p.hsaEligible,
+                  primaryCare: p.primaryCare ?? null, specialist: p.specialist ?? null,
+                  urgentCare: p.urgentCare ?? null, emergencyRoom: p.emergencyRoom ?? null,
+                  genericDrugs: p.genericDrugs ?? null,
+                  worstCaseAnnual: Math.round((premiumWCredit * 12 + (p.moop ?? 0)) * 100) / 100,
+                }
+              })
+              .sort((a, b) => rankMode === 'cheapest'
+                ? a.premiumWCredit - b.premiumWCredit
+                : a.worstCaseAnnual - b.worstCaseAnnual)
+              .slice(0, 5)
+          }
+        }
+      }
+    } catch (err) {
+      cmsError = `Error al calcular con los datos de Georgia: ${(err as Error).message.slice(0, 100)}`
+    }
+  }
 
   if (cmsApiKey && qualifiesAPTC && !stateMarketplace) {
     try {
