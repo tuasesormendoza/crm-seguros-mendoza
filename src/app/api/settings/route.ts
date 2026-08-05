@@ -43,6 +43,8 @@ const DEFAULTS: Record<string, string> = {
   cardWebsite:            '',
   cardHeaderColor:        '#0D2A4A',
   cardAccentColor:        '#F0C040',
+  // Carpeta de Google Drive donde se guardan los respaldos diarios.
+  driveBackupFolder:      'CRM Seguros - Backups',
   emailEnabled:           'false',
   emailFrom:              '',
   emailTo:                '',

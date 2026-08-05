@@ -44,11 +44,31 @@ export default function GoogleCalendar() {
   const [lastBackup, setLastBackup] = useState<LastBackup | null>(null)
   const [backingUp, setBackingUp] = useState(false)
   const [backupMsg, setBackupMsg] = useState<string | null>(null)
+  const [folderName, setFolderName] = useState('')
+  const [savingFolder, setSavingFolder] = useState(false)
+  const [folderMsg, setFolderMsg] = useState<string | null>(null)
   const health = backupHealth(lastBackup)
+
+  async function saveFolder() {
+    setSavingFolder(true); setFolderMsg(null)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driveBackupFolder: folderName.trim() }),
+      })
+      if (!res.ok) throw new Error()
+      setFolderMsg('✅ Guardado. La carpeta se renombrará en el próximo respaldo.')
+    } catch {
+      setFolderMsg('❌ No se pudo guardar el nombre de la carpeta.')
+    }
+    setSavingFolder(false)
+  }
 
   useEffect(() => {
     fetch('/api/google/status').then(r => r.json()).then(setStatus).catch(() => setStatus({ configured: false, connected: false, email: null }))
     fetch('/api/google/backup').then(r => r.json()).then(d => setLastBackup(d.last ?? null)).catch(() => {})
+    fetch('/api/settings').then(r => r.json()).then(s => setFolderName(s.driveBackupFolder || 'CRM Seguros - Backups')).catch(() => {})
     // Leer el resultado del redirect de OAuth y limpiar la URL
     const params = new URLSearchParams(window.location.search)
     const g = params.get('google')
@@ -180,8 +200,26 @@ export default function GoogleCalendar() {
               </div>
             )}
             {backupMsg && <p className="text-xs mt-2" style={{ color: backupMsg.startsWith('✅') ? '#065f46' : '#b91c1c' }}>{backupMsg}</p>}
-            <p className="text-xs text-gray-400 mt-2">
-              Cada día se guarda una copia de todos tus datos (clientes, pólizas, comisiones, campañas, reclamos…) en la carpeta &quot;CRM Seguros - Backups&quot; de tu Google Drive. Se conservan los últimos 30. Los datos sensibles (SSN, banco) se guardan cifrados. Si conectaste Google antes de activar esta función, desconecta y vuelve a conectar para dar el permiso de Drive.
+
+            {/* Nombre de la carpeta. Al cambiarlo se RENOMBRA la carpeta que ya
+                existe, así los respaldos anteriores siguen todos juntos. */}
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Carpeta en Google Drive</label>
+              <div className="flex gap-2">
+                <input value={folderName} onChange={e => setFolderName(e.target.value)}
+                  placeholder="CRM Seguros - Backups" maxLength={100}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#507b88]" />
+                <button onClick={saveFolder} disabled={savingFolder || !folderName.trim()}
+                  className="text-xs px-3 py-2 rounded-lg border font-medium disabled:opacity-50 whitespace-nowrap"
+                  style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff' }}>
+                  {savingFolder ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+              {folderMsg && <p className="text-xs mt-1.5" style={{ color: folderMsg.startsWith('✅') ? '#065f46' : '#b91c1c' }}>{folderMsg}</p>}
+            </div>
+
+            <p className="text-xs text-gray-400 mt-3">
+              Cada día se guarda una copia de todos tus datos (clientes, pólizas, comisiones, campañas, reclamos…) en esa carpeta de tu Google Drive. Se conservan los últimos 30. Los datos sensibles (SSN, banco) se guardan cifrados. Puedes mover la carpeta a donde quieras dentro de tu Drive: el CRM la seguirá encontrando. El CRM solo ve los archivos que él mismo crea, nunca el resto de tu Drive.
             </p>
           </div>
         </div>

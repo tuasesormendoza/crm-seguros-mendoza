@@ -14,7 +14,7 @@
 import { prisma } from '@/lib/prisma'
 import { getValidAccessToken } from '@/lib/google'
 import { exportAgencyBackup } from '@/lib/backup'
-import { findOrCreateBackupFolder, uploadJsonBackup, listBackups, deleteBackup } from '@/lib/googleDrive'
+import { ensureBackupFolder, uploadJsonBackup, listBackups, deleteBackup, sanitizeFolderName } from '@/lib/googleDrive'
 
 // Cuántos respaldos conservar en Drive por agencia (los más viejos se borran).
 const KEEP = 30
@@ -24,6 +24,7 @@ export interface AgencyBackupResult {
   email: string
   ok: boolean
   fileName?: string
+  folderName?: string
   deleted?: number
   error?: string
 }
@@ -37,7 +38,24 @@ async function backupOne(acct: {
   if (!acct.agencyId) return { ...base, ok: false, error: 'cuenta sin agencia' }
 
   const token = await getValidAccessToken(acct)
-  const folderId = await findOrCreateBackupFolder(token)
+
+  // La agencia elige cómo se llama su carpeta (Configuración → Integraciones y
+  // Respaldo). Se guarda también su id para poder renombrarla —y para seguir
+  // encontrándola si el agente la mueve de sitio dentro de su Drive.
+  const cfg = await prisma.settings.findMany({
+    where: { agencyId: acct.agencyId, key: { in: ['driveBackupFolder', 'driveBackupFolderId'] } },
+  })
+  const byKey = Object.fromEntries(cfg.map(r => [r.key, r.value]))
+  const folderName = sanitizeFolderName(byKey.driveBackupFolder)
+  const folderId = await ensureBackupFolder(token, folderName, byKey.driveBackupFolderId)
+
+  if (byKey.driveBackupFolderId !== folderId) {
+    await prisma.settings.upsert({
+      where: { agencyId_key: { agencyId: acct.agencyId, key: 'driveBackupFolderId' } },
+      create: { agencyId: acct.agencyId, key: 'driveBackupFolderId', value: folderId },
+      update: { value: folderId },
+    }).catch(() => {})
+  }
 
   const data = await exportAgencyBackup(acct.agencyId)
   const json = JSON.stringify(data)
@@ -53,7 +71,7 @@ async function backupOne(acct: {
     deleted++
   }
 
-  return { ...base, ok: true, fileName, deleted }
+  return { ...base, ok: true, fileName, deleted, folderName }
 }
 
 // Respalda las agencias con Google conectado. Sin agencyId respalda TODAS (lo usa
