@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
 import { losesSubsidyWhere } from '@/lib/subsidyEligibility'
+import { backupHealth, type LastBackup } from '@/lib/backupHealth'
 
 export async function GET() {
   const auth = await getAuth()
@@ -191,7 +192,21 @@ export async function GET() {
     }),
   ])
 
+  // Salud del respaldo automático a Drive. Va en el panel para que un respaldo
+  // caído salte a la vista sin tener que entrar a Configuración a buscarlo.
+  const backupRow = await prisma.settings.findFirst({
+    where: { agencyId: auth.agencyId, key: 'driveLastBackup' },
+    select: { value: true },
+  })
+  let lastBackup: LastBackup | null = null
+  if (backupRow?.value) { try { lastBackup = JSON.parse(backupRow.value) } catch { /* valor inválido */ } }
+  // Solo se avisa si Google está conectado: sin conexión el respaldo a Drive
+  // no está activado y el aviso sería ruido.
+  const hasGoogle = await prisma.googleAccount.count({ where: { agencyId: auth.agencyId } }) > 0
+  const backup = hasGoogle ? backupHealth(lastBackup) : null
+
   return NextResponse.json({
+    backup,
     losesSubsidyCount,
     missingMigrationCount,
     totalPolicies,

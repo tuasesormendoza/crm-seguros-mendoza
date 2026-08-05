@@ -4,6 +4,7 @@
 // La sincronización de dos vías corre en segundo plano una vez conectado.
 
 import { useEffect, useState } from 'react'
+import { backupHealth } from '@/lib/backupHealth'
 
 interface Status {
   configured: boolean
@@ -43,6 +44,7 @@ export default function GoogleCalendar() {
   const [lastBackup, setLastBackup] = useState<LastBackup | null>(null)
   const [backingUp, setBackingUp] = useState(false)
   const [backupMsg, setBackupMsg] = useState<string | null>(null)
+  const health = backupHealth(lastBackup)
 
   useEffect(() => {
     fetch('/api/google/status').then(r => r.json()).then(setStatus).catch(() => setStatus({ configured: false, connected: false, email: null }))
@@ -158,9 +160,7 @@ export default function GoogleCalendar() {
                 <div className="text-sm font-semibold" style={{ color: '#10253f' }}>💾 Respaldo automático en Drive</div>
                 <div className="text-xs text-gray-500 mt-0.5">
                   {lastBackup
-                    ? (lastBackup.ok
-                        ? `Último respaldo: ${formatWhen(lastBackup.at)}`
-                        : `⚠️ Último intento falló: ${lastBackup.error || 'error'}`)
+                    ? `${lastBackup.ok ? 'Último respaldo' : 'Último intento'}: ${formatWhen(lastBackup.at)}`
                     : 'Aún no se ha creado ningún respaldo.'}
                 </div>
               </div>
@@ -170,6 +170,15 @@ export default function GoogleCalendar() {
                 {backingUp ? 'Respaldando...' : '💾 Respaldar ahora'}
               </button>
             </div>
+            {/* Un respaldo caído tiene que verse en ROJO y decir qué hacer. Antes
+                se mostraba el último respaldo bueno y parecía que todo iba bien. */}
+            {health.alarm && (
+              <div className="mt-2.5 px-3 py-2.5 rounded-lg text-xs"
+                style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
+                <strong>⚠️ El respaldo automático no está funcionando.</strong>
+                <div className="mt-1" style={{ color: '#b91c1c' }}>{health.message}</div>
+              </div>
+            )}
             {backupMsg && <p className="text-xs mt-2" style={{ color: backupMsg.startsWith('✅') ? '#065f46' : '#b91c1c' }}>{backupMsg}</p>}
             <p className="text-xs text-gray-400 mt-2">
               Cada día se guarda una copia de todos tus datos (clientes, pólizas, comisiones, campañas, reclamos…) en la carpeta &quot;CRM Seguros - Backups&quot; de tu Google Drive. Se conservan los últimos 30. Los datos sensibles (SSN, banco) se guardan cifrados. Si conectaste Google antes de activar esta función, desconecta y vuelve a conectar para dar el permiso de Drive.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { daysUntilRule } from '@/lib/subsidyEligibility'
+import type { BackupHealth } from '@/lib/backupHealth'
 import { formatDate } from '@/lib/utils'
 import { getMotivationalQuote } from '@/lib/motivationalQuotes'
 import LoadError from '@/components/LoadError'
@@ -63,6 +64,7 @@ interface DashboardData {
   pendingFirstPayment: { id: string; fullName: string; contractDate: string; insurer: string | null; daysElapsed: number }[]
   totalMonthly: number
   newClientsThisMonth: { id: string; fullName: string; insurer: string | null; planCategory: string | null; totalMonthly: number | null; contractDate: string; status: string | null }[]
+  backup?: BackupHealth | null    // salud del respaldo automático a Drive
   losesSubsidyCount?: number      // pierden el crédito fiscal el 01/01/2027
   missingMigrationCount?: number  // activos sin estatus migratorio registrado
 }
@@ -280,6 +282,27 @@ export default function Dashboard() {
             <p className="text-xs mt-0.5" style={{ color: '#92400e' }}>Faltan <strong>{aep.daysUntilStart} días</strong> · SEP disponible todo el año para eventos calificativos</p>
           </div>
           <div className="text-2xl font-bold shrink-0" style={{ color: 'var(--warning)' }}>{aep.daysUntilStart}d</div>
+        </div>
+      )}
+
+      {/* Respaldo automático caído. Va arriba del todo: si se pierden los datos
+          no hay nada más que hacer, así que es lo más urgente del panel. */}
+      {data.backup?.alarm && (
+        <div className="px-5 py-4 rounded-xl" style={{ background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '1px solid #fecaca' }}>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-xl" style={{ background: '#fee2e2' }}>💾</div>
+            <div className="flex-1">
+              <p className="font-bold text-sm" style={{ color: '#991b1b' }}>
+                Tus datos NO se están respaldando en Google Drive
+              </p>
+              <p className="text-xs mt-1" style={{ color: '#b91c1c' }}>{data.backup.message}</p>
+              <Link href="/settings"
+                className="inline-block text-xs font-semibold px-3 py-1.5 rounded-lg text-white mt-2.5"
+                style={{ background: '#dc2626' }}>
+                Arreglar el respaldo →
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
