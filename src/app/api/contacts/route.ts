@@ -20,8 +20,14 @@ export async function GET(request: NextRequest) {
       ],
     } : {}),
   }
-  const contacts = await prisma.contact.findMany({ where, orderBy: { name: 'asc' } })
-  return NextResponse.json(contacts)
+  // El conteo de documentos se manda con la lista para poder mostrar "📎 2"
+  // en la tarjeta sin una petición extra por contacto.
+  const contacts = await prisma.contact.findMany({
+    where,
+    orderBy: { name: 'asc' },
+    include: { _count: { select: { documents: true } } },
+  })
+  return NextResponse.json(contacts.map(({ _count, ...c }) => ({ ...c, docCount: _count.documents })))
 }
 
 export async function POST(request: NextRequest) {

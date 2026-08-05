@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { readFileBuffer } from '@/lib/storage'
+import { readFileBuffer, docScope } from '@/lib/storage'
 import { getAuth } from '@/lib/auth'
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/documents/[docId]'>) {
@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/documents/[
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   try {
-    const buffer = await readFileBuffer(doc.clientId, doc.storedName)
+    const buffer = await readFileBuffer(docScope(doc), doc.storedName)
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': doc.mimeType,

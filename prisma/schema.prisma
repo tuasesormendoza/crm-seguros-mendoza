@@ -217,6 +217,7 @@ model Contact {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  documents Document[]
 
   @@index([agencyId])
   @@index([agencyId, name])
@@ -439,7 +440,11 @@ model GoogleEventLink {
 model Document {
   id          String   @id @default(cuid())
   agencyId    String?
-  clientId    String
+  // Un documento cuelga de un cliente O de un contacto de la agenda
+  // (p. ej. el formulario ETF que hay que enviarle a Washington National).
+  // Siempre va uno de los dos, nunca los dos a la vez.
+  clientId    String?
+  contactId   String?
   fileName    String   // original file name shown to user
   storedName  String   // UUID-based name on disk
   fileSize    Int      // bytes
@@ -447,9 +452,11 @@ model Document {
   category    String   @default("Otro")
   notes       String?
   uploadedAt  DateTime @default(now())
-  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([agencyId])
+  @@index([contactId])
 }
 
 // Configuración por agencia (colores, marca, plantillas, llaves API, metas…).

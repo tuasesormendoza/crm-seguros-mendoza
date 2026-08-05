@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 
 interface Contact {
   id: string
@@ -10,6 +10,26 @@ interface Contact {
   company: string | null
   category: string | null
   notes: string | null
+  docCount?: number
+}
+
+interface Doc {
+  id: string; fileName: string; fileSize: number; mimeType: string
+  category: string; notes: string | null; uploadedAt: string
+}
+
+// Categorías útiles para un contacto (no para un cliente): lo que se le manda
+// o se recibe de una aseguradora, un broker o un médico.
+const DOC_CATEGORIES = ['ETF', 'Formulario', 'Carta', 'Email', 'Factura Médica', 'Póliza', 'Otro']
+const DOC_ICON: Record<string, string> = {
+  'ETF': '🏧', 'Formulario': '📝', 'Carta': '✉️', 'Email': '📧',
+  'Factura Médica': '🧾', 'Póliza': '📄', 'Otro': '📎',
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 const CATEGORIES = ['Cliente', 'Broker', 'Médico', 'Proveedor', 'Aseguradora', 'Referido', 'Personal', 'Otro']
@@ -28,6 +48,137 @@ function waLink(phone: string) {
   return `https://wa.me/${d.length === 10 ? '1' + d : d}`
 }
 
+// ── Documentos de un contacto ────────────────────────────────────────────────
+// Sirve para guardar lo que se le manda o se recibe: el formulario ETF de
+// Washington National, una carta, una factura del médico…
+function ContactDocuments({ contact, onClose, onChanged }: {
+  contact: Contact; onClose: () => void; onChanged: () => void
+}) {
+  const [docs, setDocs] = useState<Doc[]>([])
+  const [loading, setLoading] = useState(true)
+  const [category, setCategory] = useState('ETF')
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+  const [msg, setMsg] = useState('')
+  const [sending, setSending] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/documents`)
+      setDocs(await res.json())
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [contact.id])
+
+  useEffect(() => { load() }, [load])
+
+  async function upload(file: File) {
+    setUploading(true); setError(''); setMsg('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('category', category)
+      const res = await fetch(`/api/contacts/${contact.id}/documents`, { method: 'POST', body: fd })
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'No se pudo subir') }
+      await load(); onChanged()
+    } catch (err) { setError((err as Error).message) }
+    setUploading(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  async function remove(d: Doc) {
+    if (!confirm(`¿Eliminar "${d.fileName}"?`)) return
+    await fetch(`/api/documents/${d.id}`, { method: 'DELETE' })
+    await load(); onChanged()
+  }
+
+  // Manda el archivo tal cual como adjunto al email del contacto.
+  async function email(d: Doc) {
+    if (!contact.email) return
+    if (!confirm(`¿Enviar "${d.fileName}" a ${contact.email}?`)) return
+    setSending(d.id); setError(''); setMsg('')
+    try {
+      const res = await fetch(`/api/documents/${d.id}/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toEmail: contact.email, toName: contact.name }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'No se pudo enviar')
+      setMsg(`✅ Enviado a ${contact.email}`)
+    } catch (err) { setError((err as Error).message) }
+    setSending(null)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3 className="text-lg font-bold" style={{ color: '#10253f' }}>📎 Documentos</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          {contact.name}{contact.email && <> · <span className="text-gray-400">{contact.email}</span></>}
+        </p>
+
+        {/* Subir */}
+        <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50">
+          <label className={LABEL}>Tipo de documento</label>
+          <select className={INPUT} value={category} onChange={e => setCategory(e.target.value)}>
+            {DOC_CATEGORIES.map(o => <option key={o} value={o}>{DOC_ICON[o]} {o}</option>)}
+          </select>
+          <input ref={fileRef} type="file" disabled={uploading}
+            onChange={e => { const f = e.target.files?.[0]; if (f) upload(f) }}
+            className="mt-3 block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:text-white file:bg-[#10253f] disabled:opacity-50" />
+          <p className="text-xs text-gray-400 mt-2">PDF, imágenes o Word/Excel. Máximo 10 MB.</p>
+          {uploading && <p className="text-xs text-gray-500 mt-1">Subiendo...</p>}
+        </div>
+
+        {error && <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>}
+        {msg && <div className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{msg}</div>}
+
+        {/* Lista */}
+        <div className="mt-4 space-y-2">
+          {loading ? (
+            <p className="text-sm text-gray-400 text-center py-4">Cargando...</p>
+          ) : docs.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">Aún no hay documentos de este contacto.</p>
+          ) : docs.map(d => (
+            <div key={d.id} className="border border-gray-200 rounded-xl p-3">
+              <div className="flex items-start gap-2">
+                <span className="text-lg leading-none">{DOC_ICON[d.category] || '📎'}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 truncate">{d.fileName}</div>
+                  <div className="text-xs text-gray-400">
+                    {d.category} · {formatSize(d.fileSize)} · {new Date(d.uploadedAt).toLocaleDateString('es-US')}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <a href={`/api/documents/${d.id}/download`}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg text-white" style={{ background: '#305a72' }}>
+                  ⬇️ Descargar
+                </a>
+                {contact.email ? (
+                  <button onClick={() => email(d)} disabled={sending === d.id}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg text-white disabled:opacity-50" style={{ background: '#0891b2' }}>
+                    {sending === d.id ? 'Enviando...' : '✉️ Enviar por email'}
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-400">Agrega un email al contacto para poder enviarlo</span>
+                )}
+                <button onClick={() => remove(d)} className="text-xs text-red-400 hover:text-red-600 ml-auto">Eliminar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AgendaPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,6 +188,7 @@ export default function AgendaPage() {
   const [form, setForm] = useState<Omit<Contact, 'id'>>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [docsFor, setDocsFor] = useState<Contact | null>(null)
 
   const load = useCallback(async (q: string) => {
     setLoading(true)
@@ -147,12 +299,21 @@ export default function AgendaPage() {
                     </a>
                   </>
                 )}
+                <button onClick={() => setDocsFor(c)}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg text-white" style={{ background: '#507b88' }}>
+                  📎 Documentos{c.docCount ? ` (${c.docCount})` : ''}
+                </button>
                 <button onClick={() => openEdit(c)} className="text-xs text-gray-500 hover:text-gray-800 underline ml-auto">Editar</button>
                 <button onClick={() => remove(c)} className="text-xs text-red-400 hover:text-red-600">Eliminar</button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Documentos del contacto */}
+      {docsFor && (
+        <ContactDocuments contact={docsFor} onClose={() => setDocsFor(null)} onChanged={() => load(search)} />
       )}
 
       {/* Form modal */}

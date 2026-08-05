@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { deleteFile } from '@/lib/storage'
+import { deleteFile, docScope } from '@/lib/storage'
 import { getAuth } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 
@@ -13,9 +13,9 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/document
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Delete physical/blob file
-  await deleteFile(doc.clientId, doc.storedName)
+  await deleteFile(docScope(doc), doc.storedName)
 
   await prisma.document.delete({ where: { id: docId } })
-  await logAudit(auth, { action: 'delete', entity: 'document', entityId: docId, entityLabel: doc.fileName, metadata: { clientId: doc.clientId } })
+  await logAudit(auth, { action: 'delete', entity: 'document', entityId: docId, entityLabel: doc.fileName, metadata: { clientId: doc.clientId, contactId: doc.contactId } })
   return NextResponse.json({ success: true })
 }

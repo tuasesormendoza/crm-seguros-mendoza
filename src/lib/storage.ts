@@ -17,6 +17,16 @@ function key(clientId: string, storedName: string) {
   return `${clientId}/${storedName}`
 }
 
+/**
+ * Carpeta donde vive el archivo de un documento. Los documentos cuelgan de un
+ * cliente o de un contacto de la agenda; se guarda bajo el id que tengan.
+ */
+export function docScope(doc: { clientId: string | null; contactId: string | null }): string {
+  const scope = doc.clientId ?? doc.contactId
+  if (!scope) throw new Error('El documento no pertenece a ningún cliente ni contacto')
+  return scope
+}
+
 function hasBlobsEnv() {
   // Netlify injects these automatically in deployed environments.
   return !!(process.env.NETLIFY_BLOBS_CONTEXT || process.env.NETLIFY)

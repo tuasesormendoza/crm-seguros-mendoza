@@ -82,6 +82,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 • Documentos: elegir cliente + plantilla → genera la carta personalizada → enviar por Email (con el logo de la agencia) o WhatsApp.
 
 • Agenda (📇 Agenda Telefónica): directorio de contactos del agente que NO son clientes del CRM (médicos, proveedores, aseguradoras, referidos, personal). Botón "+ Nuevo Contacto"; cada contacto tiene botones de 📞 Llamar y 💬 WhatsApp, y buscador por nombre/teléfono/empresa.
+  DOCUMENTOS DEL CONTACTO: cada contacto tiene un botón "📎 Documentos" (muestra entre paréntesis cuántos tiene). Ahí se sube un archivo (PDF, imagen o Word/Excel, hasta 10 MB), se elige el tipo (ETF, Formulario, Carta, Email, Factura Médica, Póliza, Otro) y luego se puede "⬇️ Descargar" o "✉️ Enviar por email" — esto último manda el archivo COMO ADJUNTO al email del contacto, así que el contacto debe tener email guardado y el SMTP configurado (Configuración → Notificaciones por Email). Es la forma de mandarle el formulario ETF a Washington National: guardas el ETF lleno en el contacto de WN y lo envías desde ahí.
 
 • Auditoría (solo admin): registro de quién creó/modificó/eliminó qué.
 
