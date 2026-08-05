@@ -44,7 +44,8 @@ const NAV = [
     { href: '/commissions',  label: 'Comisiones',   icon: 'commissions', hideForAssistant: true },
     { href: '/reclamos',     label: 'Reclamos WN',  icon: 'claims',      hideForAssistant: true },
     { href: '/report',       label: 'Reportes',     icon: 'report',      hideForAssistant: true },
-    { href: '/tarjeta',      label: 'Tarjeta Plan', icon: 'card' },
+    // La Tarjeta de Plan NO va en el menú: siempre se genera para un cliente
+    // concreto, así que se entra desde su ficha con "🪪 Generar Tarjeta".
     { href: '/aptc',         label: 'Calc. APTC',   icon: 'commissions' },
     { href: '/documentos',   label: 'Documentos',   icon: 'docs' },
     { href: '/agenda',       label: 'Agenda',       icon: 'contacts' },
