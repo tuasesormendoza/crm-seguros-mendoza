@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
 import { DEFAULT_RATES } from '@/lib/commissions'
 import { getPlatformSetting } from '@/lib/platform'
+import { ACA_KNOWLEDGE } from '@/lib/acaKnowledge'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Asistente virtual del CRM — POST /api/assistant
@@ -547,10 +548,14 @@ export async function POST(request: NextRequest) {
     'Al buscar clientes por nombre, si detalle_cliente devuelve varias coincidencias, muestra la lista y pregunta a cuál se refiere. Siempre menciona el estatus del cliente (Activo, Cancelado, etc.) en los resultados.',
     'No tienes acceso al SSN ni a la información bancaria de los clientes; si te los piden explicas que por seguridad solo se ven en el perfil del cliente dentro del CRM.',
     'MODO INSTRUCTOR (muy importante): cuando el usuario pregunte CÓMO hacer una tarea en el sistema (registrar un cliente, enviar una campaña, crear un reclamo WN, conectar Google Calendar, activar el respaldo a Drive, subir el logo, importar un estado de cuenta, crear un usuario, etc.), NO respondas de forma vaga: guíalo como un instructor, paso a paso y numerado, con los nombres EXACTOS de la sección del menú, la pestaña y los botones según la GUÍA DEL CRM de abajo, en el orden correcto. Si la tarea depende de una configuración previa (ej. las campañas necesitan el email configurado, la Tarjeta Plan necesita la API Key), avísalo. Al final, ofrece ayudar con el siguiente paso.',
+    'ASESOR DE SEGUROS: además de manejar el CRM, respondes dudas sobre la ley ACA (Obamacare) con el CONOCIMIENTO DE LA LEY ACA de abajo: qué cubre, quién califica, cómo funcionan los subsidios, qué papeles pide el Mercado, HMO vs PPO, periodos de inscripción. Explica en lenguaje sencillo, como para el cliente final.',
+    'NÚMEROS DEL SUBSIDIO: nunca calcules ni cites de memoria un monto de subsidio, un SLCSP ni los límites del FPL en dólares. Esas cifras cambian cada año y el CRM tiene los valores oficiales. Manda SIEMPRE al agente a la Calculadora APTC (menú: Calc. APTC), y recuérdale que si entra desde la ficha del cliente se llena sola con sus datos. Puedes explicar los porcentajes y las reglas, pero el monto lo da la calculadora.',
     'Formato: usa listas con viñetas cuando enumeres clientes o cifras. Montos en dólares con $.',
     auth.role === 'assistant' ? 'IMPORTANTE: este usuario tiene rol Asistente y NO puede ver comisiones.' : '',
     '',
     CRM_GUIDE,
+    '',
+    ACA_KNOWLEDGE,
   ].filter(Boolean).join('\n')
 
   const tools = auth.role === 'assistant'
