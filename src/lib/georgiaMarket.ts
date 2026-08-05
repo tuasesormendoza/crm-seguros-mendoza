@@ -24,6 +24,12 @@ export interface GaPlan {
   hsaEligible?: boolean
   /** Clave del área de servicio ("issuerId|serviceAreaId") para filtrar por condado. */
   sa?: string
+  /**
+   * Parte de la prima que corresponde a Beneficios Esenciales de Salud (0–1).
+   * Solo esa parte cuenta para el subsidio; los extras que NO son beneficio
+   * esencial (quiropráctica añadida, visión/dental de adulto…) se descuentan.
+   */
+  ehb?: number
   primaryCare?: string | null
   specialist?: string | null
   urgentCare?: string | null
@@ -90,6 +96,22 @@ export interface GaQuote {
   plans: (GaPlan & { premium: number })[]   // todos los planes con precio del hogar
 }
 
+/**
+ * Prima del plan de referencia que cuenta para el subsidio.
+ *
+ * La ley (26 U.S.C. §36B) manda usar solo la parte de la prima que paga
+ * Beneficios Esenciales de Salud. Un plan Silver puede traer extras que no lo
+ * son —quiropráctica añadida, visión o dental de adulto— y esa parte NO genera
+ * crédito fiscal. El archivo oficial la publica como EHBPercentTotalPremium.
+ *
+ * Ojo: el cliente sigue pagando la prima COMPLETA; el ajuste solo afecta al
+ * cálculo del subsidio. Por eso no se toca `premium` en el listado de planes.
+ */
+export function ehbAdjustedPremium(plan: GaPlan, premium: number): number {
+  const pct = typeof plan.ehb === 'number' && plan.ehb > 0 && plan.ehb <= 1 ? plan.ehb : 1
+  return Math.round(premium * pct * 100) / 100
+}
+
 // Niveles metálicos de planes de SALUD. Los planes dentales usan "High"/"Low"
 // y no deben aparecer en la cotización médica ni contar para el SLCSP.
 export const HEALTH_METAL_LEVELS = new Set([
@@ -120,11 +142,13 @@ export function quoteGeorgia(payload: GaPayload, ages: number[], countyFips?: st
   }
 
   const silver = priced.filter(p => p.metalLevel === 'Silver').sort((a, b) => a.premium - b.premium)
-  // SLCSP = segundo plan Silver más barato (si solo hay uno, ese).
+  // SLCSP = segundo plan Silver más barato (si solo hay uno, ese). El orden se
+  // hace por la prima completa —así es como se listan los planes— y al elegido
+  // se le descuenta la parte que no es Beneficio Esencial de Salud.
   const benchmark = silver[1] ?? silver[0] ?? null
 
   return {
-    slcspMonthly: benchmark ? benchmark.premium : null,
+    slcspMonthly: benchmark ? ehbAdjustedPremium(benchmark, benchmark.premium) : null,
     slcspPlanName: benchmark ? benchmark.name : null,
     silverCount: silver.length,
     plans: priced,

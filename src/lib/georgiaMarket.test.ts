@@ -3,7 +3,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { ratingAreaForCounty, ageKey, householdPremium, quoteGeorgia, parsePayload, type GaPayload } from './georgiaMarket.ts'
+import { ratingAreaForCounty, ageKey, householdPremium, quoteGeorgia, parsePayload, ehbAdjustedPremium, type GaPayload } from './georgiaMarket.ts'
 
 const payload: GaPayload = {
   plans: [
@@ -128,6 +128,34 @@ test('solo se cotizan los planes que SE VENDEN en el condado del cliente', () =>
   assert.strictEqual(q.slcspMonthly, 480)
   // Sin indicar condado no se descarta nada (no se asume por falta de dato).
   assert.strictEqual(quoteGeorgia(conSa, [40]).plans.length, 3)
+})
+
+test('al plan de referencia se le descuenta lo que NO es beneficio esencial', () => {
+  // Caso real: Jackson County, 42 años. El 2º Silver más barato cuesta $733.71,
+  // pero incluye quiropráctica extra que no es beneficio esencial (EHB 99.0099%).
+  // Georgia Access usa $726 para el subsidio, no $733.71.
+  const conEhb: GaPayload = {
+    plans: [
+      { id: 'S1', name: 'Silver sin extras', issuer: 'A', metalLevel: 'Silver', type: 'HMO', deductible: 6000, moop: null, ehb: 1 },
+      { id: 'S2', name: 'Silver PPO Chiro',  issuer: 'A', metalLevel: 'Silver', type: 'PPO', deductible: 6000, moop: null, ehb: 0.990099 },
+      { id: 'S3', name: 'Silver caro',       issuer: 'B', metalLevel: 'Silver', type: 'HMO', deductible: 6500, moop: null },
+    ],
+    rates: { '42': { S1: 705.48, S2: 733.71, S3: 737.89 } },
+  }
+  const q = quoteGeorgia(conEhb, [42])
+  assert.strictEqual(q.slcspPlanName, 'Silver PPO Chiro')
+  assert.strictEqual(q.slcspMonthly, 726.45)
+  // El listado sigue mostrando la prima COMPLETA: es lo que paga el cliente.
+  assert.strictEqual(q.plans.find(p => p.id === 'S2')?.premium, 733.71)
+})
+
+test('sin dato de EHB se usa la prima completa (no se inventa un descuento)', () => {
+  const q = quoteGeorgia(payload, [40])
+  assert.strictEqual(q.slcspMonthly, 440)
+  assert.strictEqual(ehbAdjustedPremium({ ...payload.plans[0], ehb: undefined }, 100), 100)
+  // Valores imposibles se ignoran en vez de corromper el cálculo.
+  assert.strictEqual(ehbAdjustedPremium({ ...payload.plans[0], ehb: 0 }, 100), 100)
+  assert.strictEqual(ehbAdjustedPremium({ ...payload.plans[0], ehb: 1.4 }, 100), 100)
 })
 
 test('parsePayload acepta datos válidos y rechaza basura', () => {

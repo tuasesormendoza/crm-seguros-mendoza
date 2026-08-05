@@ -99,6 +99,15 @@ const money = v => {
   return isNaN(n) ? null : n
 }
 
+// EHBPercentTotalPremium: viene como "0.990099" o a veces "99.0099%".
+// Fuera del rango 0–1 no es utilizable, así que se omite (equivale a 100%).
+const ehbPct = v => {
+  let n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, ''))
+  if (!isFinite(n) || n <= 0) return undefined
+  if (n > 1) n = n / 100
+  return n > 0 && n <= 1 ? Math.round(n * 1e6) / 1e6 : undefined
+}
+
 // "$30" + "20%" → texto corto para mostrar ("$30 copago", "20% coaseguro").
 function costShare(copay, coins) {
   const c = (copay || '').trim(), co = (coins || '').trim()
@@ -169,6 +178,9 @@ async function main() {
       moop: money(r.TEHBInnTier1IndividualMOOP ?? r.MEHBInnTier1IndividualMOOP),
       hsaEligible: /hsa/i.test(r.HSAEligible || '') || /^yes$/i.test(r.HSAEligible || ''),
       sa: `${r.IssuerId}|${r.ServiceAreaId || ''}`,   // para filtrar por condado
+      // Parte de la prima que son Beneficios Esenciales de Salud: es la única
+      // que genera crédito fiscal cuando el plan es el de referencia (SLCSP).
+      ehb: ehbPct(r.EHBPercentTotalPremium),
     })
   }
   console.log(`   ✔ ${plans.size} planes de salud (${dentalSkipped} dentales/otros descartados)`)
