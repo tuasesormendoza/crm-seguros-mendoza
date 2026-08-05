@@ -4,7 +4,7 @@
     {
       "name": "crm-seguros",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/tmp/node-v22.15.0-darwin-arm64/bin/npm", "run", "dev"],
+      "runtimeArgs": ["/Users/omarmendoza/node-v22.15.0-darwin-arm64/bin/npm", "run", "dev"],
       "port": 3000
     }
   ]

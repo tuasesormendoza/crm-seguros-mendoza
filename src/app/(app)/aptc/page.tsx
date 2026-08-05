@@ -13,6 +13,7 @@ interface APTCResult {
   fplThreshold: number; fplPct: number
   qualifiesMedicaid: boolean; qualifiesAPTC: boolean; qualifiesCSR: boolean
   coverageGap?: boolean
+  county?: string | null
   stateMarketplace?: { code: string; name: string; url: string } | null
   applicablePct: number; maxClientPayMonth: number
   slcspMonthly: number | null; slcspPlanName: string | null
@@ -126,6 +127,10 @@ function APTCInner() {
   // Precio mensual del plan Silver de referencia (SLCSP) copiado del mercado
   // del estado — solo se usa en estados con mercado propio.
   const [benchmarkOverride, setBenchmarkOverride] = useState('')
+  // Un ZIP puede abarcar varios condados con precios distintos: si hay más de
+  // uno, el agente elige (igual que en cuidadodesalud.gov y Georgia Access).
+  const [counties, setCounties] = useState<{ name: string; fips: string; state: string }[]>([])
+  const [countyFips, setCountyFips] = useState('')
 
   // Result
   const [result, setResult] = useState<APTCResult | null>(null)
@@ -167,6 +172,27 @@ function APTCInner() {
     }
   }, [clientId])
 
+  // Al escribir un ZIP completo se buscan sus condados. Si son varios, hay que
+  // elegir uno porque el subsidio cambia según el condado.
+  useEffect(() => {
+    if (!/^\d{5}$/.test(zipcode)) { setCounties([]); setCountyFips(''); return }
+    let cancelled = false
+    fetch(`/api/aptc/counties?zip=${zipcode}`)
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return
+        const list = Array.isArray(d.counties) ? d.counties : []
+        setCounties(list)
+        // Con un solo condado se elige solo; con varios se deja que el agente decida.
+        setCountyFips(list.length === 1 ? list[0].fips : '')
+        if (list.length && !state) setState(list[0].state || '')
+      })
+      .catch(() => { if (!cancelled) setCounties([]) })
+    return () => { cancelled = true }
+    // `state` se lee solo para autocompletarlo la primera vez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zipcode])
+
   async function calculate(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -181,6 +207,7 @@ function APTCInner() {
           householdSize: parseInt(household), age: parseInt(age),
           ages: [parseInt(age), ...otherAges.map(a => parseInt(a) || 18)],
           year: fplYear, state,
+          countyFips: countyFips || undefined,
           benchmarkOverride: marketplace ? benchmarkOverride : undefined,
         }),
       })
@@ -254,6 +281,24 @@ function APTCInner() {
               <input type="text" value={zipcode} onChange={e => setZipcode(e.target.value.replace(/\D/g,'').slice(0,5))}
                 placeholder="32822" maxLength={5} required className={SEL} />
             </InputField>
+
+            {/* Un ZIP puede abarcar VARIOS condados y el precio del seguro cambia
+                según el condado. Si hay más de uno, hay que elegir. */}
+            {counties.length > 1 && (
+              <InputField label="Condado del cliente *"
+                hint="Este código postal abarca varios condados y el precio del plan cambia según cuál sea. Pregúntale al cliente en cuál vive.">
+                <select value={countyFips} onChange={e => setCountyFips(e.target.value)} required className={SEL}
+                  style={!countyFips ? { borderColor: '#f59e0b', background: '#fffbeb' } : undefined}>
+                  <option value="">⚠️ Selecciona el condado...</option>
+                  {counties.map(c => (
+                    <option key={c.fips} value={c.fips}>{c.name}</option>
+                  ))}
+                </select>
+              </InputField>
+            )}
+            {counties.length === 1 && (
+              <p className="text-xs text-gray-400 -mt-2">📍 Condado: <strong>{counties[0].name}</strong></p>
+            )}
 
             <InputField label="Ingreso Anual del Hogar *" hint="Ingreso bruto de todas las personas en el hogar">
               <div className="relative">
@@ -646,7 +691,7 @@ function APTCInner() {
                     {result.dataSource === 'cms_exact'
                       ? `✅ Basado en planes reales del Marketplace en ZIP ${result.zipcode}`
                       : result.dataSource === 'georgia_access'
-                        ? `✅ Basado en los planes oficiales de Georgia Access para el ZIP ${result.zipcode}`
+                        ? `✅ Basado en los planes oficiales de Georgia Access para ${result.county ? result.county : 'el ZIP ' + result.zipcode}`
                       : result.dataSource === 'state_manual'
                         ? `✅ Calculado con el precio de referencia de ${result.stateMarketplace?.name || 'el mercado del estado'}`
                         : result.stateMarketplace

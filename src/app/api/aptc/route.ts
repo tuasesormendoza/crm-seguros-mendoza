@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   const auth = await getAuth()
   if (auth instanceof NextResponse) return auth
 
-  const { zipcode, income, householdSize, age, ages, year, state, benchmarkOverride } = await request.json()
+  const { zipcode, income, householdSize, age, ages, year, state, benchmarkOverride, countyFips: countyFipsInput } = await request.json()
 
   if (!zipcode || !income || !age) {
     return NextResponse.json({ error: 'ZIP code, ingreso y edad son requeridos' }, { status: 400 })
@@ -80,13 +80,17 @@ export async function POST(request: NextRequest) {
   }[] = []
   let cmsError: string | null = null
   let dataSource = 'estimated'
+  // Condado que realmente se usó para cotizar (se muestra al agente).
+  let resolvedCounty = ''
 
   // ── GEORGIA (Georgia Access) ────────────────────────────────────────────────
   // No está en la API federal: los planes y tarifas se importan de los archivos
   // oficiales del estado (ver scripts/import-georgia.mjs) y se calculan aquí.
   if (stateCode(state) === 'GA' && qualifiesAPTC) {
     try {
-      // ZIP → condado: el endpoint geográfico de CMS sí responde para Georgia.
+      // Condado del cliente. Un ZIP puede abarcar VARIOS condados con áreas de
+      // tarifa distintas (y por tanto subsidios distintos), así que si el agente
+      // eligió uno, ese manda. Si no, se resuelve por el ZIP.
       let county = ''
       let countyFips = ''
       if (cmsApiKey) {
@@ -98,8 +102,13 @@ export async function POST(request: NextRequest) {
           const cd = await cr.json()
           const counties = cd.counties || cd
           if (Array.isArray(counties) && counties.length) {
-            county = counties[0].name || ''
-            countyFips = counties[0].fips || ''
+            const chosen = countyFipsInput
+              ? counties.find((c: { fips?: string }) => c.fips === countyFipsInput)
+              : null
+            const picked = chosen || counties[0]
+            county = picked.name || ''
+            countyFips = picked.fips || ''
+            resolvedCounty = county
           }
         }
       }
@@ -173,8 +182,16 @@ export async function POST(request: NextRequest) {
         const countyData = await countyRes.json()
         const counties = countyData.counties || countyData
         if (Array.isArray(counties) && counties.length > 0) {
-          countyFips = counties[0].fips || counties[0].county_fips || ''
-          if (!stateAbbr) stateAbbr = counties[0].state || ''
+          // Si el ZIP abarca varios condados y el agente eligió uno, se respeta:
+          // el precio del plan cambia según el condado.
+          const chosen = countyFipsInput
+            ? counties.find((c: { fips?: string; county_fips?: string }) =>
+                (c.fips || c.county_fips) === countyFipsInput)
+            : null
+          const picked = chosen || counties[0]
+          countyFips = picked.fips || picked.county_fips || ''
+          resolvedCounty = picked.name || ''
+          if (!stateAbbr) stateAbbr = picked.state || ''
         }
       }
 
@@ -418,6 +435,7 @@ export async function POST(request: NextRequest) {
     // Eligibility
     qualifiesMedicaid, qualifiesAPTC, qualifiesCSR,
     coverageGap,                          // bajo 100% FPL en estado sin expansión de Medicaid
+    county: resolvedCounty || null,       // condado usado para cotizar
     stateMarketplace,                     // mercado propio del estado (null = Mercado federal)
     applicablePct,
     maxClientPayMonth: Math.round(maxClientPayMonth * 100) / 100,
