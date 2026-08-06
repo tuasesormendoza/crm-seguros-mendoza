@@ -35,6 +35,7 @@ const PUBLIC_ROUTES = new Set([
   'google/backup-cron/route.ts', // cron de respaldo a Drive; protegido por clave derivada del SESSION_SECRET
   'campaigns/track/[id]/route.ts', // pixel de apertura (público, lo carga el email del cliente)
   'campaigns/cron/route.ts',       // cron de campañas programadas/automáticas; protegido por cronKey
+  'public/leads/route.ts',         // entrada de leads desde la web pública de la agencia; enruta por publicIntakeKey, restringe por origen y SOLO escribe
 ])
 
 // ── Modelos sin inquilino (no llevan agencyId en el schema) ──────────────────

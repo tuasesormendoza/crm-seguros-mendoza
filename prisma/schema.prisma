@@ -21,6 +21,17 @@ model Agency {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]
+
+  // ── Entrada pública de leads ───────────────────────────────────────────────
+  // Permite que la web pública de la agencia envíe prospectos al CRM sin sesión
+  // iniciada. La clave NO es un secreto: viaja en el JavaScript del sitio y
+  // cualquiera puede leerla. Solo sirve para saber a qué agencia pertenece el
+  // lead. La protección real son los orígenes permitidos, la validación, el
+  // límite de peticiones y este interruptor. El endpoint solo escribe: nunca
+  // devuelve datos de la agencia.
+  publicIntakeKey     String?  @unique
+  publicIntakeOrigins String?  // dominios permitidos, separados por comas
+  publicIntakeEnabled Boolean  @default(false)
 }
 
 model Client {

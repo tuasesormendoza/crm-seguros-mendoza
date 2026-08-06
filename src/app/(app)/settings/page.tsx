@@ -5,6 +5,7 @@ import UserManagement from '@/components/settings/UserManagement'
 import LogoUploader from '@/components/settings/LogoUploader'
 import ColorSettings from '@/components/settings/ColorSettings'
 import GoogleCalendar from '@/components/settings/GoogleCalendar'
+import PublicIntakePanel from '@/components/settings/PublicIntakePanel'
 import TwoFactorPanel from '@/components/settings/TwoFactorPanel'
 import { INPUT, LABEL, SECTION, TITLE, SaveBtn, type Settings } from '@/components/settings/shared'
 
@@ -823,6 +824,9 @@ export default function SettingsPage() {
 
       {/* ── Google Calendar ───────────────────────────────────── */}
       <GoogleCalendar />
+
+      {/* ── Entrada de leads desde la web ─────────────────────── */}
+      <PublicIntakePanel />
 
       </>)}
 
