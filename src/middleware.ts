@@ -2,7 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { unsealData } from 'iron-session'
 
 // Paths that do NOT require authentication
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api/ping', '/api/theme', '/encuesta', '/api/survey', '/api/logo', '/api/google/sync-cron']
+// OJO: una ruta declarada como pública en PUBLIC_ROUTES (src/lib/tenancy.test.ts)
+// también tiene que estar aquí, o este middleware la bloqueará con 401 antes de
+// que su código llegue a ejecutarse. El test "las rutas públicas atraviesan el
+// middleware" comprueba que las dos listas no se desincronicen.
+const PUBLIC_PATHS = [
+  '/login', '/api/auth', '/api/ping', '/api/theme', '/encuesta', '/api/survey', '/api/logo',
+  '/api/google/sync-cron',
+  '/api/google/backup-cron',   // cron de respaldo a Drive; lleva su propia clave
+  '/api/campaigns/cron',       // cron de campañas; lleva su propia cronKey
+  '/api/campaigns/track',      // píxel de apertura, público por diseño
+  '/api/public',               // entrada de leads desde la web de la agencia
+]
 
 // Static assets — skip middleware entirely
 const STATIC_REGEX = /^\/_next\/|^\/favicon\.ico|^\/logo\.png|^\/icons\//

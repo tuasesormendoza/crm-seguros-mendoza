@@ -212,3 +212,22 @@ test('toda exención corresponde a una llamada que aún existe', () => {
   const dead = [...EXEMPTIONS.keys()].filter(k => !liveKeys.has(k))
   assert.deepStrictEqual(dead, [], `Exenciones muertas (la llamada ya no existe — elimínalas):\n  ${dead.join('\n  ')}`)
 })
+
+// ── Prueba 5: las rutas públicas atraviesan el middleware ───────────────────
+// Una ruta puede estar bien escrita y aun así no funcionar nunca: el middleware
+// global bloquea todo /api/ salvo lo que aparece en su lista blanca. Si las dos
+// listas se desincronizan, la ruta responde 401 sin llegar a ejecutarse.
+test('toda ruta pública de API está permitida en el middleware', () => {
+  const mw = readFileSync(path.join(process.cwd(), 'src/middleware.ts'), 'utf8')
+  const lista = mw.match(/const PUBLIC_PATHS\s*=\s*\[([^\]]*)\]/)
+  assert.ok(lista, 'no se encontró PUBLIC_PATHS en src/middleware.ts')
+  const permitidos = [...lista[1].matchAll(/'([^']+)'/g)].map(m => m[1])
+
+  const bloqueadas = [...PUBLIC_ROUTES]
+    .map(r => '/api/' + r.replace(/\/route\.ts$/, ''))
+    .filter(ruta => !permitidos.some(p => ruta.startsWith(p)))
+
+  assert.deepStrictEqual(bloqueadas, [],
+    `Rutas declaradas públicas que el middleware bloquearía con 401:\n  ${bloqueadas.join('\n  ')}\n` +
+    `Agrégalas a PUBLIC_PATHS en src/middleware.ts`)
+})
