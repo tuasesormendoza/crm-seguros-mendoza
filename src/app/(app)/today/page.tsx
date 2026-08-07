@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import LoadError from '@/components/LoadError'
+import { agentDisplayName, fillTemplate } from '@/lib/agentProfile'
 
 interface TodayData {
   todayAppointments: { id: string; date: string; notes: string | null; status: string; clientId: string; clientName: string }[]
@@ -44,7 +45,9 @@ function EmptyState({ msg }: { msg: string }) {
 export default function TodayPage() {
   const [data, setData] = useState<TodayData | null>(null)
   const [birthdayTemplate, setBirthdayTemplate] = useState('Hola {nombre}, ¡feliz cumpleaños! 🎂🎉 Que tengas un día muy especial. Con cariño, {agente}')
-  const [agentName, setAgentName] = useState('Omar Mendoza')
+  // Vacío hasta que /api/settings responda: el nombre sale de la Configuración
+  // de SU agencia, nunca escrito aquí (ver src/lib/agentProfile.ts).
+  const [agentName, setAgentName] = useState('')
   const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
@@ -150,9 +153,10 @@ export default function TodayPage() {
           <div className="space-y-2 pt-4">
             {data.weekBirthdays.map(c => {
               const isToday = c.daysUntil === 0
-              const waMsg = birthdayTemplate
-                .replace(/\{nombre\}/g, c.fullName.split(' ')[0])
-                .replace(/\{agente\}/g, agentName)
+              const waMsg = fillTemplate(birthdayTemplate, {
+                nombre: c.fullName.split(' ')[0],
+                agente: agentDisplayName(agentName),
+              })
               const digits = (c.phone || '').replace(/\D/g, '')
               const intl = digits.length === 10 ? `1${digits}` : digits
               const waUrl = intl ? `https://wa.me/${intl}?text=${encodeURIComponent(waMsg)}` : ''

@@ -31,6 +31,13 @@ REGLA IMPORTANTE DEL NEGOCIO — SUBSIDIO ACA DESDE EL 01/01/2027:
 A partir del 1 de enero de 2027, SOLO los ciudadanos americanos y los residentes permanentes (Green Card) califican para el crédito fiscal (APTC/subsidio). Todos los demás estatus migratorios (Asilo, Refugiado, TPS, Parole, Visa U/T, VAWA, EAD, DACA, sin estatus, visas de trabajo/estudiante, etc.) PUEDEN inscribirse en un plan del Mercado, pero pagan el PRECIO COMPLETO, sin subsidio.
 El CRM avisa de esto automáticamente: en el perfil del cliente (banner rojo si pierde el subsidio, amarillo si falta registrar su estatus migratorio), en la Calculadora APTC (muestra el precio completo que pagaría), en el Dashboard (cuántos clientes se ven afectados) y en Campañas (segmento rápido "🚫 Pierden subsidio 2027" + plantilla "Cambio subsidio 2027" para avisarles). También existe la etiqueta "Sin subsidio 2027" (roja) para marcar a estos clientes y filtrarlos en la lista de Clientes; en el Dashboard hay un botón "🏷️ Etiquetar a los afectados" que se la pone a todos de una vez. Si el agente pregunta por esto, explícale la regla y recomiéndale usar ese segmento para contactar a los afectados con tiempo.
 
+PRIMER PASO AL EMPEZAR — COMPLETAR EL PERFIL:
+El CRM llega SIN datos de ningún agente precargados: nombre, teléfono, WhatsApp, link de reseñas de Google y página web nacen vacíos a propósito, para que nadie envíe mensajes firmados con el nombre de otra persona ni pida reseñas para el negocio de otro. Hasta que el agente los rellene, aparece un aviso amarillo "Completa tu perfil" en Configuración (con la lista exacta de lo que falta), y también en Campañas, Referidos, Reportes y Tarjeta de Plan. Mientras tanto:
+ - Donde iría el nombre se pone "Tu Asesor de Seguros", y en la barra lateral sale "Completa tu perfil" en vez de un nombre.
+ - Sin link de reseñas de Google NO aparece el botón "💬 Enviar link por WhatsApp" (ni en el Dashboard ni en la ficha del cliente): se muestra en su lugar "⚠️ Añade tu link de reseñas", porque sin link no hay nada que enviar.
+ - Sin página web se OMITE la línea de la web en los documentos, en el pie de la Tarjeta de Plan y en los correos.
+Dónde se rellena: nombre, teléfono y WhatsApp en Configuración → Perfil y Metas → Perfil del Agente; el link de reseñas en Configuración → Mensajería → Google Review; la página web en Configuración → Marca → Tarjeta de Plan. Si el agente pregunta por qué algo sale vacío o sin su nombre, revisa primero si tiene el perfil completo.
+
 GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y botones al explicar cómo hacer algo:
 
 • Dashboard (inicio): KPIs del negocio, barras de objetivos de producción y alertas.
@@ -91,7 +98,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
 
 • Configuración (solo admin): organizada en pestañas. Al explicar cómo cambiar algo, di primero qué pestaña abrir:
   - 🎨 Marca: Logo de la Agencia (arrastrar PNG), Colores del Sistema y Tarjeta de Plan (página web del pie y colores de encabezado/acento de la tarjeta).
-  - 👤 Perfil y Metas: Perfil del Agente (teléfonos, WhatsApp, NPN, dirección, licencias por estado, teléfonos de Georgia Access y Mercado de Salud, link de consentimientos HealthSherpa) y Objetivos de Producción.
+  - 👤 Perfil y Metas: Perfil del Agente (nombre, teléfonos, WhatsApp, NPN, dirección, licencias por estado, teléfonos de Georgia Access y Mercado de Salud, link de consentimientos HealthSherpa) y Objetivos de Producción.
   - 💬 Mensajería: Mensaje de Cumpleaños, Google Review (link y mensajes) y Notificaciones por Email (Gmail con contraseña de aplicación: myaccount.google.com → Seguridad → Contraseñas de aplicaciones).
   - 🧮 Cálculos y AI: define cómo se ordenan los "mejores planes" de la Calculadora APTC (mejor protección financiera vs. menor costo), los valores por defecto de las pólizas nuevas (año, renovación, vencimiento) y el % de comisión de Washington National. Nota: la conexión con datos exactos del Marketplace (CMS), los valores FPL del gobierno y la clave de IA son parte del CRM y los administra el proveedor del sistema; no se configuran por agencia.
   - 🔗 Integraciones y Respaldo: Conectar/Desconectar Google Calendar; Respaldo automático a Google Drive (una copia diaria de todos los datos, botón "💾 Respaldar ahora", conserva las últimas 30 — la primera vez hay que reconectar Google para dar el permiso de Drive); y "💾 Descargar Backup" para bajar una copia manual a la computadora.
@@ -107,7 +114,7 @@ type ChatMessage = { role: 'user' | 'assistant'; content: string }
 const TOOLS = [
   {
     name: 'buscar_clientes',
-    description: 'Busca clientes por nombre y/o apellido (coincide por palabras: "Daniela Mendoza" encuentra a "Daniela Paola Mendoza"), por estatus (Activo, Cancelado, etc.), aseguradora o estado de EE.UU. Devuelve datos básicos —incluido el estatus— de hasta 15 clientes.',
+    description: 'Busca clientes por nombre y/o apellido (coincide por palabras: "Daniela Rivas" encuentra a "Daniela Paola Rivas"), por estatus (Activo, Cancelado, etc.), aseguradora o estado de EE.UU. Devuelve datos básicos —incluido el estatus— de hasta 15 clientes.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -124,7 +131,7 @@ const TOOLS = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        nombre: { type: 'string', description: 'Nombre y/o apellido del cliente (ej. "Daniela Mendoza")' },
+        nombre: { type: 'string', description: 'Nombre y/o apellido del cliente (ej. "Daniela Rivas")' },
       },
       required: ['nombre'],
     },
@@ -191,8 +198,8 @@ const TOOLS = [
 
 const fmtDate = (d: Date | null) => d ? d.toISOString().split('T')[0] : null
 
-// Búsqueda por palabras: "Daniela Mendoza" debe encontrar a "Daniela Paola
-// Mendoza". Cada palabra del texto debe aparecer en el nombre (en cualquier
+// Búsqueda por palabras: "Daniela Rivas" debe encontrar a "Daniela Paola
+// Rivas". Cada palabra del texto debe aparecer en el nombre (en cualquier
 // posición y sin importar mayúsculas) — un `contains` del texto completo NO
 // funciona cuando el cliente tiene segundo nombre o apellido.
 function nameWordsWhere(texto: string) {

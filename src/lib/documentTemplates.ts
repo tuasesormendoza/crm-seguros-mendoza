@@ -100,6 +100,19 @@ export function generateDoc(templateId: string, client: Client, agent: Record<st
         ? agent.logoBase64
         : (agent.logoUrl && !agent.logoUrl.startsWith('undefined') ? agent.logoUrl : null))
   const agentNPN = agent.agentLicense || ''
+
+  // La página web sale de la Configuración de la agencia ("Tarjeta de Plan →
+  // Página web"). Si no la ha puesto, la línea se OMITE entera: mandar a sus
+  // clientes al sitio de otra agencia es peor que no poner nada.
+  const website = (agent.cardWebsite || '').trim().replace(/^https?:\/\//, '').replace(/\/+$/, '')
+  const websiteUrl = website ? `https://${website}` : ''
+  /** Línea de web para los pies HTML; vacía si la agencia no tiene web. */
+  const webLine = (color = '#2a6496') => website
+    ? `<p style="margin:4px 0;font-size:13px">🌐 <a href="${websiteUrl}" style="color:${color}">${website}</a></p>`
+    : ''
+  /** Igual, para texto plano y WhatsApp. Ya trae el salto de línea delante. */
+  const webText = website ? `\n🌐 ${website}` : ''
+
   const header = `<div style="border-bottom:2px solid #10253f;padding-bottom:14px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
@@ -110,7 +123,7 @@ export function generateDoc(templateId: string, client: Client, agent: Record<st
       <div style="text-align:right;font-size:12px;color:#64748b">
         ${agentPhone ? `📞 ${agentPhone}` : ''}
         ${agentEmail ? `<br>✉️ ${agentEmail}` : ''}
-        <br>🌐 www.tuasesormendoza.com
+        ${website ? `<br>🌐 ${website}` : ''}
       </div>
     </div>
   </div>`
@@ -215,14 +228,14 @@ export function generateDoc(templateId: string, client: Client, agent: Record<st
         </p>
       </div>
 
-      <!-- MEDICAL APPOINTMENTS + WHATSAPP -->
-      <div style="background:#f0fdf4;border:1.5px solid #a7f3d0;border-radius:10px;padding:16px;margin:16px 0">
-        <p style="margin:0 0 10px;color:#065f46;font-size:13px">
+      <!-- MEDICAL APPOINTMENTS + WHATSAPP — sin web ni WhatsApp la caja entera sobra -->
+      ${website || waLink ? `<div style="background:#f0fdf4;border:1.5px solid #a7f3d0;border-radius:10px;padding:16px;margin:16px 0">
+        ${website ? `<p style="margin:0 0 10px;color:#065f46;font-size:13px">
           🏥 <strong>Citas Médicas:</strong> Para coordinar una cita con su médico de manera rápida y sencilla, visítenos en:
           <br><br>
-          <strong style="font-size:14px">🌐 <a href="https://www.tuasesormendoza.com" style="color:#059669">www.tuasesormendoza.com</a></strong>
+          <strong style="font-size:14px">🌐 <a href="${websiteUrl}" style="color:#059669">${website}</a></strong>
           <br><span style="font-size:12px;color:#047857">Sección: <em>Citas Médicas</em></span>
-        </p>
+        </p>` : ''}
         ${waLink ? `
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid #a7f3d0">
           <p style="margin:0;color:#065f46;font-size:13px">
@@ -234,7 +247,7 @@ export function generateDoc(templateId: string, client: Client, agent: Record<st
             ${agentPhone ? `<span style="font-size:12px;color:#047857;margin-left:10px">${agentPhone}</span>` : ''}
           </p>
         </div>` : ''}
-      </div>
+      </div>` : ''}
 
       <p>Si tiene alguna pregunta sobre su cobertura, necesita ayuda para encontrar un médico en su red, o simplemente desea hablar sobre su plan, no dude en contactarme directamente. Estoy aquí para servirle.</p>
 
@@ -245,7 +258,7 @@ export function generateDoc(templateId: string, client: Client, agent: Record<st
         ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
         ${waLink ? `<p style="margin:4px 0;font-size:13px">💬 <a href="${waLink}" style="color:#25d366;font-weight:bold">WhatsApp</a>${agentPhone ? ` · ${agentPhone}` : ''}</p>` : ''}
         ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
-        <p style="margin:4px 0;font-size:13px">🌐 <a href="https://www.tuasesormendoza.com" style="color:#2a6496">www.tuasesormendoza.com</a></p>
+        ${webLine()}
       </div>
 
       </div><!-- end body -->
@@ -275,11 +288,10 @@ ${benefitsList ? `\nBENEFICIOS:\n${benefitsList}` : ''}
 
 RENOVACIÓN: El período de renovación (Open Enrollment) comienza el 15 de noviembre.
 
-CITAS MÉDICAS: www.tuasesormendoza.com > Sección "Citas Médicas"
+${website ? `CITAS MÉDICAS: ${website} > Sección "Citas Médicas"` : ''}
 
 CONTACTO:
-${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}
-🌐 www.tuasesormendoza.com`
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}${webText}`
 
     const whatsapp = `👋 *¡Bienvenido/a ${client.fullName.split(' ')[0]}!*
 
@@ -294,11 +306,11 @@ ${client.planDeductible ? `\n🔹 *Deducible:* ${client.planDeductible}` : ''}${
 
 🗓️ *Renovación:* El Open Enrollment inicia el 15 de noviembre.
 
-🏥 *Citas médicas:* www.tuasesormendoza.com > Citas Médicas
+${website ? `🏥 *Citas médicas:* ${website} > Citas Médicas` : ''}
 
 📞 *Contáctame cuando lo necesites:*
-${agentPhone ? `• Llamada/WhatsApp: ${agentPhone}` : ''}${waLink ? `\n• WhatsApp directo: ${waLink}` : ''}
-• Web: www.tuasesormendoza.com
+${agentPhone ? `• Llamada/WhatsApp: ${agentPhone}` : ''}${waLink ? `\n• WhatsApp directo: ${waLink}` : ''}${website ? `
+• Web: ${website}` : ''}
 
 Estoy aquí para servirle. 🙏 - *${agentName}*`
 
@@ -377,7 +389,7 @@ Estoy aquí para servirle. 🙏 - *${agentName}*`
           <p style="margin:0;font-size:12px;color:#94a3b8">Agente de Seguros de Salud${agentNPN ? ` · NPN: ${agentNPN}` : ''}</p>
           ${agentPhone ? `<p style="margin:4px 0;font-size:13px;color:#475569">📞 ${agentPhone}</p>` : ''}
           ${waLink ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink}" style="color:#25d366;font-weight:700">💬 WhatsApp</a></p>` : ''}
-          <p style="margin:4px 0;font-size:13px"><a href="https://www.tuasesormendoza.com" style="color:#2a6496">🌐 www.tuasesormendoza.com</a></p>
+          ${webLine()}
         </div>
       </div>
 
@@ -398,8 +410,7 @@ Que este nuevo año de vida le traiga salud, bienestar, prosperidad y muchas raz
 ¡Que este día esté lleno de alegría, amor y momentos inolvidables!
 
 Con cariño,
-${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}
-🌐 www.tuasesormendoza.com`
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}${webText}`
 
     const whatsapp = `🎂🎉 *¡Feliz Cumpleaños, ${firstName}!* 🎈
 
@@ -415,8 +426,7 @@ _"Que cada vela que apagues encienda nuevos sueños."_ 🕯️
 Ha sido un honor acompañarte y cuidar tu salud. ¡Que lo disfrutes mucho!
 
 Con cariño,
-*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}
-🌐 www.tuasesormendoza.com`
+*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}${webText}`
 
     return { html, text, whatsapp }
   }
@@ -509,7 +519,7 @@ Con cariño,
         <div style="margin:24px 0;display:flex;gap:12px;flex-wrap:wrap">
           ${agentPhone ? `<a href="tel:${agentPhone.replace(/\D/g,'')}" style="display:inline-block;background:#10253f;color:#ffffff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px">📞 Llamar: ${agentPhone}</a>` : ''}
           ${waLink ? `<a href="${waLink}" style="display:inline-block;background:#25d366;color:#ffffff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px">💬 WhatsApp</a>` : ''}
-          <a href="https://www.tuasesormendoza.com" style="display:inline-block;background:#f0f7fb;color:#2a6496;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;border:1px solid #b8d4e8">🌐 www.tuasesormendoza.com</a>
+          ${website ? `<a href="${websiteUrl}" style="display:inline-block;background:#f0f7fb;color:#2a6496;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;border:1px solid #b8d4e8">🌐 ${website}</a>` : ''}
         </div>
 
         <p style="font-size:14px;color:#334155;margin:20px 0">
@@ -525,7 +535,7 @@ Con cariño,
           ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
           ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
           ${waLink ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink}" style="color:#25d366;font-weight:700">💬 WhatsApp</a></p>` : ''}
-          <p style="margin:4px 0;font-size:13px"><a href="https://www.tuasesormendoza.com" style="color:#2a6496">🌐 www.tuasesormendoza.com</a></p>
+          ${webLine()}
         </div>
       </div>
 
@@ -554,8 +564,7 @@ Su plan actual (${new Date().getFullYear()}):
 • Prima mensual: $${client.totalMonthly?.toFixed(2) || '0.00'}/mes
 
 Para adelantarse y agendar nuestra cita, contácteme:
-${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}
-🌐 www.tuasesormendoza.com
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}${webText}
 
 ¡Nos hablamos pronto!
 ${agentName}`
@@ -576,8 +585,7 @@ En los próximos días me pondré en contacto para:
 ✅ Completar su aplicación antes de la fecha límite
 
 Si desea adelantarse, puede contactarme:
-📞 ${agentPhone || 'Ver datos de contacto'}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}
-🌐 www.tuasesormendoza.com
+📞 ${agentPhone || 'Ver datos de contacto'}${waLink ? `\n💬 WhatsApp: ${waLink}` : ''}${webText}
 
 ¡Estoy aquí para ayudarle a encontrar el mejor plan para ${nextYear}!
 
@@ -690,7 +698,7 @@ Si desea adelantarse, puede contactarme:
           ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
           ${waLink ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink}" style="color:#25d366;font-weight:700">💬 WhatsApp</a>${agentPhone ? ` · ${agentPhone}` : ''}</p>` : ''}
           ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
-          <p style="margin:4px 0;font-size:13px">🌐 <a href="https://www.tuasesormendoza.com" style="color:#2a6496">www.tuasesormendoza.com</a></p>
+          ${webLine()}
         </div>
 
       </div><!-- end body -->
@@ -716,8 +724,7 @@ Antes de despedirme, le agradecería mucho si pudiera compartir conmigo su exper
 Recuerde que mis puertas siempre estarán abiertas para usted.
 
 Cordialmente y con todo el afecto,
-${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}
-🌐 www.tuasesormendoza.com`
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}${webText}`
 
     const whatsapp = `🤝 *Un mensaje con todo el cariño, ${client.fullName.split(' ')[0]}*
 
@@ -734,8 +741,7 @@ _Su respuesta honesta es un regalo invaluable que me ayuda a mejorar._
 Recuerde que mis puertas siempre estarán abiertas para usted. ¡Fue un gusto acompañarle!
 
 Con cariño,
-*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}
-🌐 www.tuasesormendoza.com`
+*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}${webText}`
 
     return { html, text, whatsapp }
   }
@@ -747,7 +753,6 @@ Con cariño,
   if (templateId === 'employer_coverage') {
     const agentWA_e = agent.agentWhatsApp || ''
     const waLink_e = agentWA_e ? `https://wa.me/${agentWA_e}` : ''
-    const website_e = agent.cardWebsite || 'www.tuasesormendoza.com'
     const surveyUrl_e = `${appUrl || ''}/encuesta/${client.id}`
     const firstName_e = client.fullName.split(' ')[0]
     const hasWN_e = !!client.wnPolicies && client.wnPolicies.includes('"type"')
@@ -864,7 +869,7 @@ Con cariño,
           ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
           ${waLink_e ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink_e}" style="color:#25d366;font-weight:700">💬 WhatsApp</a>${agentPhone ? ` · ${agentPhone}` : ''}</p>` : ''}
           ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
-          <p style="margin:4px 0;font-size:13px">🌐 <a href="https://${website_e.replace(/^https?:\/\//, '')}" style="color:#2a6496">${website_e}</a></p>
+          ${webLine()}
         </div>
 
       </div><!-- end body -->
@@ -901,8 +906,7 @@ Antes de despedirnos, ¿me regala un minuto para contarme su experiencia?
 Gracias de corazón por su confianza. ¡Mucho éxito en esta nueva etapa!
 
 Con mucho aprecio,
-${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}
-🌐 ${website_e}`
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}${webText}`
 
     const whatsapp = `💼 *¡Felicitaciones ${firstName_e}!*
 
@@ -925,8 +929,7 @@ Y recuerde: si algún día deja ese trabajo, puede volver al Mercado de inmediat
 👉 ${surveyUrl_e}
 
 ¡Gracias por su confianza y mucho éxito!
-*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}
-🌐 ${website_e}`
+*${agentName}*${agentPhone ? `\n📞 ${agentPhone}` : ''}${webText}`
 
     return { html, text, whatsapp }
   }
@@ -1113,7 +1116,7 @@ Y recuerde: si algún día deja ese trabajo, puede volver al Mercado de inmediat
         ${agentPhone ? `<p style="margin:4px 0;font-size:13px">📞 ${agentPhone}</p>` : ''}
         ${waLink_wn ? `<p style="margin:4px 0;font-size:13px"><a href="${waLink_wn}" style="color:#25d366;font-weight:700">💬 WhatsApp</a></p>` : ''}
         ${agentEmail ? `<p style="margin:4px 0;font-size:13px">✉️ ${agentEmail}</p>` : ''}
-        <p style="margin:4px 0;font-size:13px">🌐 <a href="https://www.tuasesormendoza.com" style="color:#2a6496">www.tuasesormendoza.com</a></p>
+        ${webLine()}
       </div>
 
     </div><!-- end body -->
@@ -1150,8 +1153,7 @@ La mejor parte: estos planes funcionan JUNTO a su seguro ACA actual. No reemplaz
 
 ¿Le interesa una cotización personalizada sin compromiso?
 
-${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink_wn ? `\n💬 WhatsApp: ${waLink_wn}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}
-🌐 www.tuasesormendoza.com`
+${agentName}${agentPhone ? `\n📞 ${agentPhone}` : ''}${waLink_wn ? `\n💬 WhatsApp: ${waLink_wn}` : ''}${agentEmail ? `\n✉️ ${agentEmail}` : ''}${webText}`
 
   const whatsapp = `🛡️ *${firstName_wn}, ¿sabe que su seguro médico tiene huecos?*
 

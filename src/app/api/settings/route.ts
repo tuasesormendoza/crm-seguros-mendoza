@@ -7,16 +7,23 @@ import { isOwner, getPlatformSettings, PLATFORM_KEYS, PLATFORM_SECRET_KEYS } fro
 // Keys that must never be sent to non-admin users
 const SECRET_KEYS = ['cmsApiKey', 'anthropicApiKey', 'smtpUser', 'smtpPass']
 
-// Default values shown when no settings exist yet
+// Default values shown when no settings exist yet.
+//
+// OJO: los datos del AGENTE (nombre, teléfono, WhatsApp, link de reseñas, web)
+// nacen VACÍOS a propósito. El CRM se vende a otras agencias: si trajeran un
+// valor precargado, el agente que acaba de comprarlo firmaría sus mensajes con
+// el nombre de otro y pediría reseñas para el negocio de otro sin enterarse.
+// Vacío hace que la app enseñe el aviso de "completa tu perfil" (ver
+// src/lib/agentProfile.ts) en lugar de datos ajenos.
 const DEFAULTS: Record<string, string> = {
   // Brand colors — must match THEME_DEFAULTS in /api/theme and globals.css
   themeBrand800:          '#053F5C',
   themeBrand500:          '#429EBD',
   themeBrand300:          '#9FE7F5',
   themeAccent:            '#F7AD19',
-  agentName:              'Omar Mendoza',
-  agentPhone:             '(407)-436-4366',
-  agentWhatsApp:          '14074364366',
+  agentName:              '',
+  agentPhone:             '',
+  agentWhatsApp:          '',
   anthropicApiKey:        '',
   agentEmail:             '',
   agentLicense:           '',
@@ -32,7 +39,7 @@ const DEFAULTS: Record<string, string> = {
   aptcMaxPct:             '8.5',
   bestPlansRankMode:      'protection',
   birthdayTemplate:       'Hola {nombre}, ¡feliz cumpleaños! 🎂🎉 Que tengas un día muy especial lleno de alegría. Con cariño, {agente}',
-  googleReviewLink:       'https://g.page/r/CbFgt44hL28OEAE/review',
+  googleReviewLink:       '',
   whatsappTemplate:       'Hola {nombre}, fue un placer atenderte. Te agradecería mucho si pudieras dejarnos una reseña en Google, solo toma 1 minuto 🙏: {link}',
   whatsappReminderTemplate: 'Hola {nombre}, quería recordarte que nos encantaría contar con tu reseña en Google: {link} ¡Gracias!',
   defaultPolicyYear:      new Date().getFullYear().toString(),

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { agentInitials } from '@/lib/agentProfile'
 
 // SVG Icons as components
 const Icons = {
@@ -91,7 +92,9 @@ export default function Sidebar() {
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [agentName, setAgentName] = useState('Omar Mendoza')
+  // Vacío mientras la agencia no ponga su nombre en Configuración. Ver
+  // src/lib/agentProfile.ts: nunca se enseña el nombre de otro.
+  const [agentName, setAgentName] = useState('')
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [role, setRole] = useState('admin')
   const [search, setSearch] = useState('')
@@ -123,7 +126,7 @@ export default function Sidebar() {
     router.refresh()
   }
 
-  const initials = agentName.split(' ').map((n:string)=>n[0]).slice(0,2).join('').toUpperCase()
+  const initials = agentInitials(agentName)
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full" style={{ background: 'var(--brand-800)' }}>
@@ -279,8 +282,17 @@ export default function Sidebar() {
               {initials}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-white truncate">{agentName}</div>
-              <div className="text-xs truncate" style={{ color: 'var(--brand-300)' }}>Agente de Seguros</div>
+              {agentName ? (
+                <>
+                  <div className="text-xs font-semibold text-white truncate">{agentName}</div>
+                  <div className="text-xs truncate" style={{ color: 'var(--brand-300)' }}>Agente de Seguros</div>
+                </>
+              ) : (
+                <Link href="/settings" className="block">
+                  <div className="text-xs font-semibold text-white truncate">Completa tu perfil</div>
+                  <div className="text-xs truncate underline" style={{ color: 'var(--accent)' }}>Añade tu nombre →</div>
+                </Link>
+              )}
             </div>
           </div>
         )}

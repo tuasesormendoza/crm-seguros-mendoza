@@ -4,6 +4,8 @@ import { useState, useRef, useCallback, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { normalizeInsurer } from '@/lib/normalizeInsurer'
+import { AGENT_FALLBACK, ALL_PROFILE_FIELDS, agentDisplayName } from '@/lib/agentProfile'
+import ProfileNotice from '@/components/ProfileNotice'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,9 +28,12 @@ interface Brand {
 }
 
 const DEFAULT_BRAND: Brand = {
-  name: 'Tu Asesor de Seguros', logoSrc: '', website: '',
+  name: AGENT_FALLBACK, logoSrc: '', website: '',
   headerColor: '#0D2A4A', accentColor: '#F0C040',
 }
+
+// Lo que hace falta para que la tarjeta salga con la marca de ESTA agencia.
+const CARD_PROFILE_FIELDS = ALL_PROFILE_FIELDS.filter(f => f.key === 'agentName' || f.key === 'cardWebsite')
 
 // ── Language strings ─────────────────────────────────────────────────────────
 
@@ -279,7 +284,7 @@ function TarjetaInner() {
         } catch { /* sin logo → se usa el nombre */ }
       }
       setBrand({
-        name: s.agentName || 'Tu Asesor de Seguros',
+        name: agentDisplayName(s.agentName),
         logoSrc,
         website: s.cardWebsite || '',
         headerColor: s.cardHeaderColor || '#0D2A4A',
@@ -607,6 +612,9 @@ function TarjetaInner() {
           </Link>
         )}
       </div>
+
+      <ProfileNotice className="mb-6" fields={CARD_PROFILE_FIELDS}
+        context="La tarjeta lleva tu nombre arriba y tu web en el pie." />
 
       <Steps step={step} />
 

@@ -7,8 +7,7 @@ import type { BackupHealth } from '@/lib/backupHealth'
 import { formatDate } from '@/lib/utils'
 import { getMotivationalQuote } from '@/lib/motivationalQuotes'
 import LoadError from '@/components/LoadError'
-
-const REVIEW_LINK = 'https://g.page/r/CbFgt44hL28OEAE/review'
+import { agentDisplayName, fillTemplate, reviewMessage } from '@/lib/agentProfile'
 
 const REVIEW_STAGE_META: Record<string, { color: string; bg: string; borderColor: string }> = {
   'Pendiente por enviar':    { color: '#64748b', bg: '#f8fafc', borderColor: '#e2e8f0' },
@@ -17,16 +16,20 @@ const REVIEW_STAGE_META: Record<string, { color: string; bg: string; borderColor
   'Realizada':               { color: '#059669', bg: '#f0fdf4', borderColor: '#a7f3d0' },
 }
 
-function makeWhatsApp(phone: string | null | undefined, name: string, stage: string): string {
+// El texto y el link salen de la Configuración de la agencia — nunca van
+// escritos aquí. Sin link de reseñas configurado devuelve '' y el botón de
+// WhatsApp no se pinta: no hay nada que pedir todavía.
+function makeWhatsApp(phone: string | null | undefined, name: string, stage: string, review: ReviewSettings): string {
   if (!phone) return ''
   const digits = phone.replace(/\D/g, '')
   const intl = digits.length === 10 ? `1${digits}` : digits
-  let msg = ''
+  let msg: string | null = null
   if (stage === 'Pendiente por enviar' || stage === 'Enviada') {
-    msg = `Hola ${name}, fue un placer atenderte. Te agradecería mucho si pudieras dejarnos una reseña en Google, solo toma 1 minuto 🙏: ${REVIEW_LINK}`
+    msg = reviewMessage(review.template, name, review.link)
   } else if (stage === 'Esperando por el cliente') {
-    msg = `Hola ${name}, quería recordarte que nos encantaría contar con tu reseña en Google: ${REVIEW_LINK} ¡Gracias!`
+    msg = reviewMessage(review.reminderTemplate, name, review.link)
   }
+  if (!msg) return ''
   return `https://wa.me/${intl}?text=${encodeURIComponent(msg)}`
 }
 
@@ -69,7 +72,16 @@ interface DashboardData {
   missingMigrationCount?: number  // activos sin estatus migratorio registrado
 }
 
-function ReviewStageCard({ stage, count, clients }: ReviewStage) {
+// Textos y link de reseñas tal y como los tiene configurados la agencia.
+interface ReviewSettings { link: string; template: string; reminderTemplate: string }
+
+const REVIEW_FALLBACK: ReviewSettings = {
+  link: '',
+  template: 'Hola {nombre}, fue un placer atenderte. Te agradecería mucho si pudieras dejarnos una reseña en Google, solo toma 1 minuto 🙏: {link}',
+  reminderTemplate: 'Hola {nombre}, quería recordarte que nos encantaría contar con tu reseña en Google: {link} ¡Gracias!',
+}
+
+function ReviewStageCard({ stage, count, clients, review }: ReviewStage & { review: ReviewSettings }) {
   const [expanded, setExpanded] = useState(false)
   const meta = REVIEW_STAGE_META[stage] ?? { color: '#64748b', bg: '#f8fafc', borderColor: '#e2e8f0' }
 
@@ -91,7 +103,7 @@ function ReviewStageCard({ stage, count, clients }: ReviewStage) {
       {expanded && count > 0 && (
         <div className="divide-y max-h-60 overflow-y-auto" style={{ borderTop: `1px solid ${meta.borderColor}` }}>
           {clients.map(c => {
-            const waLink = makeWhatsApp(c.phone, c.fullName.split(' ')[0], stage)
+            const waLink = makeWhatsApp(c.phone, c.fullName.split(' ')[0], stage, review)
             return (
               <div key={c.id} className="px-3 py-2.5" style={{ background: 'var(--surface-card)' }}>
                 <div className="flex items-center justify-between gap-2">
@@ -167,7 +179,10 @@ export default function Dashboard() {
   const [goals, setGoals] = useState<Goals | null>(null)
   const [goalsProgress, setGoalsProgress] = useState<GoalsProgress | null>(null)
   const [birthdayTemplate, setBirthdayTemplate] = useState('Hola {nombre}, ¡feliz cumpleaños! 🎂🎉 Que tengas un día muy especial. Con cariño, {agente}')
-  const [agentName, setAgentName] = useState('Omar Mendoza')
+  // Vacío hasta que /api/settings responda: el nombre del agente sale de la
+  // Configuración de SU agencia, nunca de un valor escrito aquí.
+  const [agentName, setAgentName] = useState('')
+  const [review, setReview] = useState<ReviewSettings>(REVIEW_FALLBACK)
   const [loadError, setLoadError] = useState(false)
   const [tagging, setTagging] = useState(false)
 
@@ -197,6 +212,11 @@ export default function Dashboard() {
     fetch('/api/settings').then(r => r.json()).then(s => {
       if (s.birthdayTemplate) setBirthdayTemplate(s.birthdayTemplate)
       if (s.agentName) setAgentName(s.agentName)
+      setReview({
+        link: s.googleReviewLink || '',
+        template: s.whatsappTemplate || REVIEW_FALLBACK.template,
+        reminderTemplate: s.whatsappReminderTemplate || REVIEW_FALLBACK.reminderTemplate,
+      })
     }).catch(() => {})
     // Auto-check notifications once per day
     const lastCheck = localStorage.getItem('notif_last_check')
@@ -494,9 +514,10 @@ export default function Dashboard() {
             <div className="space-y-2">
               {data.upcomingBirthdays.map((b, i) => {
                 const isToday = b.daysUntil === 0
-                const waMsg = birthdayTemplate
-                  .replace(/\{nombre\}/g, b.name.split(' ')[0])
-                  .replace(/\{agente\}/g, agentName)
+                const waMsg = fillTemplate(birthdayTemplate, {
+                  nombre: b.name.split(' ')[0],
+                  agente: agentDisplayName(agentName),
+                })
                 const digits = (b.phone || '').replace(/\D/g, '')
                 const intl = digits.length === 10 ? `1${digits}` : digits
                 const waUrl = intl ? `https://wa.me/${intl}?text=${encodeURIComponent(waMsg)}` : ''
@@ -611,15 +632,29 @@ export default function Dashboard() {
               </span>
             </p>
           </div>
-          <a href={REVIEW_LINK} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: 'var(--brand-500)' }}>
-            🔗 Ver perfil Google
-          </a>
+          {review.link ? (
+            <a href={review.link} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-90"
+              style={{ background: 'var(--brand-500)' }}>
+              🔗 Ver perfil Google
+            </a>
+          ) : (
+            <Link href="/settings"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+              style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
+              ⚠️ Añade tu link de reseñas
+            </Link>
+          )}
         </div>
+        {!review.link && (
+          <p className="text-xs mb-4" style={{ color: 'var(--gray-500)' }}>
+            Sin tu link de Google no se puede enviar la petición de reseña por WhatsApp.
+            Configúralo en <Link href="/settings" className="underline font-semibold">Configuración → Mensajería</Link>.
+          </p>
+        )}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {(data.reviewByStage ?? []).map(s => (
-            <ReviewStageCard key={s.stage} stage={s.stage} count={s.count} clients={s.clients} />
+            <ReviewStageCard key={s.stage} stage={s.stage} count={s.count} clients={s.clients} review={review} />
           ))}
         </div>
         {data.totalPolicies > 0 && (

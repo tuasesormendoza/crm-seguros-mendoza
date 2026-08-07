@@ -32,41 +32,41 @@ test('looksLikeKey rechaza basura sin tocar la base de datos', () => {
 // ── Orígenes permitidos ─────────────────────────────────────────────────────
 
 test('originAllowed acepta el dominio configurado, con y sin www', () => {
-  const permitidos = 'tuasesormendoza.com'
-  assert.ok(originAllowed('https://tuasesormendoza.com', permitidos))
-  assert.ok(originAllowed('https://www.tuasesormendoza.com', permitidos))
-  assert.ok(originAllowed('http://tuasesormendoza.com:443', permitidos))
+  const permitidos = 'miagencia.com'
+  assert.ok(originAllowed('https://miagencia.com', permitidos))
+  assert.ok(originAllowed('https://www.miagencia.com', permitidos))
+  assert.ok(originAllowed('http://miagencia.com:443', permitidos))
 })
 
 test('originAllowed rechaza otros dominios', () => {
-  const permitidos = 'tuasesormendoza.com'
+  const permitidos = 'miagencia.com'
   assert.equal(originAllowed('https://otraagencia.com', permitidos), false)
   // Un subdominio no listado no debe colarse
-  assert.equal(originAllowed('https://malo.tuasesormendoza.com.attacker.io', permitidos), false)
+  assert.equal(originAllowed('https://malo.miagencia.com.attacker.io', permitidos), false)
   // Prefijo parecido pero distinto
-  assert.equal(originAllowed('https://tuasesormendoza.com.evil.com', permitidos), false)
+  assert.equal(originAllowed('https://miagencia.com.evil.com', permitidos), false)
 })
 
 test('originAllowed deniega si la agencia no configuro dominios', () => {
-  assert.equal(originAllowed('https://tuasesormendoza.com', null), false)
-  assert.equal(originAllowed('https://tuasesormendoza.com', '   '), false)
+  assert.equal(originAllowed('https://miagencia.com', null), false)
+  assert.equal(originAllowed('https://miagencia.com', '   '), false)
 })
 
 test('originAllowed deniega si la peticion no trae origen', () => {
-  assert.equal(originAllowed(null, 'tuasesormendoza.com'), false)
+  assert.equal(originAllowed(null, 'miagencia.com'), false)
 })
 
 test('originAllowed admite varios dominios separados por comas', () => {
-  const permitidos = 'tuasesormendoza.com, otraweb.net'
+  const permitidos = 'miagencia.com, otraweb.net'
   assert.ok(originAllowed('https://otraweb.net', permitidos))
-  assert.ok(originAllowed('https://www.tuasesormendoza.com', permitidos))
+  assert.ok(originAllowed('https://www.miagencia.com', permitidos))
   assert.equal(originAllowed('https://tercera.org', permitidos), false)
 })
 
 // ── Validación ──────────────────────────────────────────────────────────────
 
 test('validateIntake acepta un lead con nombre y telefono', () => {
-  assert.deepEqual(validateIntake({ fullName: 'Maria Gonzalez', phone: '407-436-4366' }), {})
+  assert.deepEqual(validateIntake({ fullName: 'Maria Gonzalez', phone: '305-555-0100' }), {})
 })
 
 test('validateIntake acepta un lead con nombre y email', () => {
@@ -74,9 +74,9 @@ test('validateIntake acepta un lead con nombre y email', () => {
 })
 
 test('validateIntake exige nombre', () => {
-  assert.ok(validateIntake({ phone: '4074364366' }).fullName)
-  assert.ok(validateIntake({ fullName: '   ', phone: '4074364366' }).fullName)
-  assert.ok(validateIntake({ fullName: 'A', phone: '4074364366' }).fullName)
+  assert.ok(validateIntake({ phone: '3055550100' }).fullName)
+  assert.ok(validateIntake({ fullName: '   ', phone: '3055550100' }).fullName)
+  assert.ok(validateIntake({ fullName: 'A', phone: '3055550100' }).fullName)
 })
 
 test('validateIntake exige alguna forma de contacto', () => {
@@ -101,14 +101,14 @@ test('isHoneypotTripped detecta bots que rellenan el campo oculto', () => {
 test('normalizeIntake mapea las respuestas del quiz a los campos del prospecto', () => {
   const r = normalizeIntake({
     fullName: '  Maria Gonzalez  ',
-    phone: ' 407-436-4366 ',
+    phone: ' 305-555-0100 ',
     householdSize: '3-4',
     income: 'mid-low',
     situation: 'Sin seguro actualmente',
     sourceDetail: 'Quiz',
   })
   assert.equal(r.fullName, 'Maria Gonzalez')
-  assert.equal(r.phone, '407-436-4366')
+  assert.equal(r.phone, '305-555-0100')
   assert.equal(r.householdSize, '3-4')
   assert.equal(r.income, 'mid-low')
   assert.equal(r.source, 'Web · Quiz')
@@ -117,19 +117,19 @@ test('normalizeIntake mapea las respuestas del quiz a los campos del prospecto',
 
 test('normalizeIntake solo registra consentimiento cuando llega true explicito', () => {
   const ahora = new Date('2026-08-06T12:00:00Z')
-  assert.equal(normalizeIntake({ fullName: 'Maria', phone: '4074364366' }, ahora).consentAt, null)
-  assert.equal(normalizeIntake({ fullName: 'Maria', phone: '4074364366', consent: 'si' }, ahora).consentAt, null)
-  assert.deepEqual(normalizeIntake({ fullName: 'Maria', phone: '4074364366', consent: true }, ahora).consentAt, ahora)
+  assert.equal(normalizeIntake({ fullName: 'Maria', phone: '3055550100' }, ahora).consentAt, null)
+  assert.equal(normalizeIntake({ fullName: 'Maria', phone: '3055550100', consent: 'si' }, ahora).consentAt, null)
+  assert.deepEqual(normalizeIntake({ fullName: 'Maria', phone: '3055550100', consent: true }, ahora).consentAt, ahora)
 })
 
 test('normalizeIntake recorta textos desmesurados', () => {
-  const r = normalizeIntake({ fullName: 'x'.repeat(500), phone: '4074364366', notes: 'y'.repeat(5000) })
+  const r = normalizeIntake({ fullName: 'x'.repeat(500), phone: '3055550100', notes: 'y'.repeat(5000) })
   assert.equal(r.fullName.length, 200)
   assert.equal((r.notes as string).length, 2000)
 })
 
 test('normalizeIntake ignora campos que no reconoce', () => {
-  const r = normalizeIntake({ fullName: 'Maria', phone: '4074364366', stage: 'Cerrado - Ganado' } as never)
+  const r = normalizeIntake({ fullName: 'Maria', phone: '3055550100', stage: 'Cerrado - Ganado' } as never)
   assert.equal((r as unknown as Record<string, unknown>).stage, undefined)
 })
 

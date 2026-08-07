@@ -8,6 +8,7 @@ import GoogleCalendar from '@/components/settings/GoogleCalendar'
 import PublicIntakePanel from '@/components/settings/PublicIntakePanel'
 import TwoFactorPanel from '@/components/settings/TwoFactorPanel'
 import { INPUT, LABEL, SECTION, TITLE, SaveBtn, type Settings } from '@/components/settings/shared'
+import { missingProfileFields } from '@/lib/agentProfile'
 
 // Pestañas de Configuración: agrupan las secciones en categorías para una
 // navegación profesional (en lugar de un scroll interminable).
@@ -207,6 +208,9 @@ export default function SettingsPage() {
   )
 
   const activeTabLabel = SETTINGS_TABS.find(t => t.id === tab)?.label ?? ''
+  // Todo lo que aún no ha rellenado: obligatorio y opcional. El aviso los
+  // enumera para que sepa exactamente qué se está quedando en blanco.
+  const missingProfile = missingProfileFields(settings)
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -214,6 +218,34 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold" style={{ color: '#10253f' }}>Configuración</h1>
         <p className="text-sm text-gray-500 mt-1">Personaliza tu CRM desde aquí sin tocar ningún archivo</p>
       </div>
+
+      {/* Aviso de perfil incompleto. El CRM llega sin los datos de nadie: hasta
+          que el agente ponga los suyos, hay huecos visibles en documentos,
+          mensajes y reportes. Mejor decirlo aquí que dejar que se entere el
+          cliente. */}
+      {missingProfile.length > 0 && (
+        <div className="mb-6 rounded-xl p-4" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <div className="flex items-start gap-3">
+            <span className="text-lg leading-none mt-0.5">⚠️</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Completa tu perfil</p>
+              <p className="text-xs mt-1" style={{ color: '#b45309' }}>
+                El CRM no trae datos de ningún agente precargados. Mientras estos campos estén vacíos,
+                los documentos, mensajes y reportes saldrán sin ellos:
+              </p>
+              <ul className="text-xs mt-1.5 space-y-0.5" style={{ color: '#b45309' }}>
+                {missingProfile.map(f => (
+                  <li key={f.key}>• <strong>{f.label}</strong> — {f.usedFor}</li>
+                ))}
+              </ul>
+              <button type="button" onClick={() => setTab('perfil')}
+                className="text-xs font-semibold underline mt-2" style={{ color: '#92400e' }}>
+                Ir a Perfil del Agente →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
         {/* ── Navegación lateral (horizontal en móvil, vertical en escritorio) ── */}
@@ -292,11 +324,11 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={LABEL}>Nombre completo</label>
-              <input className={INPUT} value={settings.agentName ?? ''} onChange={e => set('agentName', e.target.value)} placeholder="Omar Mendoza" />
+              <input className={INPUT} value={settings.agentName ?? ''} onChange={e => set('agentName', e.target.value)} placeholder="Nombre y apellido" />
             </div>
             <div>
               <label className={LABEL}>Teléfono / Llamadas</label>
-              <input className={INPUT} value={settings.agentPhone ?? ''} onChange={e => set('agentPhone', e.target.value)} placeholder="(407)-436-4366" />
+              <input className={INPUT} value={settings.agentPhone ?? ''} onChange={e => set('agentPhone', e.target.value)} placeholder="(305) 555-0100" />
             </div>
             <div>
               <label className={LABEL}>
@@ -305,7 +337,7 @@ export default function SettingsPage() {
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm">💬</span>
-                <input className={INPUT + ' pl-8'} value={settings.agentWhatsApp ?? ''} onChange={e => set('agentWhatsApp', e.target.value.replace(/\D/g,''))} placeholder="14074364366" />
+                <input className={INPUT + ' pl-8'} value={settings.agentWhatsApp ?? ''} onChange={e => set('agentWhatsApp', e.target.value.replace(/\D/g,''))} placeholder="13055550100" />
               </div>
               {settings.agentWhatsApp && (
                 <a href={`https://wa.me/${settings.agentWhatsApp}`} target="_blank" rel="noopener noreferrer"
