@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { getReferralInitialMessage, getReferralReminderMessage } from '@/lib/referralMessages'
+import { AGENT_FALLBACK, agentSignature } from '@/lib/agentProfile'
+import ProfileNotice from '@/components/ProfileNotice'
 
 interface Prospect {
   id: string; fullName: string; phone: string | null; stage: string; createdAt: string
@@ -20,19 +22,22 @@ function fmt(date: string) {
 
 const RANK_BADGES = ['🥇', '🥈', '🥉']
 
-function buildReferrerActions(referrer: Referrer) {
+// La firma sale de la Configuración de la agencia. Sin nombre configurado se
+// firma con el rótulo neutro, nunca con el de otro agente.
+function buildReferrerActions(referrer: Referrer, agentName: string) {
   const firstName = referrer.clientName.split(' ')[0]
   function sendWhatsApp() {
     if (!referrer.clientPhone) return
     const digits = referrer.clientPhone.replace(/\D/g, '')
     const intl = digits.length === 10 ? `1${digits}` : digits
-    const msg = `Hola ${firstName}, ha sido un gusto acompañarte cuidando lo que más importa: tu salud y la de tu familia. Si conoces a alguien que valore una asesoría honesta y sin compromiso sobre sus seguros, sería un honor ayudarle igual que a ti. ¡Un abrazo! 🙏\n\n— Omar Mendoza, Tu Asesor de Seguros`
+    const msg = `Hola ${firstName}, ha sido un gusto acompañarte cuidando lo que más importa: tu salud y la de tu familia. Si conoces a alguien que valore una asesoría honesta y sin compromiso sobre sus seguros, sería un honor ayudarle igual que a ti. ¡Un abrazo! 🙏\n\n— ${agentSignature(agentName)}`
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
   }
   function sendEmail() {
     if (!referrer.clientEmail) return
     const subject = 'Gracias por tu confianza 🙏'
-    const body = `Hola ${firstName},\n\nHa sido un verdadero gusto acompañarte asegurando lo que más importa para ti y tu familia.\n\nSi tienes algún familiar, amigo o compañero de trabajo que valore una asesoría honesta, clara y sin compromiso sobre sus seguros, sería un honor poder ayudarle con la misma dedicación que a ti.\n\n¡Un fuerte abrazo!\n\nOmar Mendoza\nTu Asesor de Seguros`
+    const signOff = agentName.trim() ? `${agentName.trim()}\n${AGENT_FALLBACK}` : AGENT_FALLBACK
+    const body = `Hola ${firstName},\n\nHa sido un verdadero gusto acompañarte asegurando lo que más importa para ti y tu familia.\n\nSi tienes algún familiar, amigo o compañero de trabajo que valore una asesoría honesta, clara y sin compromiso sobre sus seguros, sería un honor poder ayudarle con la misma dedicación que a ti.\n\n¡Un fuerte abrazo!\n\n${signOff}`
     window.location.href = `mailto:${referrer.clientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
   }
   return { sendWhatsApp, sendEmail }
@@ -61,9 +66,9 @@ function ProspectsList({ prospects }: { prospects: Prospect[] }) {
   )
 }
 
-function ReferrerCard({ referrer, rank }: { referrer: Referrer; rank: number }) {
+function ReferrerCard({ referrer, rank, agentName }: { referrer: Referrer; rank: number; agentName: string }) {
   const [expanded, setExpanded] = useState(false)
-  const { sendWhatsApp, sendEmail } = buildReferrerActions(referrer)
+  const { sendWhatsApp, sendEmail } = buildReferrerActions(referrer, agentName)
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <div className="flex items-start gap-3">
@@ -125,9 +130,9 @@ function ReferrerCard({ referrer, rank }: { referrer: Referrer; rank: number }) 
   )
 }
 
-function ReferrerRow({ referrer, rank }: { referrer: Referrer; rank: number }) {
+function ReferrerRow({ referrer, rank, agentName }: { referrer: Referrer; rank: number; agentName: string }) {
   const [expanded, setExpanded] = useState(false)
-  const { sendWhatsApp, sendEmail } = buildReferrerActions(referrer)
+  const { sendWhatsApp, sendEmail } = buildReferrerActions(referrer, agentName)
 
   return (
     <>
@@ -238,6 +243,12 @@ function RequestReferralsTab() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'Todos' | RequestStage>('Todos')
   const [saving, setSaving] = useState<string | null>(null)
+  // Con quién se firman los mensajes que se van a enviar desde esta pestaña.
+  const [agentName, setAgentName] = useState('')
+
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(s => setAgentName(s.agentName || '')).catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     const res = await fetch('/api/referral-requests')
@@ -261,14 +272,14 @@ function RequestReferralsTab() {
 
   function sendInitial(c: RequestClient) {
     if (!c.phone) return
-    const msg = getReferralInitialMessage(c.fullName.split(' ')[0], c.id)
+    const msg = getReferralInitialMessage(c.fullName.split(' ')[0], c.id, agentName)
     window.open(whatsAppLink(c.phone, msg), '_blank')
     updateClient(c.id, { referralRequestStage: 'Solicitado', referralRequestSentAt: new Date().toISOString(), referralRequestLastSent: new Date().toISOString() })
   }
 
   function sendReminder(c: RequestClient) {
     if (!c.phone) return
-    const msg = getReferralReminderMessage(c.fullName.split(' ')[0], c.id)
+    const msg = getReferralReminderMessage(c.fullName.split(' ')[0], c.id, agentName)
     window.open(whatsAppLink(c.phone, msg), '_blank')
     updateClient(c.id, { referralRequestStage: 'Recordatorio enviado', referralRequestLastSent: new Date().toISOString() })
   }
@@ -294,6 +305,7 @@ function RequestReferralsTab() {
 
   return (
     <div className="space-y-6">
+      <ProfileNotice context="Los mensajes de referidos se firman con tu nombre." />
       <div className="rounded-xl p-4" style={{ background: '#f0f7fb', border: '1px solid #b8d4e8' }}>
         <p className="text-sm" style={{ color: '#1e4a6e' }}>
           <strong>💡 Cómo funciona:</strong> envía un mensaje de WhatsApp pidiendo referidos de forma cálida y personalizada. El sistema marca automáticamente al cliente como &quot;Solicitado&quot; y, unos días después, puedes enviarle un recordatorio amable con un mensaje diferente. Marca &quot;Refirió&quot; o &quot;No por ahora&quot; según la respuesta para llevar el control.
@@ -475,16 +487,19 @@ export default function ReferidosPage() {
   const [tab, setTab] = useState<'top' | 'solicitar'>('top')
   const [referrers, setReferrers] = useState<Referrer[]>([])
   const [loading, setLoading] = useState(true)
+  // Firma de los mensajes: de la Configuración de la agencia, no del código.
+  const [agentName, setAgentName] = useState('')
 
   useEffect(() => {
     fetch('/api/referrals').then(r => r.json()).then(d => {
       setReferrers(d.referrers || [])
       setLoading(false)
     })
+    fetch('/api/settings').then(r => r.json()).then(s => setAgentName(s.agentName || '')).catch(() => {})
   }, [])
 
   function broadcastWhatsApp() {
-    const msg = 'Hola, ha sido un gusto acompañarte cuidando lo que más importa: tu salud y la de tu familia. Si conoces a alguien que valore una asesoría honesta y sin compromiso sobre sus seguros, sería un honor ayudarle igual que a ti. ¡Un abrazo! 🙏\n\n— Omar Mendoza, Tu Asesor de Seguros'
+    const msg = `Hola, ha sido un gusto acompañarte cuidando lo que más importa: tu salud y la de tu familia. Si conoces a alguien que valore una asesoría honesta y sin compromiso sobre sus seguros, sería un honor ayudarle igual que a ti. ¡Un abrazo! 🙏\n\n— ${agentSignature(agentName)}`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
@@ -564,7 +579,7 @@ export default function ReferidosPage() {
                 {/* Mobile cards */}
                 <div className="flex flex-col gap-3 md:hidden">
                   {referrers.map((r, i) => (
-                    <ReferrerCard key={r.clientId} referrer={r} rank={i} />
+                    <ReferrerCard key={r.clientId} referrer={r} rank={i} agentName={agentName} />
                   ))}
                 </div>
                 {/* Desktop table */}
@@ -588,7 +603,7 @@ export default function ReferidosPage() {
                       </thead>
                       <tbody>
                         {referrers.map((r, i) => (
-                          <ReferrerRow key={r.clientId} referrer={r} rank={i} />
+                          <ReferrerRow key={r.clientId} referrer={r} rank={i} agentName={agentName} />
                         ))}
                       </tbody>
                     </table>

@@ -14,7 +14,12 @@ import PlanBenefitsSection from '@/components/client-profile/PlanBenefitsSection
 import GoogleReviewTimeline from '@/components/client-profile/GoogleReviewTimeline'
 import { InfoItem, CopyButton, Section } from '@/components/client-profile/ui'
 import { checkSubsidy, daysUntilRule } from '@/lib/subsidyEligibility'
+import { reviewMessage } from '@/lib/agentProfile'
 import { PREDEFINED_TAGS, getTagColor, STATUS_COLORS, APPT_STATUS_COLORS, INSURER_HISTORY_OPTIONS, parseList, parseWn, type Client, type Appointment, type PolicyHistoryEntry, type InsurerHistoryEntry, type SurveyResponse, type WnPolicy } from '@/components/client-profile/types'
+
+// Texto por defecto si la agencia borró el suyo. El LINK nunca tiene defecto:
+// pedir una reseña para el negocio de otro sería peor que no pedirla.
+const REVIEW_TEMPLATE_FALLBACK = 'Hola {nombre}, fue un placer atenderte. Te agradecería mucho si pudieras dejarnos una reseña en Google, solo toma 1 minuto 🙏: {link}'
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
@@ -39,6 +44,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [newInsurerChange, setNewInsurerChange] = useState({ insurer: '', startPeriod: '', endPeriod: '' })
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponse[]>([])
   const [loadError, setLoadError] = useState(false)
+  // Link y texto de reseña de ESTA agencia. Vacío mientras no lo configure.
+  const [review, setReview] = useState({ link: '', template: REVIEW_TEMPLATE_FALLBACK })
   const router = useRouter()
 
   const loadClient = useCallback((id: string) => {
@@ -72,6 +79,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         })
         .catch(() => setLoadError(true))
     })
+    fetch('/api/settings').then(r => r.json()).then(s => setReview({
+      link: s.googleReviewLink || '',
+      template: s.whatsappTemplate || REVIEW_TEMPLATE_FALLBACK,
+    })).catch(() => {})
   }, [params])
 
   const handleDelete = async () => {
@@ -885,9 +896,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>Google Review</h2>
-              {client.googleReview !== 'Realizada' && client.phone && (
+              {client.googleReview !== 'Realizada' && client.phone && review.link && (
                 <a
-                  href={`https://wa.me/${client.phone.replace(/\D/g,'').length === 10 ? '1' : ''}${client.phone.replace(/\D/g,'')}?text=${encodeURIComponent(`Hola ${client.fullName.split(' ')[0]}, fue un placer atenderte. Te agradecería mucho si pudieras dejarnos una reseña en Google, solo toma 1 minuto 🙏: https://g.page/r/CbFgt44hL28OEAE/review`)}`}
+                  href={`https://wa.me/${client.phone.replace(/\D/g,'').length === 10 ? '1' : ''}${client.phone.replace(/\D/g,'')}?text=${encodeURIComponent(reviewMessage(review.template, client.fullName, review.link) ?? '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
@@ -895,6 +906,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 >
                   💬 Enviar link por WhatsApp
                 </a>
+              )}
+              {client.googleReview !== 'Realizada' && client.phone && !review.link && (
+                <Link href="/settings" className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+                  ⚠️ Añade tu link de reseñas
+                </Link>
               )}
               {client.googleReview === 'Realizada' && (
                 <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">

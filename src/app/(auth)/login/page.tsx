@@ -131,7 +131,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="tuasesormendoza@gmail.com"
+                  placeholder="tu@correo.com"
                   required
                   autoComplete="email"
                   style={{ width:'100%', padding:'0.75rem 1rem', borderRadius:12, fontSize:'0.875rem', background:'rgba(255,255,255,0.85)', border:'1.5px solid rgba(var(--brand-500-rgb), 0.25)', color:'#0f172a', outline:'none', boxSizing:'border-box', transition:'border-color .15s' }}

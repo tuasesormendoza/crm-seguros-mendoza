@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRole } from '@/hooks/useRole'
 import AccessDenied from '@/components/AccessDenied'
+import { agentDisplayName } from '@/lib/agentProfile'
+import ProfileNotice from '@/components/ProfileNotice'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,7 +127,7 @@ function ReportHeader({ title, subtitle, agentName, date }: { title: string; sub
           <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 2 }}>{subtitle}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10253f' }}>{agentName}</div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10253f' }}>{agentDisplayName(agentName)}</div>
           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Agente de Seguros</div>
           <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>{date}</div>
         </div>
@@ -422,7 +424,8 @@ function FilteredReport({ clients, dash, agentName, date, filterBy, filterValue 
 export default function ReportPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [dash, setDash] = useState<DashboardData | null>(null)
-  const [agentName, setAgentName] = useState('Omar Mendoza')
+  // Vacío hasta cargar la Configuración de SU agencia (src/lib/agentProfile.ts).
+  const [agentName, setAgentName] = useState('')
   const [loading, setLoading] = useState(true)
   const [activeReport, setActiveReport] = useState('portfolio')
   const [renewalMonths, setRenewalMonths] = useState(3)
@@ -495,6 +498,8 @@ export default function ReportPage() {
             🖨️ Imprimir / Exportar PDF
           </button>
         </div>
+
+        <ProfileNotice context="Tu nombre encabeza cada reporte que imprimes o exportas." />
 
         {/* Report type selector */}
         <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -597,7 +602,7 @@ export default function ReportPage() {
         {/* Footer */}
         <div style={{ marginTop: '2rem', paddingTop: '0.75rem', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#94a3b8' }}>
           <span>CRM Agentes de Seguros · Confidencial</span>
-          <span>{agentName} · {date}</span>
+          <span>{agentDisplayName(agentName)} · {date}</span>
         </div>
       </div>
     </>

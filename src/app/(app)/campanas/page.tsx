@@ -9,6 +9,7 @@ import AccessDenied from '@/components/AccessDenied'
 import Automations from '@/components/campaigns/Automations'
 import { renderCampaignHtml, renderCampaignSubject, campaignVarsFor, applyVars, CAMPAIGN_VARS, type CampaignImage, type CampaignBrand } from '@/lib/campaignRender'
 import { formatDateTime } from '@/lib/utils'
+import ProfileNotice from '@/components/ProfileNotice'
 
 // Plantillas listas: llenan asunto + mensaje + botón con un clic (luego editas).
 const TEMPLATES: { icon: string; name: string; subject: string; message: string; buttonText?: string; buttonUrl?: string }[] = [
@@ -154,6 +155,8 @@ export default function CampanasPage() {
         phone: s.agentPhone || '',
         whatsapp: s.agentWhatsApp || '',
         email: s.agentEmail || '',
+        // Para que la vista previa de {reseña} coincida con lo que se envía.
+        reviewLink: s.googleReviewLink || '',
       })
     }).catch(() => {})
     fetch('/api/clients')
@@ -411,6 +414,8 @@ export default function CampanasPage() {
           </button>
         )}
       </div>
+
+      <ProfileNotice context="Tu nombre y tu teléfono van en el pie de cada campaña que envías." />
 
       {editingId && (
         <div className="text-xs px-3 py-2 rounded-lg" style={{ background: '#fef9c3', border: '1px solid #fde68a', color: '#92400e' }}>
