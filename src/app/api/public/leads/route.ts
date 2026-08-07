@@ -9,6 +9,8 @@ import {
   rateLimited,
   type IntakeInput,
 } from '@/lib/publicIntake'
+import { sendEmail } from '@/lib/email'
+import { asuntoAviso, cuerpoAviso } from '@/lib/leadNotification'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/public/leads — entrada de prospectos desde la web pública
@@ -113,6 +115,22 @@ export async function POST(request: NextRequest) {
       // stage se queda en el valor por defecto: "Nuevo Lead (Por Contactar)"
     },
   })
+
+  // 8) Aviso al agente. El prospecto YA está guardado: si el correo falla
+  //    —SMTP mal configurado, sin red, cuenta caída— no puede tumbar la
+  //    entrada del lead ni devolverle un error al visitante.
+  try {
+    const avisar = await prisma.settings.findUnique({
+      where: { agencyId_key: { agencyId: agency.id, key: 'leadNotifyEnabled' } },
+      select: { value: true },
+    })
+    // Activado salvo que la agencia lo apague expresamente.
+    if (avisar?.value !== 'false') {
+      await sendEmail(agency.id, asuntoAviso(lead), cuerpoAviso(lead))
+    }
+  } catch (e) {
+    console.error('[public/leads] no se pudo enviar el aviso del lead:', e)
+  }
 
   return withCors(NextResponse.json({ ok: true }, { status: 201 }), origin)
 }

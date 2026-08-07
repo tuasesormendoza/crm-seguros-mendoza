@@ -535,7 +535,7 @@ export default function SettingsPage() {
         <div className="text-xs mb-4 p-3 rounded-lg" style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1' }}>
           Para Gmail: Ve a <strong>myaccount.google.com → Seguridad → Contraseñas de aplicaciones</strong> → Genera una para "Correo". Usa esa contraseña aquí, no tu contraseña principal.
         </div>
-        <form onSubmit={e => { e.preventDefault(); saveSection(['emailEnabled','emailTo','smtpHost','smtpPort','smtpUser','smtpPass'], setSavingEmail, setSavedEmail) }}
+        <form onSubmit={e => { e.preventDefault(); saveSection(['emailEnabled','leadNotifyEnabled','emailTo','smtpHost','smtpPort','smtpUser','smtpPass'], setSavingEmail, setSavedEmail) }}
           className="space-y-4">
           {/* Toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
@@ -549,6 +549,21 @@ export default function SettingsPage() {
               style={{ background: settings.emailEnabled === 'true' ? '#0891b2' : '#cbd5e1' }}>
               <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow"
                 style={{ transform: settings.emailEnabled === 'true' ? 'translateX(22px)' : 'translateX(2px)' }} />
+            </button>
+          </div>
+
+          {/* Aviso inmediato cuando entra un lead por la web */}
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+            <div>
+              <div className="text-sm font-medium text-gray-800">Avisarme de cada lead nuevo</div>
+              <div className="text-xs text-gray-500">Correo al instante cuando alguien deja sus datos en tu página web, con botones para llamar o escribir por WhatsApp</div>
+            </div>
+            <button type="button"
+              onClick={() => set('leadNotifyEnabled', settings.leadNotifyEnabled === 'false' ? 'true' : 'false')}
+              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              style={{ background: settings.leadNotifyEnabled === 'false' ? '#cbd5e1' : '#0891b2' }}>
+              <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow"
+                style={{ transform: settings.leadNotifyEnabled === 'false' ? 'translateX(2px)' : 'translateX(22px)' }} />
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

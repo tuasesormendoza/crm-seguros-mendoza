@@ -53,6 +53,8 @@ const DEFAULTS: Record<string, string> = {
   // Carpeta de Google Drive donde se guardan los respaldos diarios.
   driveBackupFolder:      'CRM Seguros - Backups',
   emailEnabled:           'false',
+  // Aviso de lead nuevo: activo salvo que se apague expresamente
+  leadNotifyEnabled:      'true',
   emailFrom:              '',
   emailTo:                '',
   smtpHost:               'smtp.gmail.com',
