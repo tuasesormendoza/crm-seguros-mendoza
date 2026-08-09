@@ -11,7 +11,7 @@ export interface SessionData {
   googleOAuthState?: string  // nonce anti-CSRF del flujo OAuth de Google Calendar
   // ── Verificación en dos pasos ──
   // Estado INTERMEDIO tras validar la contraseña: `isLoggedIn` sigue en false
-  // (el middleware bloquea todo) hasta que se verifique el código del
+  // (el proxy bloquea todo) hasta que se verifique el código del
   // autenticador. `pendingStage` distingue si falta verificar o registrar 2FA.
   pendingUserId?: string
   pendingStage?: 'verify' | 'enroll'

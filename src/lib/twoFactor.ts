@@ -2,7 +2,7 @@
 // Verificación en dos pasos (2FA) — helpers compartidos por las rutas de login.
 //
 // Flujo: contraseña correcta → sesión INTERMEDIA (isLoggedIn=false, el
-// middleware sigue bloqueando) → código del autenticador → sesión completa.
+// proxy sigue bloqueando) → código del autenticador → sesión completa.
 // El paso intermedio caduca a los 10 minutos.
 // ─────────────────────────────────────────────────────────────────────────────
 

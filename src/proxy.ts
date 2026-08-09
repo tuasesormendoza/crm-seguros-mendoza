@@ -21,9 +21,9 @@ function opcionesCookie() {
 
 // Paths that do NOT require authentication
 // OJO: una ruta declarada como pública en PUBLIC_ROUTES (src/lib/tenancy.test.ts)
-// también tiene que estar aquí, o este middleware la bloqueará con 401 antes de
+// también tiene que estar aquí, o este proxy la bloqueará con 401 antes de
 // que su código llegue a ejecutarse. El test "las rutas públicas atraviesan el
-// middleware" comprueba que las dos listas no se desincronicen.
+// proxy" comprueba que las dos listas no se desincronicen.
 const PUBLIC_PATHS = [
   '/login', '/api/auth', '/api/ping', '/api/theme', '/encuesta', '/api/survey', '/api/logo',
   '/api/google/sync-cron',
@@ -33,10 +33,10 @@ const PUBLIC_PATHS = [
   '/api/public',               // entrada de leads desde la web de la agencia
 ]
 
-// Static assets — skip middleware entirely
+// Recursos estáticos: el proxy no se ejecuta para ellos
 const STATIC_REGEX = /^\/_next\/|^\/favicon\.ico|^\/logo\.png|^\/icons\//
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Skip static assets

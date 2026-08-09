@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
 
   // ── Contraseña correcta → falta el SEGUNDO PASO (2FA obligatorio) ─────────
   // No se crea la sesión todavía: queda en estado intermedio (isLoggedIn=false),
-  // así el middleware sigue bloqueando el CRM hasta verificar el código.
+  // así el proxy sigue bloqueando el CRM hasta verificar el código.
   await clearAttempts(ip)
   const session = await getSession()
 
