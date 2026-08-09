@@ -180,7 +180,7 @@ export default function LoginPage() {
               {expirada && !error && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0.6rem 0.875rem', borderRadius:10, background:'rgba(37,99,235,0.08)', color:'#1d4ed8', fontSize:'0.8rem', border:'1px solid rgba(37,99,235,0.20)' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  Tu sesión caducó por inactividad. Vuelve a entrar y sigues donde estabas.
+                  Tu sesión caducó por inactividad. Vuelve a entrar para continuar.
                 </div>
               )}
 
