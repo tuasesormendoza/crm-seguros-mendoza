@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import TwoFactorStep from '@/components/auth/TwoFactorStep'
 
@@ -10,9 +10,19 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // El proxy añade ?expirada=1 cuando echa a alguien que estaba dentro.
+  // Sin este aviso, la pantalla de login aparece de la nada y parece que
+  // la aplicación se hubiera cerrado sola.
+  const [expirada, setExpirada] = useState(false)
   // Paso del inicio de sesión: contraseña → segundo factor (verificar o registrar).
   const [step, setStep] = useState<'password' | 'verify' | 'enroll'>('password')
   const router = useRouter()
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('expirada') === '1') {
+      setExpirada(true)
+    }
+  }, [])
 
   function enter() {
     router.push('/')
@@ -166,6 +176,13 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              {expirada && !error && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0.6rem 0.875rem', borderRadius:10, background:'rgba(37,99,235,0.08)', color:'#1d4ed8', fontSize:'0.8rem', border:'1px solid rgba(37,99,235,0.20)' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Tu sesión caducó por inactividad. Vuelve a entrar y sigues donde estabas.
+                </div>
+              )}
 
               {error && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0.6rem 0.875rem', borderRadius:10, background:'rgba(220,38,38,0.08)', color:'#dc2626', fontSize:'0.8rem', border:'1px solid rgba(220,38,38,0.20)' }}>
