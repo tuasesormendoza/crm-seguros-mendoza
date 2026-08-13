@@ -35,6 +35,11 @@ test('con invalid_grant se explica QUÉ hacer, no solo el error crudo', () => {
   }, NOW)
   assert.strictEqual(h.state, 'failed')
   assert.ok(h.message.includes('Desconectar'), 'debe decirle al agente que reconecte Google')
+  // Reconectar sin más solo compra otra semana: pasó el 10/07 y otra vez el
+  // 13/08, con ~7 días desde cada conexión. El aviso debe mandar a revisar
+  // primero si la app sigue en modo "Prueba", que es la causa de fondo.
+  assert.ok(h.message.includes('En producción'), 'debe mandar a revisar el estado de publicación')
+  assert.ok(h.message.includes('7 días'), 'debe explicar el patrón que delata la causa')
 })
 
 test('un respaldo bueno pero viejo también es alarma', () => {

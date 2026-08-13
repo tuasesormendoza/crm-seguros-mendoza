@@ -74,7 +74,11 @@ export function backupHealth(last: LastBackup | null, now: Date = new Date()): B
       state: 'failed', hoursAgo, alarm: true,
       message: `El último intento de respaldo falló (${human(hoursAgo)}). ${
         (last.error || '').includes('invalid_grant')
-          ? 'El permiso de Google caducó: ve a Configuración → Integraciones y Respaldo, pulsa "Desconectar" y vuelve a conectar.'
+          // Ya pasó dos veces con ~7 días de diferencia, que es justo lo que
+          // dura un permiso cuando la app sigue en modo "Prueba" en Google.
+          // Reconectar sin arreglar eso solo compra otra semana, así que el
+          // aviso manda a revisar las dos cosas, en orden.
+          ? 'El permiso de Google caducó. Si esto se repite cada ~7 días, la causa es que tu app sigue en modo "Prueba": entra a Google Cloud Console → Google Auth Platform → Público y comprueba que el Estado de publicación diga "En producción". Después, en Configuración → Integraciones y Respaldo, pulsa "Desconectar" y vuelve a conectar.'
           : last.error || 'Sin detalle del error.'
       }`,
     }
