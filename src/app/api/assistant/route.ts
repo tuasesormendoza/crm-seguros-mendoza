@@ -4,6 +4,7 @@ import { getAuth } from '@/lib/auth'
 import { DEFAULT_RATES } from '@/lib/commissions'
 import { getPlatformSetting } from '@/lib/platform'
 import { ACA_KNOWLEDGE } from '@/lib/acaKnowledge'
+import { EDE_CR109 } from '@/lib/edeCr109'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Asistente virtual del CRM — POST /api/assistant
@@ -566,8 +567,11 @@ export async function POST(request: NextRequest) {
     auth.role === 'assistant' ? 'IMPORTANTE: este usuario tiene rol Asistente y NO puede ver comisiones.' : '',
     '',
     CRM_GUIDE,
+    'CAMBIO EDE CR 109 (identidad y autorización del agente): entra en vigor el 12/10/2026, antes del OEP 2027, y cambia cómo el agente inscribe. Si el agente pregunta por inscripciones, consentimiento, autorización, verificación de identidad, llamadas a tres, el Call Center o cómo prepararse para la Inscripción Abierta de 2027, usa el bloque EDE CR 109 de abajo. Dos cosas que NUNCA debes confundir: (1) la autorización del agente NO sustituye al consentimiento del cliente, son obligaciones distintas y el consentimiento va primero; (2) esto es del Mercado FEDERAL — Georgia tiene mercado propio, así que si el agente trabaja Georgia dile que lo confirme con Georgia Access en vez de darlo por hecho.',
     '',
     ACA_KNOWLEDGE,
+    '',
+    EDE_CR109,
   ].filter(Boolean).join('\n')
 
   const tools = auth.role === 'assistant'
