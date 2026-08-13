@@ -3,7 +3,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { backupHealth, STALE_HOURS } from './backupHealth.ts'
+import { backupHealth, shouldAutoBackup, STALE_HOURS, AUTO_AFTER_HOURS, RETRY_AFTER_MIN } from './backupHealth.ts'
 
 const NOW = new Date('2026-08-05T20:00:00Z')
 const hoursBefore = (h: number) => new Date(NOW.getTime() - h * 36e5).toISOString()
@@ -54,4 +54,48 @@ test('el límite de antigüedad se respeta en ambos lados', () => {
 test('una fecha corrupta no se toma por buena', () => {
   const h = backupHealth({ at: 'no es una fecha', ok: true }, NOW)
   assert.strictEqual(h.alarm, true)
+})
+
+// ── Respaldo automático disparado por la propia app ─────────────────────────
+// Existe porque la tarea programada de Netlify aparece activa pero no produce
+// respaldos. Estas reglas son las que garantizan que igual haya copia diaria.
+
+const minsBefore = (m: number) => new Date(NOW.getTime() - m * 60_000).toISOString()
+
+test('si nunca se respaldó, se dispara', () => {
+  assert.strictEqual(shouldAutoBackup(null, null, NOW), true)
+})
+
+test('si el último es reciente y correcto, NO se dispara', () => {
+  assert.strictEqual(shouldAutoBackup({ at: hoursBefore(2), ok: true }, null, NOW), false)
+})
+
+test('pasadas las horas del umbral, se dispara', () => {
+  assert.strictEqual(shouldAutoBackup({ at: hoursBefore(AUTO_AFTER_HOURS - 1), ok: true }, null, NOW), false)
+  assert.strictEqual(shouldAutoBackup({ at: hoursBefore(AUTO_AFTER_HOURS + 1), ok: true }, null, NOW), true)
+})
+
+test('si el último intento FALLÓ, se reintenta sin esperar al umbral', () => {
+  assert.strictEqual(shouldAutoBackup({ at: hoursBefore(1), ok: false, error: 'x' }, null, NOW), true)
+})
+
+test('el freno impide martillear a Google cuando el respaldo está fallando', () => {
+  // Un intento hace 5 minutos: aunque toque, se espera.
+  const fallando = { at: hoursBefore(1), ok: false, error: 'x' }
+  assert.strictEqual(shouldAutoBackup(fallando, minsBefore(5), NOW), false)
+  assert.strictEqual(shouldAutoBackup(fallando, minsBefore(RETRY_AFTER_MIN + 1), NOW), true)
+})
+
+test('el freno también aplica cuando simplemente toca por antigüedad', () => {
+  const viejo = { at: hoursBefore(30), ok: true }
+  assert.strictEqual(shouldAutoBackup(viejo, minsBefore(1), NOW), false)
+  assert.strictEqual(shouldAutoBackup(viejo, minsBefore(RETRY_AFTER_MIN + 1), NOW), true)
+})
+
+test('una fecha corrupta se resuelve respaldando, no ignorando', () => {
+  assert.strictEqual(shouldAutoBackup({ at: 'no es fecha', ok: true }, null, NOW), true)
+})
+
+test('un lastAttempt corrupto no bloquea el respaldo para siempre', () => {
+  assert.strictEqual(shouldAutoBackup(null, 'basura', NOW), true)
 })

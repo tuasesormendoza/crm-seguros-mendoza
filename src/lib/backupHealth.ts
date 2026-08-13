@@ -15,6 +15,15 @@
 /** Horas sin un respaldo correcto a partir de las cuales se avisa. */
 export const STALE_HOURS = 48
 
+/** A partir de estas horas sin respaldo, la propia app lo dispara. */
+export const AUTO_AFTER_HOURS = 20
+
+/**
+ * Espera mínima entre intentos automáticos. Evita que, si el respaldo está
+ * fallando, cada carga del panel lance uno nuevo y se martillee a Google.
+ */
+export const RETRY_AFTER_MIN = 30
+
 export interface LastBackup {
   at: string
   ok: boolean
@@ -82,4 +91,37 @@ export function backupHealth(last: LastBackup | null, now: Date = new Date()): B
     state: 'ok', hoursAgo, alarm: false,
     message: `Último respaldo ${human(hoursAgo)}.`,
   }
+}
+
+/**
+ * ¿Debe la propia aplicación disparar el respaldo ahora?
+ *
+ * La tarea programada de Netlify aparece como activa pero no está surtiendo
+ * efecto: entre el 05/08 y el 13/08/2026 no produjo ni un respaldo (todos los
+ * que hay son de pulsar el botón a mano). Un respaldo que depende de una sola
+ * pieza que puede fallar en silencio no es un respaldo.
+ *
+ * Así que el CRM también lo dispara solo: cuando el agente entra y ve que ya
+ * toca, se hace. Como usa el CRM a diario, hay copia a diario aunque la tarea
+ * programada nunca se arregle.
+ *
+ * `lastAttempt` es el último INTENTO (salga bien o mal) y sirve de freno: sin
+ * él, con el respaldo fallando, cada carga del panel lanzaría otro intento.
+ */
+export function shouldAutoBackup(
+  last: LastBackup | null,
+  lastAttempt: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (lastAttempt) {
+    const t = new Date(lastAttempt)
+    if (!isNaN(t.getTime()) && now.getTime() - t.getTime() < RETRY_AFTER_MIN * 60_000) return false
+  }
+
+  if (!last?.at) return true              // nunca se ha respaldado
+  const at = new Date(last.at)
+  if (isNaN(at.getTime())) return true    // fecha corrupta: mejor respaldar
+  if (!last.ok) return true               // el último falló; se reintenta (con el freno de arriba)
+
+  return (now.getTime() - at.getTime()) / 36e5 >= AUTO_AFTER_HOURS
 }

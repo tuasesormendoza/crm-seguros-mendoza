@@ -205,6 +205,15 @@ export default function Dashboard() {
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(setData)
       .catch(() => setLoadError(true))
+    // Respaldo automático de reserva. La tarea programada de Netlify aparece
+    // como activa pero no produce respaldos, así que el CRM también lo dispara
+    // solo cuando ya toca. El servidor decide si hace falta; aquí no se espera
+    // la respuesta para no retrasar el panel, y si falla se ignora: el aviso
+    // rojo de arriba ya se encarga de que el agente se entere.
+    fetch('/api/google/backup/auto', { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.ran && d.ok) fetch('/api/dashboard').then(r => r.json()).then(setData).catch(() => {}) })
+      .catch(() => {})
     // Datos secundarios: si fallan, el dashboard funciona con los valores por defecto
     fetch('/api/goals').then(r => r.json()).then(d => {
       if (d.goals) { setGoals(d.goals); setGoalsProgress(d.progress) }

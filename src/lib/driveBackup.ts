@@ -90,6 +90,18 @@ export async function backupAgencies(agencyId?: string): Promise<{ agencies: num
     if (acct.agencyId && !byAgency.has(acct.agencyId)) byAgency.set(acct.agencyId, acct)
   }
 
+  // Marca de INTENTO, antes de tocar Google. Sirve de freno para el respaldo
+  // automático que dispara la propia app: si esto falla, sin la marca cada
+  // carga del panel lanzaría otro intento contra Google.
+  for (const acct of byAgency.values()) {
+    if (!acct.agencyId) continue
+    await prisma.settings.upsert({
+      where: { agencyId_key: { agencyId: acct.agencyId, key: 'driveLastAttempt' } },
+      create: { agencyId: acct.agencyId, key: 'driveLastAttempt', value: new Date().toISOString() },
+      update: { value: new Date().toISOString() },
+    }).catch(() => {})
+  }
+
   const results: AgencyBackupResult[] = []
   for (const acct of byAgency.values()) {
     try {
