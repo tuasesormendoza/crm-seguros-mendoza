@@ -21,7 +21,7 @@ const RESULT_MESSAGES: Record<string, { text: string; ok: boolean }> = {
   connected: { text: '✅ Google Calendar conectado correctamente.', ok: true },
   denied:    { text: 'Cancelaste la autorización de Google.', ok: false },
   error:     { text: '❌ Hubo un error al conectar con Google. Intenta de nuevo.', ok: false },
-  badstate:  { text: '❌ La sesión de autorización expiró. Intenta de nuevo.', ok: false },
+  badstate:  { text: '❌ La autorización tardó demasiado o se abrió desde una pestaña vieja. Pulsa "Conectar Google Calendar" y completa la pantalla de Google sin salir ni recargar.', ok: false },
   norefresh: { text: '⚠️ Google no envió el permiso de largo plazo. Quita el acceso en tu cuenta de Google y vuelve a conectar.', ok: false },
   noconfig:  { text: '⚠️ Falta configurar las credenciales de Google en el servidor.', ok: false },
 }

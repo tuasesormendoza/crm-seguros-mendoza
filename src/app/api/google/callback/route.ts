@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuth } from '@/lib/auth'
-import { getSession } from '@/lib/session'
+import { verifyOAuthState } from '@/lib/oauthState'
 import { encrypt } from '@/lib/encrypt'
 import { exchangeCodeForTokens, fetchGoogleEmail } from '@/lib/google'
 
@@ -20,14 +20,9 @@ export async function GET(request: NextRequest) {
 
   const code = searchParams.get('code')
   const state = searchParams.get('state')
-  const session = await getSession()
-  const expectedState = session.googleOAuthState
 
-  // Limpiar el state de un solo uso pase lo que pase
-  session.googleOAuthState = undefined
-  await session.save()
-
-  if (!code || !state || !expectedState || state !== expectedState) {
+  // El state se verifica por su FIRMA, sin depender de la cookie de sesión.
+  if (!code || !verifyOAuthState(state, process.env.SESSION_SECRET || '')) {
     return NextResponse.redirect(settingsUrl('badstate'))
   }
 

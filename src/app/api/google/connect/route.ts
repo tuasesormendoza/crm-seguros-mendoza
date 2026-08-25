@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { randomBytes } from 'crypto'
 import { getAuth } from '@/lib/auth'
-import { getSession } from '@/lib/session'
 import { googleConfigured, buildAuthUrl } from '@/lib/google'
+import { createOAuthState } from '@/lib/oauthState'
 
-// Inicia el flujo OAuth: guarda un state anti-CSRF en la sesión y redirige a la
-// pantalla de consentimiento de Google.
+// Inicia el flujo OAuth y redirige a la pantalla de consentimiento de Google.
+//
+// El "state" anti-CSRF va FIRMADO (ver src/lib/oauthState.ts), no guardado en
+// la sesión: antes cada clic en "Conectar" pisaba el state anterior y el
+// agente acababa viendo "La sesión de autorización expiró" sin haber hecho
+// nada mal.
 export async function GET(request: NextRequest) {
   const auth = await getAuth()
   if (auth instanceof NextResponse) return auth
@@ -14,10 +17,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/settings?google=noconfig', request.url))
   }
 
-  const state = randomBytes(16).toString('hex')
-  const session = await getSession()
-  session.googleOAuthState = state
-  await session.save()
-
+  const state = createOAuthState(process.env.SESSION_SECRET || '')
   return NextResponse.redirect(buildAuthUrl(request.nextUrl.origin, state))
 }

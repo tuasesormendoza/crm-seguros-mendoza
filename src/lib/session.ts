@@ -8,7 +8,6 @@ export interface SessionData {
   name?: string
   role?: string
   agencyId?: string  // Inquilino (agencia) al que pertenece el usuario — multi-tenant
-  googleOAuthState?: string  // nonce anti-CSRF del flujo OAuth de Google Calendar
   // ── Verificación en dos pasos ──
   // Estado INTERMEDIO tras validar la contraseña: `isLoggedIn` sigue en false
   // (el proxy bloquea todo) hasta que se verifique el código del
