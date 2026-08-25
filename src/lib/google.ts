@@ -38,11 +38,16 @@ function credentials() {
   return { clientId, clientSecret }
 }
 
-// La URI de redirección se deriva del origen de la petición para que funcione
-// igual en local (localhost:3000) y en producción (Netlify). DEBE coincidir
-// exactamente con una de las URIs registradas en Google Cloud.
+// La URI de redirección DEBE coincidir EXACTAMENTE con la registrada en Google
+// Cloud, y Google la compara dos veces: al pedir el consentimiento y al canjear
+// el código. Antes se derivaba del origen de la petición, pero detrás del proxy
+// de Netlify ese origen puede resolver a una dirección interna distinta del
+// dominio público → "Error 400: redirect_uri_mismatch". Por eso en producción
+// manda la URL canónica del sitio (Netlify la expone en URL) y el origen de la
+// petición queda solo como respaldo para el desarrollo local.
 export function redirectUri(origin: string): string {
-  return `${origin}/api/google/callback`
+  const base = process.env.APP_BASE_URL || process.env.URL || origin
+  return `${base.replace(/\/+$/, '')}/api/google/callback`
 }
 
 // URL a la que enviamos al usuario para que autorice el acceso.
