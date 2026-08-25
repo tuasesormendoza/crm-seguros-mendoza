@@ -1,5 +1,6 @@
 import Sidebar from '@/components/Sidebar'
 import AssistantChat from '@/components/AssistantChat'
+import AutoCron from '@/components/AutoCron'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
       {/* Asistente virtual — vive en el layout para conservar la conversación al navegar */}
       <AssistantChat />
+      {/* Tareas periódicas disparadas por el uso (Netlify no las corre) */}
+      <AutoCron />
     </div>
   )
 }
