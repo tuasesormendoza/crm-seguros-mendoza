@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '@/lib/prisma'
+import { isAuthBroken } from '@/lib/googleAuthState'
 import { encrypt, decrypt } from '@/lib/encrypt'
 
 // Permisos solicitados:
@@ -124,6 +125,29 @@ type GoogleAccountRow = {
   expiresAt: Date
 }
 
+export { isAuthBroken }
+
+// La conexión rota se apunta en Settings para poder MOSTRARLA. Antes la
+// pantalla decía "✅ Conectado" mientras el respaldo llevaba semanas fallando:
+// existía la fila en la base de datos, pero el permiso estaba muerto.
+async function setAuthBroken(accountId: string, error: string | null): Promise<void> {
+  const acct = await prisma.googleAccount.findUnique({
+    where: { id: accountId }, select: { agencyId: true },
+  })
+  if (!acct?.agencyId) return
+  const key = 'googleAuthBroken'
+  if (error) {
+    const value = JSON.stringify({ at: new Date().toISOString(), error: error.slice(0, 300) })
+    await prisma.settings.upsert({
+      where: { agencyId_key: { agencyId: acct.agencyId, key } },
+      create: { agencyId: acct.agencyId, key, value },
+      update: { value },
+    }).catch(() => {})
+  } else {
+    await prisma.settings.deleteMany({ where: { agencyId: acct.agencyId, key } }).catch(() => {})
+  }
+}
+
 // Devuelve un access token válido para la cuenta indicada, refrescándolo y
 // persistiéndolo si está por expirar (margen de 60s). Los tokens en la BD están
 // cifrados; aquí se descifran para usarlos y el nuevo se vuelve a cifrar.
@@ -135,7 +159,16 @@ export async function getValidAccessToken(account: GoogleAccountRow): Promise<st
   }
   const refresh = decrypt(account.refreshToken)
   if (!refresh) throw new Error('No hay refresh token válido; reconecta Google Calendar.')
-  const refreshed = await refreshAccessToken(refresh)
+  let refreshed: TokenResponse
+  try {
+    refreshed = await refreshAccessToken(refresh)
+  } catch (err) {
+    // Solo se marca cuando Google rechaza el permiso en sí. Un corte de red o
+    // un 500 pasajero no deben pintar la conexión como rota.
+    if (isAuthBroken(err)) await setAuthBroken(account.id, err instanceof Error ? err.message : String(err))
+    throw err
+  }
+  await setAuthBroken(account.id, null)   // funcionó: se limpia la marca
   const expiresAt = new Date(Date.now() + refreshed.expires_in * 1000)
   await prisma.googleAccount.update({
     where: { id: account.id },

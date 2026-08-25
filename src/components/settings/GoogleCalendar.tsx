@@ -10,6 +10,10 @@ interface Status {
   configured: boolean
   connected: boolean
   email: string | null
+  // Existe la conexión pero Google ya no acepta el permiso de largo plazo.
+  // Sin esto la pantalla decía "✅ Conectado" con el respaldo llevando dos
+  // semanas fallando, que es la peor forma de informar: parece que todo va bien.
+  authBroken?: { at: string; error: string } | null
 }
 
 // Mensajes de retorno del flujo OAuth (?google=... en la URL)
@@ -150,9 +154,14 @@ export default function GoogleCalendar() {
         </div>
       ) : status.connected ? (
         <div>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border" style={{ background: '#f0fdf4', borderColor: '#a7f3d0' }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border"
+            style={status.authBroken
+              ? { background: '#fef2f2', borderColor: '#fecaca' }
+              : { background: '#f0fdf4', borderColor: '#a7f3d0' }}>
             <div>
-              <div className="text-sm font-semibold" style={{ color: '#065f46' }}>✅ Conectado</div>
+              <div className="text-sm font-semibold" style={{ color: status.authBroken ? '#991b1b' : '#065f46' }}>
+                {status.authBroken ? '⚠️ Conexión caducada' : '✅ Conectado'}
+              </div>
               {status.email && <div className="text-xs text-gray-500 mt-0.5">{status.email}</div>}
             </div>
             <div className="flex gap-2">
@@ -169,6 +178,15 @@ export default function GoogleCalendar() {
             </div>
           </div>
           {syncMsg && <p className="text-xs mt-2" style={{ color: syncMsg.startsWith('✅') ? '#065f46' : syncMsg.startsWith('⚠️') ? '#92400e' : '#b91c1c' }}>{syncMsg}</p>}
+          {status.authBroken && (
+            <div className="mt-3 px-3 py-2.5 rounded-lg text-xs"
+              style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
+              <strong>Google dejó de aceptar el permiso.</strong> Ni el respaldo ni la sincronización del calendario funcionan hasta reconectar.
+              <div className="mt-1.5" style={{ color: '#b91c1c' }}>
+                Si esto se repite cada ~7 días, primero arregla la causa: en Google Cloud Console → Google Auth Platform → <strong>Público</strong>, el Estado de publicación debe decir <strong>&quot;En producción&quot;</strong>, no &quot;Prueba&quot;. Después pulsa <strong>Desconectar</strong> aquí arriba y vuelve a conectar.
+              </div>
+            </div>
+          )}
           <p className="text-xs text-gray-400 mt-2">
             Tus citas y eventos del CRM se envían a Google al instante. Los eventos que creas en Google llegan al CRM cada pocos minutos (o al presionar &quot;Sincronizar ahora&quot;).
           </p>
