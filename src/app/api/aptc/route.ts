@@ -293,7 +293,11 @@ export async function POST(request: NextRequest) {
       } else {
         const errBody = await silverRes.text()
         if (silverRes.status === 401 || silverRes.status === 403) {
-          cmsError = 'API Key inválida o expirada. Verifica la key en Configuración.'
+          // Desde el 26/10/2026 CMS rota las llaves cada 60 días y manda la
+          // nueva por correo (aviso oficial del 26/08/2026). Cuando esta llave
+          // caduque, este será el error: el mensaje debe decir dónde está la
+          // nueva y dónde pegarla, no solo que falló.
+          cmsError = 'El Marketplace (CMS) rechazó la API Key. CMS rota las llaves cada 60 días y envía la nueva por correo (remitente cms.hhs.gov, asunto sobre "API Key"): busca ese correo, copia la llave nueva y pégala en Configuración → Cálculos y AI → CMS API Key. Mientras tanto se muestra un estimado.'
         } else if (silverRes.status === 404) {
           cmsError = `ZIP code ${zipcode} no encontrado en el Marketplace federal`
         } else if (/effective date/i.test(errBody)) {
