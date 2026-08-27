@@ -49,7 +49,7 @@ GUÍA DEL CRM (menú lateral izquierdo). Usa los nombres EXACTOS de secciones y 
   REGISTRAR UN CLIENTE: botón "+ Nuevo Cliente" (arriba a la derecha) → llenar Datos Personales (incluye Estatus Migratorio con categorías del Marketplace: Ciudadano, Residente Permanente, Asilo, TPS, DACA, Sin estatus, etc.), Dirección, Póliza ACA (aseguradora, plan, Precio ACA, Crédito Fiscal Otorgado), Dependientes (botón "+ Agregar dependiente"), Washington National si aplica, datos bancarios y portal → "Guardar".
   VER/EDITAR: clic en el nombre del cliente → su perfil tiene botón Editar y estas secciones:
    - Citas Médicas: agenda la cita del cliente con su médico primario o especialista (fecha/hora, nombre del médico y dirección del consultorio). Cada cita trae un botón "💬 Confirmar por WhatsApp" que le envía al cliente la fecha, el médico y la dirección.
-   - Actividades: registra interacciones — tipos: Nota, Llamada, Mensaje de Texto, WhatsApp, Email, Documento, Reunión, Otro.
+   - Actividades: registra interacciones — tipos: Nota, Llamada, Mensaje de Texto, WhatsApp, Email, Documento, Reunión, Pago, Otro.
    - Documentos: sube archivos por categoría (Identificación, Póliza, Banco, Email, Factura Médica, etc.).
    - Washington National: además del tipo y monto de cada póliza, guarda el Número de Póliza por tipo y el Día de cobro de la mensualidad.
    - Google Review: la barra de etapas es TOCABLE — toca la etapa (Pendiente → Enviada → Esperando al cliente → Realizada) para actualizar el avance al instante, sin entrar a Editar.
