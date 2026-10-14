@@ -120,6 +120,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     loadClient(clientId!)
   }
 
+  const handleUpdateAgentAuth = async (status: string | null, year: number) => {
+    const authDate = status === 'autorizada' ? new Date().toISOString() : null
+    setClient(c => c ? { ...c, agentAuthStatus: status, agentAuthYear: year, agentAuthDate: authDate } : c)
+    await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentAuthStatus: status, agentAuthYear: year, agentAuthDate: authDate }),
+    }).catch(() => loadClient(clientId!))
+  }
+
   const handleUpdateGoogleReview = async (stage: string) => {
     // Actualización optimista: la etapa cambia al instante al tocarla.
     setClient(c => c ? { ...c, googleReview: stage } : c)
@@ -891,6 +900,71 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               </div>
             )}
           </Section>
+
+          {/* CMS Agent Authorization — required since Oct 12 2026 for all agent-driven ACA enrollments */}
+          {(() => {
+            const AUTH_YEAR = 2027
+            const st = client.agentAuthStatus
+            const yr = client.agentAuthYear
+            const dt = client.agentAuthDate
+            const isCurrent = yr === AUTH_YEAR
+
+            const badge = isCurrent && st === 'autorizada'
+              ? { label: 'Autorizada ✓', bg: '#dcfce7', color: '#166534' }
+              : isCurrent && st === 'solicitada'
+              ? { label: 'Solicitada ⏳', bg: '#fef9c3', color: '#854d0e' }
+              : { label: 'No iniciada', bg: '#f1f5f9', color: '#64748b' }
+
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <h2 className="font-semibold text-base" style={{ color: '#10253f' }}>
+                    🔐 Autorización CMS — AY {AUTH_YEAR}
+                  </h2>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: badge.bg, color: badge.color }}>
+                    {badge.label}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                  Desde el 12 de octubre de 2026, CMS exige autorización del agente para toda inscripción ACA. La autorización se envía por texto o correo al cliente desde HealthSherpa y es válida por un año de plan.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(!isCurrent || st !== 'autorizada') && (
+                    <>
+                      <button
+                        onClick={() => handleUpdateAgentAuth('solicitada', AUTH_YEAR)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        style={{ background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' }}
+                      >
+                        ⏳ Marcar como Solicitada
+                      </button>
+                      <button
+                        onClick={() => handleUpdateAgentAuth('autorizada', AUTH_YEAR)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}
+                      >
+                        ✅ Marcar como Autorizada
+                      </button>
+                    </>
+                  )}
+                  {isCurrent && st && (
+                    <button
+                      onClick={() => handleUpdateAgentAuth(null, AUTH_YEAR)}
+                      className="text-xs px-3 py-1.5 rounded-lg"
+                      style={{ background: '#f8fafc', color: '#94a3b8', border: '1px solid #e2e8f0' }}
+                    >
+                      Reiniciar
+                    </button>
+                  )}
+                </div>
+                {isCurrent && st === 'autorizada' && dt && (
+                  <p className="text-xs text-gray-400 mt-3">
+                    Autorizada el {new Date(dt).toLocaleDateString('es-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Google Review Timeline */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">

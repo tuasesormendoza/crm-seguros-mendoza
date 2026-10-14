@@ -84,6 +84,9 @@ function parseClientData(d: Record<string, unknown>) {
     tags: Array.isArray(d.tags) ? JSON.stringify(d.tags) : (d.tags as string || null),
     applicantInPolicy: d.applicantInPolicy != null ? Boolean(d.applicantInPolicy) : null,
     applicantExclusionReason: d.applicantExclusionReason as string || null,
+    agentAuthStatus: d.agentAuthStatus as string || null,
+    agentAuthYear: d.agentAuthYear ? parseInt(d.agentAuthYear as string) : null,
+    agentAuthDate: d.agentAuthDate ? new Date(d.agentAuthDate as string) : null,
   }
 }
 

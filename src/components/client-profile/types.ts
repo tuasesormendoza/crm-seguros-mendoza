@@ -95,6 +95,7 @@ export interface Client {
   firstPaymentPaid?: boolean | null; firstPaymentDate?: string | null
   tags?: string | null
   applicantInPolicy?: boolean | null; applicantExclusionReason?: string | null
+  agentAuthStatus?: string | null; agentAuthYear?: number | null; agentAuthDate?: string | null
   dependents: { id: string; type: string; name?: string | null; birthDate?: string | null; ssn?: string | null; inPolicy?: boolean | null; coverageNote?: string | null }[]
   appointments: Appointment[]
 }

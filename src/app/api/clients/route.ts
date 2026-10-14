@@ -111,7 +111,8 @@ const LIST_SELECT = {
   id: true, fullName: true, email: true, phone: true, state: true,
   insurer: true, planCategory: true, coverageType: true, totalMonthly: true,
   status: true, renewalDate: true, affiliatesCount: true, tags: true, wnPolicies: true,
-  cancellationDate: true,
+  cancellationDate: true, sherpaUrl: true,
+  agentAuthStatus: true, agentAuthYear: true, agentAuthDate: true,
 } as const
 
 const SORT_FIELDS = ['fullName', 'state', 'insurer', 'totalMonthly', 'renewalDate', 'status']
@@ -146,6 +147,7 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state') || ''
   const tag = searchParams.get('tag') || ''
   const wn = searchParams.get('wn') || '' // 'con' | 'sin'
+  const auth2027 = searchParams.get('auth2027') || '' // 'sin' | 'pendiente' | 'autorizada'
 
   // Filtro unificado (se aplica tanto a la lista paginada como al arreglo).
   const where = {
@@ -164,6 +166,10 @@ export async function GET(request: NextRequest) {
       // wnPolicies con al menos una póliza con "type" = tiene Washington National
       wn === 'con' ? { wnPolicies: { contains: '"type"' } } : {},
       wn === 'sin' ? { OR: [{ wnPolicies: null }, { NOT: { wnPolicies: { contains: '"type"' } } }] } : {},
+      // CMS agent authorization filter for PY2027
+      auth2027 === 'sin' ? { OR: [{ agentAuthYear: { not: 2027 } }, { agentAuthYear: null }] } : {},
+      auth2027 === 'pendiente' ? { agentAuthStatus: 'solicitada', agentAuthYear: 2027 } : {},
+      auth2027 === 'autorizada' ? { agentAuthStatus: 'autorizada', agentAuthYear: 2027 } : {},
     ],
   }
 

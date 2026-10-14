@@ -120,6 +120,10 @@ model Client {
   tags                     String?   // JSON array e.g. ["VIP","Necesita seguimiento"]
   applicantInPolicy        Boolean?  @default(true)
   applicantExclusionReason String?
+  // CMS agent authorization (required for all agent-driven ACA enrollments since Oct 12 2026)
+  agentAuthStatus          String?   // null = no iniciada | 'solicitada' | 'autorizada'
+  agentAuthYear            Int?      // plan year for which auth is valid (e.g. 2027)
+  agentAuthDate            DateTime? // date authorization was confirmed
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 

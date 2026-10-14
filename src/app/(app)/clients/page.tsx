@@ -56,6 +56,10 @@ interface Client {
   tags: string | null
   wnPolicies: string | null
   cancellationDate: string | null
+  sherpaUrl: string | null
+  agentAuthStatus: string | null
+  agentAuthYear: number | null
+  agentAuthDate: string | null
 }
 
 type SortKey = 'fullName' | 'state' | 'insurer' | 'totalMonthly' | 'renewalDate' | 'status'
@@ -114,6 +118,7 @@ export default function ClientsPage() {
   const [stateFilter, setStateFilter] = useState('')
   const [tagFilter, setTagFilter] = useState('')
   const [wnFilter, setWnFilter] = useState('')
+  const [auth2027Filter, setAuth2027Filter] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('fullName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [recentlyCancelled, setRecentlyCancelled] = useState<Client[]>([])
@@ -140,6 +145,7 @@ export default function ClientsPage() {
     if (stateFilter) params.set('state', stateFilter)
     if (tagFilter) params.set('tag', tagFilter)
     if (wnFilter) params.set('wn', wnFilter)
+    if (auth2027Filter) params.set('auth2027', auth2027Filter)
     setLoading(true)
     fetch(`/api/clients?${params}`).then(r => r.json()).then((data) => {
       setClients(data.clients || [])
@@ -148,7 +154,7 @@ export default function ClientsPage() {
       if (Array.isArray(data.states)) setAvailableStates(data.states)
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [page, search, statusFilter, insurerFilter, stateFilter, tagFilter, wnFilter, sortKey, sortDir])
+  }, [page, search, statusFilter, insurerFilter, stateFilter, tagFilter, wnFilter, auth2027Filter, sortKey, sortDir])
 
   useEffect(() => {
     const t = setTimeout(fetchClients, 300)
@@ -156,7 +162,7 @@ export default function ClientsPage() {
   }, [fetchClients])
 
   // Volver a la página 1 cuando cambian los filtros o el orden.
-  useEffect(() => { setPage(1) }, [search, statusFilter, insurerFilter, stateFilter, tagFilter, wnFilter, sortKey, sortDir])
+  useEffect(() => { setPage(1) }, [search, statusFilter, insurerFilter, stateFilter, tagFilter, wnFilter, auth2027Filter, sortKey, sortDir])
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -234,8 +240,8 @@ export default function ClientsPage() {
             style={INPUT_STYLE}
           />
           {/* En móvil: 2 columnas parejas (la última fila a ancho completo).
-              En escritorio: los 5 filtros en una sola fila. */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+              En escritorio: los 6 filtros en dos filas. */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
               <option value="">Todos los estatus</option>
               {['Activo','Cancelado','Con otro agente','Pendiente de Pago','Renovado','En Proceso'].map(s => <option key={s}>{s}</option>)}
@@ -252,6 +258,12 @@ export default function ClientsPage() {
               <option value="">WN: Todos</option>
               <option value="con">Con Washington National</option>
               <option value="sin">Sin Washington National</option>
+            </select>
+            <select value={auth2027Filter} onChange={e => setAuth2027Filter(e.target.value)} className="w-full min-w-0" style={INPUT_STYLE}>
+              <option value="">🔐 Auth CMS: Todos</option>
+              <option value="sin">⚠️ Sin autorización PY2027</option>
+              <option value="pendiente">⏳ Autorización solicitada</option>
+              <option value="autorizada">✅ Autorizados PY2027</option>
             </select>
             <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className="w-full min-w-0 col-span-2 md:col-span-1" style={INPUT_STYLE}>
               <option value="">Todas las etiquetas</option>
@@ -318,6 +330,22 @@ export default function ClientsPage() {
                   ))}
                 </div>
               )}
+              {/* CMS Auth badge — only for active ACA clients */}
+              {c.status === 'Activo' && (() => {
+                const isAuth = c.agentAuthStatus === 'autorizada' && c.agentAuthYear === 2027
+                const isPending = c.agentAuthStatus === 'solicitada' && c.agentAuthYear === 2027
+                if (isAuth) return null
+                return (
+                  <div className="mb-2">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      style={isPending
+                        ? { background: '#fef9c3', color: '#854d0e' }
+                        : { background: '#fee2e2', color: '#991b1b' }}>
+                      {isPending ? '⏳ Auth PY2027 pendiente' : '⚠️ Sin autorización PY2027'}
+                    </span>
+                  </div>
+                )
+              })()}
               {/* Actions — stopPropagation evita que el tap en WhatsApp/teléfono
                   dispare la navegación de la tarjeta. */}
               {c.phone && (
@@ -424,16 +452,33 @@ export default function ClientsPage() {
                     {/* Estatus */}
                     <td className="px-4 py-3">
                       {c.status ? (
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          padding: '3px 10px', borderRadius: '9999px',
-                          fontSize: '.72rem', fontWeight: 600,
-                          background: STATUS_BG[c.status] || '#f1f5f9',
-                          color: STATUS_COLOR[c.status] || '#475569',
-                        }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_COLOR[c.status] || '#94a3b8', display: 'inline-block', flexShrink: 0 }} />
-                          {c.status}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '3px 10px', borderRadius: '9999px',
+                            fontSize: '.72rem', fontWeight: 600,
+                            background: STATUS_BG[c.status] || '#f1f5f9',
+                            color: STATUS_COLOR[c.status] || '#475569',
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_COLOR[c.status] || '#94a3b8', display: 'inline-block', flexShrink: 0 }} />
+                            {c.status}
+                          </span>
+                          {c.status === 'Activo' && c.agentAuthYear !== 2027 && (
+                            <span style={{ fontSize: '.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: '9999px', background: '#fee2e2', color: '#991b1b' }}>
+                              ⚠️ Sin auth
+                            </span>
+                          )}
+                          {c.status === 'Activo' && c.agentAuthStatus === 'solicitada' && c.agentAuthYear === 2027 && (
+                            <span style={{ fontSize: '.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: '9999px', background: '#fef9c3', color: '#854d0e' }}>
+                              ⏳ Auth pend.
+                            </span>
+                          )}
+                          {c.status === 'Activo' && c.agentAuthStatus === 'autorizada' && c.agentAuthYear === 2027 && (
+                            <span style={{ fontSize: '.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: '9999px', background: '#dcfce7', color: '#166534' }}>
+                              🔐 Autorizada
+                            </span>
+                          )}
+                        </div>
                       ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
 

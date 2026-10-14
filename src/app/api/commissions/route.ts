@@ -156,6 +156,13 @@ export async function GET(request: NextRequest) {
       // que al importar el estado de cuenta de una aseguradora también aparezcan
       // los clientes que se cambiaron de aseguradora a mitad de póliza.
       insurers: stints.length ? [...new Set(stints.map(s => s.insurer))] : [insurer],
+      // Tramos completos con fechas — para que el importador pueda verificar qué
+      // aseguradora tenía el cliente en el MES ESPECÍFICO del estado de cuenta.
+      stints: stints.map(s => ({
+        insurer: s.insurer,
+        startDate: s.startDate.toISOString(),
+        endDate: s.endDate ? s.endDate.toISOString() : null,
+      })),
       wnContractDate: c.wnContractDate?.toISOString() ?? null,
       wnSecondPaymentReceived: c.wnSecondPaymentReceived === true,
     }

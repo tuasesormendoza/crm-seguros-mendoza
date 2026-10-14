@@ -13,6 +13,7 @@ interface ClientRow {
   expectedForPeriod?: number
   dependentNames?: string[]
   insurers?: string[]  // actual + historial de aseguradoras
+  stints?: { insurer: string; startDate: string; endDate: string | null }[]
   wnPolicies?: string | null
   wnContractDate?: string | null
   wnSecondPaymentReceived?: boolean
@@ -68,12 +69,24 @@ export default function StatementImport({ period, clients, onApplied, onPeriodCh
     [clients]
   )
 
-  // Pool de la aseguradora seleccionada (actual + historial) — solo para mostrar
-  // qué clientes de ESA aseguradora no aparecieron en el estado de cuenta.
-  const insurerPool = useMemo(
-    () => clients.filter(c => insurersOf(c).includes(insurer)).map(c => c.id),
-    [clients, insurer]
-  )
+  // Pool de la aseguradora seleccionada — solo incluye clientes que tenían ESA
+  // aseguradora en el MES ESPECÍFICO del estado de cuenta (period-aware).
+  // Si no hay stints disponibles cae a la lista de aseguradoras históricas.
+  const insurerPool = useMemo(() => {
+    if (!period) return []
+    const [y, m] = period.split('-').map(Number)
+    const periodStart = new Date(y, m - 1, 1)
+    return clients.filter(c => {
+      if (c.stints && c.stints.length > 0) {
+        return c.stints.some(s =>
+          s.insurer === insurer &&
+          new Date(s.startDate) <= periodStart &&
+          (s.endDate === null || new Date(s.endDate) >= periodStart)
+        )
+      }
+      return insurersOf(c).includes(insurer)
+    }).map(c => c.id)
+  }, [clients, insurer, period])
 
   const periodLabel = useMemo(() => {
     const [y, m] = period.split('-').map(Number)
