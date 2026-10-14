@@ -588,7 +588,7 @@ function APTCInner() {
                       { label: 'Ingreso anual del hogar', value: fmt$(result.income) },
                       { label: `FPL para ${result.householdSize} personas (${result.year})`, value: fmt$(result.fplThreshold) },
                       { label: '% del FPL', value: `${result.fplPct.toFixed(1)}%` },
-                      { label: 'Porcentaje máximo que paga el cliente', value: `${result.applicablePct}% del ingreso` },
+                      { label: 'Porcentaje máximo que paga el cliente', value: `${Number(result.applicablePct).toFixed(2)}% del ingreso` },
                       { label: 'Máximo mensual que paga cliente', value: fmt$c(result.maxClientPayMonth) },
                       {
                         label: result.slcspPlanName
