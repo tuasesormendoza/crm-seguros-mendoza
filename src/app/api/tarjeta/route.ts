@@ -20,30 +20,34 @@ export async function POST(request: NextRequest) {
   }
 
   const prompt = `Eres un experto en seguros médicos ACA/Obamacare en los Estados Unidos.
-Del siguiente texto extraído de un brochure de plan de salud, extrae la información solicitada.
+Del siguiente texto extraído de un brochure o Summary of Benefits de un plan de salud (puede ser de HealthSherpa, Healthcare.gov u otro portal), extrae la información solicitada.
 Devuelve ÚNICAMENTE un objeto JSON válido, sin explicaciones adicionales.
 
 Campos a extraer (usa null si no se encuentra):
 {
-  "co":   "nombre de la aseguradora",
-  "pname":"nombre completo del plan",
-  "cat":  "Bronze|Silver|Gold|Platinum|Catastrophic",
-  "net":  "HMO|PPO|EPO|POS|HDHP",
-  "ref":  "Si|No",
-  "ded":  "deducible como string ej: $3,200",
-  "oop":  "desembolso máximo de bolsillo ej: $8,700",
-  "hosp": "coaseguro hospitalización ej: 20% coaseguro",
-  "pcp":  "costo médico primario ej: $0 copay",
-  "spec": "costo especialista ej: $40 copay",
-  "uc":   "costo urgent care ej: $75 copay",
-  "xray": "costo rayos X ej: $45 copay",
-  "ct":   "costo CT/PET/MRI ej: 20% coaseguro",
-  "lab":  "costo laboratorios ej: $30 copay",
-  "rx":   "costo medicinas genéricas tier 1 ej: $3 copay"
+  "co":    "nombre corto de la aseguradora (ej: Oscar, Ambetter, Molina, UnitedHealthcare)",
+  "pname": "nombre completo del plan",
+  "pid":   "ID del plan/HIOS Plan ID (ej: 16842GA0100007)",
+  "cat":   "Bronze|Silver|Gold|Platinum|Catastrophic",
+  "net":   "HMO|PPO|EPO|POS|HDHP",
+  "ref":   "Si|No — si requiere referido para ver especialista",
+  "ded":   "deducible individual in-network como string ej: $3,200 o $0",
+  "oop":   "máximo de bolsillo (out-of-pocket max) individual ej: $8,700 individual",
+  "hosp":  "costo hospitalización/admisión inpatient ej: 20% coaseguro o $500 copay",
+  "pcp":   "costo visita médico primario (Primary Care/PCP) ej: $0 copay",
+  "spec":  "costo visita especialista ej: $40 copay",
+  "uc":    "costo urgent care ej: $75 copay",
+  "xray":  "costo rayos X (Diagnostic X-ray) ej: $45 copay",
+  "ct":    "costo CT scan / PET scan / MRI ej: 20% coaseguro",
+  "lab":   "costo laboratorios (lab tests) ej: $30 copay",
+  "rx":    "costo medicamentos genéricos tier 1 ej: $3 copay"
 }
 
+Nota: si el deducible no aplica para un servicio (por ejemplo PCP $0 copay antes del deducible), usa el copay/coaseguro final.
+Para hospitalización busca "Inpatient Hospital", "Hospital Admission" o "Facility Coinsurance".
+
 TEXTO DEL BROCHURE:
-${pdfText.slice(0, 9000)}`
+${pdfText.slice(0, 12000)}`
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

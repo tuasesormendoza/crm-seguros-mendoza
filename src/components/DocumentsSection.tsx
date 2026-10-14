@@ -17,6 +17,7 @@ const CATEGORIES = [
   { value: 'Email',                  icon: '📧', color: '#0ea5e9', bg: '#e0f2fe' },
   { value: 'Factura Médica',         icon: '🧾', color: '#e11d48', bg: '#ffe4e6' },
   { value: 'ETF',                    icon: '🏧', color: '#0d9488', bg: '#ccfbf1' },
+  { value: 'Brochure',               icon: '📘', color: '#0284c7', bg: '#e0f2fe' },
   { value: 'Otro',                   icon: '📎', color: '#6b7280', bg: '#f3f4f6' },
 ]
 
@@ -40,9 +41,8 @@ interface Doc {
 }
 
 interface ExtractedFields {
-  insurer?: string; planName?: string; planCategory?: string
-  planId?: string; acaPrice?: string; ded?: string; oop?: string
-  hosp?: string; pcp?: string; spec?: string; uc?: string
+  insurer?: string; planName?: string; planCategory?: string; planId?: string
+  ded?: string; oop?: string; hosp?: string; pcp?: string; spec?: string; uc?: string
   xray?: string; ct?: string; lab?: string; rx?: string; net?: string; ref?: string
 }
 
@@ -51,6 +51,7 @@ const FIELD_MAP: { key: keyof ExtractedFields; clientKey: string; label: string;
   { key: 'insurer',       clientKey: 'insurer',       label: 'Aseguradora',               group: 'plan' },
   { key: 'planName',      clientKey: 'planName',      label: 'Nombre del Plan',           group: 'plan' },
   { key: 'planCategory',  clientKey: 'planCategory',  label: 'Categoría del Plan',        group: 'plan' },
+  { key: 'planId',        clientKey: 'planId',        label: 'ID del Plan (HIOS)',        group: 'plan' },
   { key: 'net',           clientKey: 'planNetwork',   label: 'Tipo de Red',               group: 'plan' },
   { key: 'ref',           clientKey: 'planReferral',  label: 'Referido para Especialista',group: 'plan' },
   { key: 'ded',           clientKey: 'planDeductible',label: 'Deducible',                 group: 'costs' },
@@ -307,8 +308,8 @@ export default function DocumentsSection({ clientId, onClientUpdated }: Props) {
     setNotes('')
     if (fileRef.current) fileRef.current.value = ''
 
-    // If it's a PDF and category is Póliza, offer extraction
-    if (file.type === 'application/pdf' && (category === 'Póliza' || category === 'Otro')) {
+    // Auto-extract plan benefits from PDFs categorized as Brochure, Póliza, or Otro
+    if (file.type === 'application/pdf' && (category === 'Brochure' || category === 'Póliza' || category === 'Otro')) {
       extractFromPdf(file)
     }
   }
@@ -334,6 +335,7 @@ export default function DocumentsSection({ clientId, onClientUpdated }: Props) {
             insurer:      fields.co   || undefined,
             planName:     fields.pname|| undefined,
             planCategory: fields.cat  || undefined,
+            planId:       fields.pid  || undefined,
             net:          fields.net  || undefined,
             ref:          fields.ref  || undefined,
             ded:          fields.ded  || undefined,
@@ -462,7 +464,7 @@ export default function DocumentsSection({ clientId, onClientUpdated }: Props) {
                     </div>
                     <div className="text-xs text-gray-400 mt-1">PDF, imágenes, Word, Excel · Máx. 10 MB</div>
                     <div className="text-xs mt-2 font-medium" style={{ color: '#2a6496' }}>
-                      💡 Si subes el brochure PDF del plan, se extraerá la info automáticamente
+                      💡 Categoría <strong>Brochure</strong> (o Póliza): extrae los beneficios del plan automáticamente
                     </div>
                   </>
                 )}
