@@ -33,7 +33,7 @@ const DEFAULTS: Record<string, string> = {
   marketplacePhone:       '8557886275',
   healthSherpaConsentUrl: '',
   cmsApiKey:              '',
-  fplYear:                '2026',
+  fplYear:                '2027',
   fpl1Person:             '15650',
   fplPerPerson:           '5500',
   aptcMaxPct:             '8.5',

@@ -20,6 +20,8 @@ export const SUBSIDY_TAG = 'Sin subsidio 2027'
 export const SUBSIDY_ELIGIBLE_STATUSES = [
   'Ciudadano/a americano/a',
   'Residente permanente (Green Card)',
+  'Cubano/a-Haitiano/a (Cuban-Haitian Entrant)',
+  'Migrante COFA (Micronesia/Palau/Islas Marshall)',
 ] as const
 
 export interface SubsidyCheck {

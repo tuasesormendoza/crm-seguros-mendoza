@@ -693,9 +693,13 @@ export default function ClientForm({ initialData, onSubmit, submitLabel = 'Guard
             <label className={LABEL_CLASS}>Estatus Migratorio</label>
             <select value={form.migrationStatus} onChange={e => setField('migrationStatus', e.target.value)} className={INPUT_CLASS}>
               <option value="">Seleccionar...</option>
-              <optgroup label="Elegible para ACA">
+              <optgroup label="Conserva subsidio 2027">
                 <option>Ciudadano/a americano/a</option>
                 <option>Residente permanente (Green Card)</option>
+                <option>Cubano/a-Haitiano/a (Cuban-Haitian Entrant)</option>
+                <option>Migrante COFA (Micronesia/Palau/Islas Marshall)</option>
+              </optgroup>
+              <optgroup label="Puede inscribirse — sin subsidio desde 2027">
                 <option>Asilo político</option>
                 <option>Refugiado/a</option>
                 <option>TPS (Estatus de Protección Temporal)</option>

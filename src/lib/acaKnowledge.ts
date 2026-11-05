@@ -53,6 +53,17 @@ Los subsidios ampliados (ARPA/IRA, vigentes 2021–2025) TERMINARON el 01/01/202
 • El cliente aporta MÁS de su bolsillo. La tabla del IRS va desde 2.1% del ingreso (por debajo del 133% del FPL) hasta 9.96% (entre 300% y 400%).
 Si un cliente pregunta por qué su subsidio bajó respecto al año pasado, ESTA es la razón. No es un error del agente ni de la aseguradora.
 
+REGLA DEL 01/01/2027 — APTC PARA NO CIUDADANOS
+A partir del año de plan 2027, el APTC (crédito fiscal) solo está disponible para:
+• Ciudadanos americanos (nacidos en EE.UU. o naturalizados)
+• Residentes permanentes legales (Green Card / LPR)
+• Inmigrantes cubanos y haitianos con estatus de "entrant" (Cuban/Haitian Entrant)
+• Migrantes de las Islas del Pacífico bajo el Acuerdo de Libre Asociación (COFA: Micronesia, Palau, Islas Marshall)
+Todos los demás estatus "lawfully present" — TPS, DACA, asilo político, refugiados, Parole humanitario, EAD, visas de trabajo o estudiante, VAWA, Visa U/T — PUEDEN inscribirse en un plan del Marketplace, pero pagan el PRECIO COMPLETO sin subsidio.
+El gobierno verifica el estatus a través del sistema SAVE del DHS.
+Si el agente tiene un cliente afectado: explicarle que sigue teniendo cobertura disponible pero a precio completo, y evaluar si Medicaid u otra opción aplica según su estado.
+El CRM ya detecta estos casos en la ficha del cliente y muestra el aviso automáticamente.
+
 RANGOS DE INGRESO PARA CALIFICAR
 El subsidio va, en general, del 100% al 400% del FPL. NO cites cifras en dólares de memoria: el FPL cambia cada enero y el CRM tiene los valores exactos configurados. Manda siempre al agente a la Calculadora APTC (menú: Calc. APTC), que usa los valores oficiales y da el número real. Si entra desde la ficha del cliente, se llena sola con sus datos.
 
@@ -72,7 +83,7 @@ QUIÉN NO PUEDE USAR LOS SUBSIDIOS (aunque sí pueda inscribirse)
 • Y desde el 01/01/2027, quien no sea ciudadano ni residente permanente (ver la REGLA DEL 01/01/2027 más arriba: podrán inscribirse, pero a precio completo).
 
 PERIODOS DE INSCRIPCIÓN
-• Inscripción Abierta (OEP): del 1 de noviembre al 15 de enero en la mayoría de los estados, incluida Georgia. Es el único momento en que cualquiera puede inscribirse o cambiar de plan sin dar explicaciones.
+• Inscripción Abierta (OEP): comienza el 1 de noviembre. Para el año de plan 2027, el Marketplace FEDERAL (HealthCare.gov — Florida, Texas y otros ~27 estados) cierra el 15 DE DICIEMBRE DE 2026, NO el 15 de enero. Georgia Access tiene su propio mercado y puede tener fechas distintas — verificar en georgiaaccess.gov. Es el único momento en que cualquiera puede inscribirse o cambiar de plan sin dar explicaciones.
 • Periodo Especial (SEP): fuera de esas fechas, solo con un "evento de vida calificado" ocurrido en los últimos 60 DÍAS: perder el seguro del trabajo, casarse, divorciarse, tener o adoptar un hijo, mudarse a otro código postal, cumplir 26 años y salir del seguro de los padres. Insiste en el plazo de 60 días: es lo que más clientes pierde.
 
 HMO vs PPO
@@ -97,4 +108,7 @@ DÓNDE SE INSCRIBE
 • La mayoría de los estados usan el mercado federal: CuidadoDeSalud.gov (HealthCare.gov).
 • Georgia tiene mercado propio: georgiaaccess.gov. NO se cotiza en CuidadoDeSalud.gov. La Calculadora APTC del CRM ya cotiza Georgia automáticamente con los planes y tarifas oficiales del estado.
 • Otros estados con mercado propio (California, Nueva York, Pensilvania, Nevada, Nuevo México, Idaho, Minnesota...) tienen su propia página; la calculadora muestra el enlace y permite escribir a mano el precio del plan Plata de referencia.
+
+CÓMO INSCRIBE EL AGENTE — EDE OBLIGATORIO DESDE 2027
+El Classic Direct Enrollment (Classic DE) ya fue retirado. Para el Marketplace federal, el agente DEBE usar una plataforma EDE aprobada (como HealthSherpa u otras). No hay otra vía para hacer inscripciones en el Marketplace federal a través de un agente a partir del OEP 2027. Para el detalle del proceso de autorización del cliente y verificación de identidad, ver el bloque EDE CR 109 más abajo.
 `
